@@ -71,7 +71,7 @@ const ImpactPage = () => {
   const uniqueActionTypes = useMemo(() => {
     if (!intents) return [];
     const types = new Set(intents.map(intent => intent.actionType));
-    return Array.from(types).filter(type => type); // Ensure no empty strings
+    return Array.from(types).filter(type => !!type); // Ensure no empty strings
   }, [intents]);
 
   return (
