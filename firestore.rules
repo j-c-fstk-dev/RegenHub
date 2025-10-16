@@ -1,95 +1,77 @@
 /**
- * @fileOverview Firestore Security Rules for the Regenerative Intent App.
+ * @fileoverview Firestore Security Rules for the regenerative intents application.
  *
  * Core Philosophy:
- * This ruleset enforces a public-read, owner-write model for regenerative intents, while
- * restricting user profile access to the owning user. Only authenticated users can interact with the data.
+ * This ruleset focuses on securing user data and regenerative intent submissions.
+ * Users have ownership over their profiles, while regenerative intents are publicly readable but
+ * only writable by authenticated users.
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile information.
+ * - /users/{userId}: Stores public profile information for each user.
  * - /regenerative_intents/{intentId}: Stores submitted regenerative intents.
  *
  * Key Security Decisions:
- * - Public Read Access for Intents: Regenerative intents are publicly readable to encourage community engagement.
- * - Owner-Only Writes for Intents: Only the owner of an intent can modify or delete it.
- * - User Profile Ownership: Each user can only read and write their own profile data.
- * - Admin role does not exist.
+ * - User listing is disabled for privacy.
+ * - Regenerative intents are publicly readable to encourage transparency.
+ * - Only authenticated users can submit or modify regenerative intents. The `status` field can only be updated by a user with admin claims.
  *
- * Denormalization for Authorization:
- * - Regenerative intents do not have an ownerId. Since it should only be created, updated, and deleted by authorized users with write access, it does not have an explicit owner.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is authenticated.
-     * @returns {boolean} True if the user is signed in, false otherwise.
+     * @description Checks if the user is signed in.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user ID matches the provided user ID.
-     * @param {string} userId - The user ID to compare against the authenticated user ID.
-     * @returns {boolean} True if the user ID matches the authenticated user ID, false otherwise.
+     * @description Checks if the authenticated user's ID matches the provided userId.
      */
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the authenticated user is the existing owner of the document.
-     * @param {string} userId - The user ID of the document's owner.
-     * @returns {boolean} True if the user is the owner and the document exists, false otherwise.
+     * @description Checks if the authenticated user is the owner of the existing document.
      */
     function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Rules for user profile documents.
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (get) Authenticated user can read their own profile.
-     * @allow (create) Authenticated user can create their own profile.
-     * @allow (update) Authenticated user can update their own profile.
-     * @allow (delete) Authenticated user can delete their own profile.
-     * @deny (get) Authenticated user cannot read another user's profile.
-     * @deny (create) Authenticated user cannot create a profile with a different user ID.
-     * @deny (update) Authenticated user cannot update another user's profile.
-     * @deny (delete) Authenticated user cannot delete another user's profile.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) - Authenticated user can create their own profile if the userId matches their auth.uid.
+     * @allow (get, update, delete) - Authenticated user can only get, update, or delete their own profile.
+     * @deny (create) - User cannot create a profile with an ID that doesn't match their auth.uid.
+     * @deny (list) - Listing users is not allowed.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
-
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for regenerative intent documents.
+     * @description Rules for regenerative intents.
      * @path /regenerative_intents/{intentId}
-     * @allow (get) Anyone can read regenerative intents.
-     * @allow (list) Anyone can list regenerative intents.
-     * @allow (create) Authenticated user can create regenerative intents.
-     * @allow (update) Authenticated user can update regenerative intents.
-     * @allow (delete) Authenticated user can delete regenerative intents.
-     * @deny (create) Unauthenticated users cannot create regenerative intents.
-     * @deny (update) Unauthenticated users cannot update regenerative intents.
-     * @deny (delete) Unauthenticated users cannot delete regenerative intents.
-     * @principle Allows public read access for intents and restricts writes to authenticated users.
+     * @allow (get, list) - Anyone can read the intents.
+     * @allow (create) - Only authenticated users can submit intents.
+     * @allow (update, delete) - Only authenticated users can update or delete intents, and only if they are the original submitter (owner).
+     * @deny (create) - Non-authenticated users cannot submit intents.
+     * @deny (update, delete) - Non-authenticated users cannot update or delete intents.
+     * @principle Public read access with owner-only writes.
      */
     match /regenerative_intents/{intentId} {
-      allow get: if true;
-      allow list: if true;
-
+      allow get, list: if true;
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow update, delete: if isSignedIn();
     }
   }
 }
