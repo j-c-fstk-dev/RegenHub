@@ -24,10 +24,10 @@ const Intro = () => {
       <div className="container">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-headline text-3xl font-bold text-primary md:text-4xl">
-            The Story Behind the Project
+            Making Action Visible
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            We started with a question: How can we make regenerative action visible? Every month, thousands of people plant, clean, teach, or organize — but their actions go unseen, unrecorded, and unsupported. RegenIntentOS was born to change that.
+            Regen Hub addresses a simple but profound challenge: countless positive environmental actions go unseen, unrecorded, and unsupported. We provide the infrastructure to change that, turning isolated efforts into a visible, collective force for global regeneration.
           </p>
         </div>
 

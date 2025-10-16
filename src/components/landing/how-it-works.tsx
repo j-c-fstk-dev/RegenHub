@@ -1,4 +1,5 @@
-import { HandHeart, FilePenLine, ShieldCheck, GalleryVertical, Award,FileOutput } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { HandHeart, FilePenLine, ShieldCheck, GalleryVertical, Award, FileOutput } from "lucide-react";
 
 const steps = [
     {
@@ -47,22 +48,20 @@ const HowItWorks = () => {
           </p>
         </div>
 
-        <div className="relative mt-16">
-          <div className="absolute left-1/2 top-4 hidden h-full w-px -translate-x-1/2 bg-border md:block" aria-hidden="true" />
-
-          <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
-            {steps.map((step, index) => (
-              <div key={step.title} className={`flex items-start gap-6 ${index % 2 !== 0 ? 'md:flex-row-reverse md:text-right' : 'text-left'}`}>
-                <div className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
-                    <step.icon className="h-7 w-7" />
-                </div>
-                <div className="space-y-1">
-                    <h3 className="text-xl font-bold font-headline">{index + 1}. {step.title}</h3>
+        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {steps.map((step, index) => (
+            <Card key={step.title} className="text-center">
+                <CardHeader>
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <step.icon className="h-7 w-7" />
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    <CardTitle className="font-headline text-xl">{index + 1}. {step.title}</CardTitle>
                     <p className="text-muted-foreground">{step.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+                </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </section>

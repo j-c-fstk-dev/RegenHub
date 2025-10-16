@@ -25,7 +25,7 @@ const Concept = () => {
             An intent is a declaration of ecological action. It’s not just what you did — it’s what you meant to do for the living world.
           </p>
           <p className="text-lg text-muted-foreground">
-            In RegenIntentOS, intents are not just published — they are invited into collective meaning. Each intent can be linked to:
+            In Regen Hub, intents are not just published — they are invited into collective meaning. Each intent can be linked to:
           </p>
           <ul className="space-y-3">
             {conceptLinks.map((item) => (

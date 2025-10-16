@@ -25,7 +25,7 @@ const Hero = () => {
             Where Regenerative Action Becomes Verifiable Impact.
           </h1>
           <p className="text-lg text-primary-foreground/90 drop-shadow-sm md:text-xl">
-            RegenIntentOS is an open hub for tracking, validating, and celebrating real-world
+            Regen Hub is an open hub for tracking, validating, and celebrating real-world
             environmental intentions — by anyone, anywhere.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">

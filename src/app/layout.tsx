@@ -6,7 +6,7 @@ import Footer from '@/components/layout/footer';
 
 export const metadata: Metadata = {
   title: 'Regen Hub | Where Regenerative Action Becomes Verifiable Impact',
-  description: 'RegenIntentOS is an open hub for tracking, validating, and celebrating real-world environmental intentions — by anyone, anywhere.',
+  description: 'Regen Hub is an open hub for tracking, validating, and celebrating real-world environmental intentions — by anyone, anywhere.',
 };
 
 export default function RootLayout({

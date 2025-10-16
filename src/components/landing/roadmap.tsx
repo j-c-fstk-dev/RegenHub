@@ -31,7 +31,7 @@ const roadmapItems = [
         date: "Long-Term",
         title: "Public Infrastructure",
         details: [
-            "RegenIntentOS as public infrastructure",
+            "Regen Hub as public infrastructure",
             "Verified Intents as reputational credentials",
             "Global data for open environmental research"
         ]
