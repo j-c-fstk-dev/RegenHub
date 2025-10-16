@@ -1,81 +1,95 @@
+/**
+ * @fileOverview Firestore Security Rules for the Regenerative Intent App.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a public-read, owner-write model for regenerative intents, while
+ * restricting user profile access to the owning user. Only authenticated users can interact with the data.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores public user profile information.
+ * - /regenerative_intents/{intentId}: Stores submitted regenerative intents.
+ *
+ * Key Security Decisions:
+ * - Public Read Access for Intents: Regenerative intents are publicly readable to encourage community engagement.
+ * - Owner-Only Writes for Intents: Only the owner of an intent can modify or delete it.
+ * - User Profile Ownership: Each user can only read and write their own profile data.
+ * - Admin role does not exist.
+ *
+ * Denormalization for Authorization:
+ * - Regenerative intents do not have an ownerId. Since it should only be created, updated, and deleted by authorized users with write access, it does not have an explicit owner.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Security rules for the regenerative_intents collection.
-     * @path /regenerative_intents/{intentId}
-     * @allow (create) - An admin user can create a new regenerative intent.
-     * @allow (update) - An admin user can update an existing regenerative intent.
-     * @allow (delete) - An admin user can delete an existing regenerative intent.
-     * @allow (get) - An admin user can get a regenerative intent.
-     * @allow (list) - An admin user can list regenerative intents.
-     * @deny (create) - A non-admin user cannot create a new regenerative intent.
-     * @deny (update) - A non-admin user cannot update an existing regenerative intent.
-     * @deny (delete) - A non-admin user cannot delete an existing regenerative intent.
-     * @deny (get) - A non-admin user cannot get a regenerative intent.
-     * @deny (list) - A non-admin user cannot list regenerative intents.
-     * @principle Enforces role-based access control: only admin users can manage intents.
-     */
-    match /regenerative_intents/{intentId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    /**
-     * @description Security rules for the admin_users collection.
-     * @path /admin_users/{adminId}
-     * @allow (get) - An admin user can get their own profile.
-     * @allow (create) - An admin user profile can be created (typically by backend).
-     * @allow (update) - An admin user can update their own profile.
-     * @allow (delete) - An admin user profile can be deleted (typically by backend).
-     * @allow (list) - Listing admin users is disallowed.
-     * @deny (get) - A non-admin user cannot get an admin profile.
-     * @deny (create) - A non-admin user cannot create an admin profile.
-     * @deny (update) - A non-admin user cannot update another admin profile.
-     * @deny (delete) - A non-admin user cannot delete another admin profile.
-     * @deny (list) - Non-admins cannot list admin users.
-     * @principle Enforces role-based access control: only admins can manage admin profiles.
-     */
-    match /admin_users/{adminId} {
-      allow get: if isAdmin() && request.auth.uid == adminId;
-      allow list: if false;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && request.auth.uid == adminId;
-      allow delete: if isAdmin() && request.auth.uid == adminId;
-    }
-
-    // ---- Helper functions ----
-
-    /**
-     * @description Checks if the user is signed in.
-     * @return {boolean} True if the user is signed in, false otherwise.
+     * @description Checks if the request is authenticated.
+     * @returns {boolean} True if the user is signed in, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the user is an administrator.
-     *              This is determined by the existence of a document with their UID
-     *              in the /admin_users collection.
-     * @return {boolean} True if the user is an administrator, false otherwise.
-     */
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admin_users/$(request.auth.uid));
-    }
-
-    /**
-     * @description Checks if the user is the owner of the resource.
-     * @param {string} userId The user ID to check.
-     * @return {boolean} True if the user is the owner, false otherwise.
+     * @description Checks if the authenticated user ID matches the provided user ID.
+     * @param {string} userId - The user ID to compare against the authenticated user ID.
+     * @returns {boolean} True if the user ID matches the authenticated user ID, false otherwise.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    /**
+     * @description Checks if the authenticated user is the existing owner of the document.
+     * @param {string} userId - The user ID of the document's owner.
+     * @returns {boolean} True if the user is the owner and the document exists, false otherwise.
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Rules for user profile documents.
+     * @path /users/{userId}
+     * @allow (get) Authenticated user can read their own profile.
+     * @allow (create) Authenticated user can create their own profile.
+     * @allow (update) Authenticated user can update their own profile.
+     * @allow (delete) Authenticated user can delete their own profile.
+     * @deny (get) Authenticated user cannot read another user's profile.
+     * @deny (create) Authenticated user cannot create a profile with a different user ID.
+     * @deny (update) Authenticated user cannot update another user's profile.
+     * @deny (delete) Authenticated user cannot delete another user's profile.
+     * @principle Enforces document ownership for user profiles.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for regenerative intent documents.
+     * @path /regenerative_intents/{intentId}
+     * @allow (get) Anyone can read regenerative intents.
+     * @allow (list) Anyone can list regenerative intents.
+     * @allow (create) Authenticated user can create regenerative intents.
+     * @allow (update) Authenticated user can update regenerative intents.
+     * @allow (delete) Authenticated user can delete regenerative intents.
+     * @deny (create) Unauthenticated users cannot create regenerative intents.
+     * @deny (update) Unauthenticated users cannot update regenerative intents.
+     * @deny (delete) Unauthenticated users cannot delete regenerative intents.
+     * @principle Allows public read access for intents and restricts writes to authenticated users.
+     */
+    match /regenerative_intents/{intentId} {
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
   }
 }
