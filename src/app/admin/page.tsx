@@ -108,7 +108,8 @@ const AdminPage = () => {
   const handleVisibilityToggle = (intentId: string, currentVisibility?: boolean) => {
     if(!firestore) return;
     const intentRef = doc(firestore, 'regenerative_intents', intentId);
-    updateDocumentNonBlocking(intentRef, { visibleOnWall: !currentVisibility });
+    // Explicitly set to true or false. If currentVisibility is undefined, default to true.
+    updateDocumentNonBlocking(intentRef, { visibleOnWall: !(currentVisibility ?? false) });
   };
 
   if (isUserLoading || isSubmissionsLoading) {
@@ -184,7 +185,7 @@ const AdminPage = () => {
                     </TableCell>
                     <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => handleVisibilityToggle(submission.id, submission.visibleOnWall)}>
-                            {submission.visibleOnWall === false ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                            {submission.visibleOnWall ? <EyeIcon className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                         </Button>
                     </TableCell>
                     <TableCell className="text-right">
@@ -300,7 +301,7 @@ const AdminPage = () => {
                   <div className="flex items-center space-x-2 pt-4">
                     <Switch
                         id="visibility-switch"
-                        checked={selectedSubmission.visibleOnWall !== false}
+                        checked={selectedSubmission.visibleOnWall}
                         onCheckedChange={() => handleVisibilityToggle(selectedSubmission.id, selectedSubmission.visibleOnWall)}
                     />
                     <Label htmlFor="visibility-switch">Visible on Impact Wall</Label>

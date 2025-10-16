@@ -39,7 +39,7 @@ const ImpactPage = () => {
     let q = query(
       collection(firestore, 'regenerative_intents'),
       where('status', '==', 'verified'),
-      where('visibleOnWall', '!=', false),
+      where('visibleOnWall', '==', true),
       orderBy('actionDate', 'desc')
     );
     
@@ -70,7 +70,8 @@ const ImpactPage = () => {
   
   const uniqueActionTypes = useMemo(() => {
     if (!intents) return [];
-    return Array.from(new Set(intents.map(intent => intent.actionType).filter(Boolean)));
+    const types = new Set(intents.map(intent => intent.actionType));
+    return Array.from(types).filter(type => type); // Ensure no empty strings
   }, [intents]);
 
   return (
@@ -95,7 +96,7 @@ const ImpactPage = () => {
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 {uniqueActionTypes.map(type => (
-                    type ? <SelectItem key={type} value={type}>{type}</SelectItem> : null
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
