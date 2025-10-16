@@ -27,14 +27,43 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useFirestore, useStorage } from '@/firebase';
-import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { collection, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { runAiVerification } from '@/app/register/actions';
 import { AIAssistedIntentVerificationInput } from '@/ai/flows/ai-assisted-intent-verification';
+
+const actionCategories = [
+    { category: "Personal", action: "Regenerative Self-Care", description: "Practices that restore body, mind, and spirit in an integrated way." },
+    { category: "Interpersonal", action: "Listening and Mutual Support Circles", description: "Regular meetings for sharing and collective empowerment." },
+    { category: "Interpersonal", action: "Mediation and Nonviolent Communication", description: "Conscious dialogue and conflict resolution processes." },
+    { category: "Personal", action: "Experiential Learning Journeys", description: "Transformative experiences focused on self-knowledge and reconnection." },
+    { category: "Social", action: "Participatory Governance", description: "Horizontal and transparent community decision-making structures." },
+    { category: "Social", action: "Local Community Projects", description: "Creation of gardens, solidarity kitchens, joint efforts, or ecovillages." },
+    { category: "Social", action: "Community Care Networks", description: "Connection between people for mutual support and resilience." },
+    { category: "Economic", action: "Regenerative Businesses", description: "Modeling of enterprises with positive social and ecological impact." },
+    { category: "Economic", action: "Local Currencies and Solidarity Exchanges", description: "Decentralized and fair economic systems." },
+    { category: "Economic", action: "Collaborative Regenerative Financing", description: "Mobilization of ethical and transparent resources for positive impact." },
+    { category: "Economic", action: "Ethical Value Chains", description: "Transparency and traceability in production and consumption." },
+    { category: "Ecological", action: "Ecosystem Restoration", description: "Reforestation, spring protection, soil recovery." },
+    { category: "Ecological", action: "Community Gardens", description: "Regenerative cultivation for food security and environmental education." },
+    { category: "Ecological", action: "Circular Composting and Recycling", description: "Management of organic waste and reuse of materials." },
+    { category: "Ecological", action: "Biodiversity Monitoring", description: "Observation and recording of species and ecological dynamics." },
+    { category: "Educational", action: "Environmental and Ecological Education", description: "Training and awareness for sustainability and regeneration." },
+    { category: "Cultural", action: "Regenerative Art and Expression", description: "Artistic creations that inspire reconnection, beauty, and consciousness." },
+    { category: "Cultural/Spiritual", action: "Seasonal Rituals and Celebrations", description: "Symbolic gatherings that honor the Earth's cycles." },
+    { category: "Cultural", action: "Rescue of Ancestral Knowledge", description: "Preservation and transmission of traditional knowledge." },
+    { category: "Technological", action: "Open Impact Tools", description: "Development of collaborative regenerative software and systems." },
+    { category: "Technological", action: "Proof-of-Impact (Living Validation)", description: "Measurement and transparency of regenerative actions via open data." },
+    { category: "Technological", action: "Interoperability of Regenerative Data", description: "Connection between platforms and impact ecosystems." },
+    { category: "Ecological/Social", action: "Climate Adaptation Plans", description: "Local strategies for resilience and mitigation of climate change." },
+    { category: "Leadership", action: "Training of Regenerative Leaders", description: "Training to lead ecological and social transition processes." },
+    { category: "Other", action: "Other", description: "Any other regenerative action not listed above." }
+];
 
 const formSchema = z.object({
   actionName: z.string().min(5, { message: 'Action name must be at least 5 characters.' }),
   actionType: z.string({ required_error: 'Please select an action type.' }),
+  otherActionTypeDescription: z.string().optional(),
   actionDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Please enter a valid date.' }),
   location: z.string().min(3, { message: 'Location is required.' }),
   numberOfParticipants: z.coerce.number().int().min(1, { message: 'At least one participant is required.' }),
@@ -45,6 +74,14 @@ const formSchema = z.object({
   projectName: z.string().optional(),
   customTag: z.string().optional(),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
+}).refine(data => {
+    if (data.actionType === 'Other' && (!data.otherActionTypeDescription || data.otherActionTypeDescription.trim().length < 5)) {
+        return false;
+    }
+    return true;
+}, {
+    message: 'Please provide a brief description for the "Other" action type (min. 5 characters).',
+    path: ['otherActionTypeDescription'],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -61,6 +98,7 @@ export function RegisterForm() {
     defaultValues: {
       actionName: '',
       actionType: undefined,
+      otherActionTypeDescription: '',
       actionDate: '',
       location: '',
       numberOfParticipants: 1,
@@ -72,6 +110,8 @@ export function RegisterForm() {
       email: '',
     },
   });
+
+  const watchActionType = form.watch('actionType');
 
   const fileToDataUri = (file: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -87,6 +127,7 @@ export function RegisterForm() {
   });
 
   async function uploadMedia(mediaDataUris: string[], intentId: string): Promise<string[]> {
+    if (!storage) throw new Error("Firebase Storage not available.");
     const urls: string[] = [];
   
     for (let i = 0; i < mediaDataUris.length; i++) {
@@ -107,11 +148,11 @@ export function RegisterForm() {
   }
 
   async function onSubmit(values: FormValues) {
-    if (!firestore || !storage) {
+    if (!firestore) {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Firebase is not initialized. Please try again later.',
+            description: 'Database is not initialized. Please try again later.',
         });
         return;
     }
@@ -120,10 +161,11 @@ export function RegisterForm() {
       try {
         const { media, ...formData } = values;
         
-        // 1. Create document in Firestore
+        // 1. Create document placeholder in Firestore
         const newIntentRef = collection(firestore, 'regenerative_intents');
         const docRef = await addDoc(newIntentRef, {
             ...formData,
+            actionType: formData.actionType === 'Other' ? formData.otherActionTypeDescription : formData.actionType,
             socialMediaLinks: formData.socialMediaLinks ? [formData.socialMediaLinks] : [],
             status: 'pending',
             submissionDate: serverTimestamp(),
@@ -138,21 +180,28 @@ export function RegisterForm() {
         const mediaDataUris = await Promise.all(mediaFiles.map(fileToDataUri));
         const mediaUrls = await uploadMedia(mediaDataUris, intentId);
 
-        // 3. Update the document with media URLs
+        // 3. Update the document with final media URLs
         await updateDoc(docRef, { mediaUrls });
 
-        // 4. Trigger AI verification (non-blocking)
+        // 4. Trigger AI verification (non-blocking server action)
         const aiInput: AIAssistedIntentVerificationInput = {
           actionName: formData.actionName,
           actionType: formData.actionType,
           actionDescription: formData.shortDescription,
           location: formData.location,
           numberOfParticipants: formData.numberOfParticipants,
-          photos: mediaDataUris, // Send data URIs to AI
+          photos: mediaDataUris,
           socialMediaLinks: formData.socialMediaLinks ? [formData.socialMediaLinks] : [],
         };
 
-        runAiVerification(aiInput, intentId); // This is a server action call
+        // Don't await this, let it run in the background
+        runAiVerification(aiInput, intentId).then(response => {
+            if (response.success) {
+                console.log("AI Verification started for intent:", intentId);
+            } else {
+                console.error("AI Verification failed to start:", response.error);
+            }
+        });
 
         toast({
             title: 'Intent Submitted!',
@@ -165,7 +214,7 @@ export function RegisterForm() {
         toast({
             variant: 'destructive',
             title: 'Submission Failed',
-            description: 'Failed to process your submission. Please check the console and try again.',
+            description: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
         });
       }
     });
@@ -202,18 +251,34 @@ export function RegisterForm() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="planting">Planting</SelectItem>
-                      <SelectItem value="cleanup">Cleanup</SelectItem>
-                      <SelectItem value="workshop">Workshop/Education</SelectItem>
-                      <SelectItem value="composting">Composting</SelectItem>
-                       <SelectItem value="mutual-aid">Mutual Aid</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      {actionCategories.map(({ category, action }) => (
+                           <SelectItem key={action} value={action}>
+                           {`[${category}] ${action}`}
+                         </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
+            {watchActionType === 'Other' && (
+                 <FormField
+                 control={form.control}
+                 name="otherActionTypeDescription"
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel>Describe your action</FormLabel>
+                     <FormControl>
+                       <Input placeholder="Briefly describe the action type" {...field} />
+                     </FormControl>
+                     <FormMessage />
+                   </FormItem>
+                 )}
+               />
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <FormField control={form.control} name="actionDate" render={({ field }) => (
                     <FormItem className="md:col-span-1">
