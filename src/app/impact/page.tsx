@@ -9,7 +9,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, Timestamp, orderBy } from 'firebase/firestore';
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 type RegenerativeIntent = {
   id: string;
@@ -71,10 +71,11 @@ const ImpactPage = () => {
     setFilters(prev => ({...prev, [filterName]: value}));
   };
   
-  const uniqueActionTypes = useMemoFirebase(() => {
-      if(!intents) return [];
-      const types = new Set(intents.map(i => i.actionType).filter(Boolean)); // Filter out null/empty strings
-      return Array.from(types);
+  const uniqueActionTypes = useMemo(() => {
+    if (!intents) return [];
+    // Explicitly filter out any falsy values (null, undefined, '') to prevent errors.
+    const types = new Set(intents.map(i => i.actionType).filter(type => type && type.trim() !== ''));
+    return Array.from(types);
   }, [intents]);
 
 
