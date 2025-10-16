@@ -51,6 +51,8 @@ export function RegisterForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       actionName: "",
+      actionType: undefined,
+      actionDate: "",
       location: "",
       numberOfParticipants: 1,
       actionDescription: "",
@@ -155,7 +157,7 @@ export function RegisterForm() {
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <FormField control={form.control} name="actionDate" render={({ field }) => (
                     <FormItem className="md:col-span-1">
                         <FormLabel>Date of action</FormLabel>
@@ -200,7 +202,7 @@ export function RegisterForm() {
              <FormField
               control={form.control}
               name="photos"
-              render={({ field: { onChange, ...fieldProps } }) => (
+              render={({ field: { onChange, value, ...fieldProps } }) => (
                 <FormItem>
                   <FormLabel>Upload photos (proof of action)</FormLabel>
                   <FormControl>
