@@ -27,6 +27,7 @@ import { submitIntent } from '@/app/register/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useFirestore, useStorage } from '@/firebase';
 
 const formSchema = z.object({
   actionName: z.string().min(5, { message: 'Action name must be at least 5 characters.' }),
@@ -48,6 +49,9 @@ type FormValues = z.infer<typeof formSchema>;
 export function RegisterForm() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const firestore = useFirestore();
+  const storage = useStorage();
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -80,6 +84,15 @@ export function RegisterForm() {
   });
 
   async function onSubmit(values: FormValues) {
+    if (!firestore || !storage) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Firebase is not initialized. Please try again later.',
+        });
+        return;
+    }
+
     startTransition(async () => {
       try {
         const mediaFiles = Array.from(values.media);

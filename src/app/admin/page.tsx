@@ -26,11 +26,11 @@ import {
   useCollection,
   useUser,
   useMemoFirebase,
+  updateDocumentNonBlocking
 } from '@/firebase';
 import {
   collection,
   doc,
-  updateDoc,
   Timestamp,
   query,
   orderBy,
@@ -44,7 +44,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { updateDocumentNonBlocking } from '@/firebase';
+
 
 type RegenerativeIntent = {
   id: string;
