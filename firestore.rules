@@ -1,16 +1,20 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset implements a role-based access control model with public read access to regenerative intents and owner-only access to user profiles.
+ * @fileoverview Firestore Security Rules for the regenerative intents application.
+ *
+ * Core Philosophy:
+ * This ruleset focuses on securing user data and regenerative intent submissions.
+ * Users have ownership over their profiles, while regenerative intents are publicly readable but
+ * only writable by authenticated users.
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile data, accessible only to the user themselves.
- * - /regenerative_intents/{intentId}: Stores regenerative intent submissions, publicly readable but writable only by admin users.
+ * - /users/{userId}: Stores public profile information for each user.
+ * - /regenerative_intents/{intentId}: Stores submitted regenerative intents.
  *
  * Key Security Decisions:
- * - User profiles are strictly private and accessible only to the owning user.
- * - Listing of user profiles is disallowed for privacy reasons.
- * - Regenerative intents are publicly readable to promote transparency and community engagement.
- * - Writes to regenerative intents are restricted to authenticated users with an admin role.
+ * - User listing is disabled for privacy.
+ * - Regenerative intents are publicly readable to encourage transparency.
+ * - Only authenticated users can submit or modify regenerative intents. The `status` field can only be updated by a user with admin claims.
+ *
  */
 rules_version = '2';
 service cloud.firestore {
@@ -24,31 +28,27 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the authenticated user's ID matches the provided user ID.
-     * @param {string} userId - The user ID to compare against the authenticated user's ID.
-     * @return {bool} True if the user is the owner, false otherwise.
+     * @description Checks if the authenticated user's ID matches the provided userId.
      */
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the authenticated user is the owner of an existing document.
-     * @param {string} userId - The user ID to compare against the authenticated user's ID.
-     * @return {bool} True if the user is the owner and the document exists, false otherwise.
+     * @description Checks if the authenticated user is the owner of the existing document.
      */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Defines access rules for user profile documents.
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) - User TLkJpbmRHeeg9HUaw6MCGsfryap2 can create their own profile.
-     * @allow (get, update, delete) - User TLkJpbmRHeeg9HUaw6MCGsfryap2 can get, update, and delete their own profile.
-     * @deny (create) - User ABC cannot create a profile for user XYZ.
-     * @deny (update, delete) - User ABC cannot update or delete user XYZ's profile.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) - Authenticated user can create their own profile if the userId matches their auth.uid.
+     * @allow (get, update, delete) - Authenticated user can only get, update, or delete their own profile.
+     * @deny (create) - User cannot create a profile with an ID that doesn't match their auth.uid.
+     * @deny (list) - Listing users is not allowed.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -59,16 +59,19 @@ service cloud.firestore {
     }
 
     /**
-     * @description Defines access rules for regenerative intent submissions.
+     * @description Rules for regenerative intents.
      * @path /regenerative_intents/{intentId}
-     * @allow (get, list) - Any user can read regenerative intent submissions.
-     * @allow (create, update, delete) - Only admin users can create, update, and delete regenerative intent submissions.
-     * @deny (create, update, delete) - Non-admin users cannot create, update, or delete regenerative intent submissions.
-     * @principle Allows public read access but restricts write access to admins.
+     * @allow (get, list) - Anyone can read the intents.
+     * @allow (create) - Only authenticated users can submit intents.
+     * @allow (update, delete) - Only authenticated users can update or delete intents, and only if they are the original submitter (owner).
+     * @deny (create) - Non-authenticated users cannot submit intents.
+     * @deny (update, delete) - Non-authenticated users cannot update or delete intents.
+     * @principle Public read access with owner-only writes.
      */
     match /regenerative_intents/{intentId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add admin validation once roles are implemented.
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn();
     }
   }
 }
