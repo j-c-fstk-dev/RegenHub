@@ -70,11 +70,14 @@ const ImpactPage = () => {
   };
   
   const uniqueActionTypes = useMemo(() => {
-    if (!intents) return [];
+    if (!intents) {
+        return [];
+    }
     const types = new Set<string>();
     intents.forEach(intent => {
-        if (typeof intent.actionType === 'string' && intent.actionType.trim() !== '') {
-            types.add(intent.actionType);
+        // Ensure we only add valid, non-empty strings
+        if (typeof intent.actionType === 'string' && intent.actionType.trim()) {
+            types.add(intent.actionType.trim());
         }
     });
     return Array.from(types);
@@ -102,7 +105,9 @@ const ImpactPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Types</SelectItem>
-                {uniqueActionTypes.filter(type => type).map(type => (
+                {uniqueActionTypes
+                  .filter(type => typeof type === 'string' && type) // Final safeguard
+                  .map(type => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
