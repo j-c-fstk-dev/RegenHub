@@ -73,7 +73,7 @@ const ImpactPage = () => {
   
   const uniqueActionTypes = useMemoFirebase(() => {
       if(!intents) return [];
-      const types = new Set(intents.map(i => i.actionType));
+      const types = new Set(intents.map(i => i.actionType).filter(Boolean)); // Filter out null/empty strings
       return Array.from(types);
   }, [intents]);
 
