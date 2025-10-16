@@ -79,15 +79,19 @@ const AdminPage = () => {
   const firestore = useFirestore();
 
   const intentsQuery = useMemoFirebase(
-    () =>
-      firestore
-        ? query(
-            collection(firestore, 'regenerative_intents'),
-            orderBy('submissionDate', 'desc')
-          )
-        : null,
-    [firestore]
+    () => {
+      // Only create the query if the user is loaded and authenticated
+      if (!firestore || isUserLoading || !user) {
+        return null;
+      }
+      return query(
+        collection(firestore, 'regenerative_intents'),
+        orderBy('submissionDate', 'desc')
+      );
+    },
+    [firestore, user, isUserLoading]
   );
+
   const {
     data: submissions,
     isLoading: isSubmissionsLoading,
@@ -112,7 +116,7 @@ const AdminPage = () => {
     updateDocumentNonBlocking(intentRef, { visibleOnWall: !(currentVisibility ?? false) });
   };
 
-  if (isUserLoading || isSubmissionsLoading) {
+  if (isUserLoading || (user && isSubmissionsLoading)) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -351,3 +355,5 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
+
+    
