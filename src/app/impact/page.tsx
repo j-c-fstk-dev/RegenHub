@@ -73,14 +73,15 @@ const ImpactPage = () => {
     if (!intents) {
         return [];
     }
+    // Use a Set to store unique, valid, and trimmed action types.
     const types = new Set<string>();
     intents.forEach(intent => {
-        // Ensure we only add valid, non-empty strings
         if (typeof intent.actionType === 'string' && intent.actionType.trim()) {
             types.add(intent.actionType.trim());
         }
     });
-    return Array.from(types);
+    // Return a sorted array from the Set.
+    return Array.from(types).sort();
   }, [intents]);
 
 
@@ -99,15 +100,13 @@ const ImpactPage = () => {
         <CardContent className="p-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
             <Input placeholder="Filter by city..." onChange={e => handleFilterChange('location', e.target.value)} />
-            <Select onValueChange={value => handleFilterChange('actionType', value)}>
+            <Select onValueChange={value => handleFilterChange('actionType', value === 'all' ? '' : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by type..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
-                {uniqueActionTypes
-                  .filter(type => typeof type === 'string' && type) // Final safeguard
-                  .map(type => (
+                <SelectItem value="all">All Types</SelectItem>
+                {uniqueActionTypes.map(type => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
