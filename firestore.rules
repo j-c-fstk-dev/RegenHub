@@ -1,70 +1,95 @@
 /**
- * @fileOverview Firestore Security Rules for the Regenerative Intent application.
- *
- * Core Philosophy:
- * This ruleset enforces a public-read, owner-write model for regenerative intents,
- * allowing anyone to view the submitted intents while restricting modifications to
- * administrative users. User profiles are readable by anyone but writable only by the user.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for user profiles
+ * and allows public read access to regenerative intents, with owner-only write access.
  *
  * Data Structure:
- * - /regenerative_intents/{intentId}: Stores the submitted regenerative intents.
- * - /users/{userId}: Stores public user profile information.
+ * - /users/{userId}: Stores public user profile information. Only the user can read/write their own profile.
+ * - /regenerative_intents/{intentId}: Stores regenerative intent submissions. These are publicly readable,
+ *   but only owners can create, update, or delete them.
  *
  * Key Security Decisions:
- * - Users can list all regenerative intents.
- * - Only authenticated admins can create, update, or delete intents.
- * - Users can only modify their own profile data.
+ * - Users can only manage their own profile data.
+ * - Regenerative intents are publicly visible to encourage transparency.
+ * - Access control is simplified by denormalizing ownership directly onto the documents.
+ * - Admin roles are not currently implemented.
  *
  * Denormalization for Authorization:
- *  The current data model doesn't support an `ownerId` field on `regenerative_intents`.
- *  Admin status is not denormalized. Assuming an external mechanism to identify admins.
+ * - The /regenerative_intents/{intentId} documents are assumed to contain an `email` field representing the owner.
+ *
+ * Structural Segregation:
+ * - Public user profiles and private user data are stored in separate locations to facilitate different access patterns.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows public read access to regenerative intents while restricting write access to admins.
-     * @path /regenerative_intents/{intentId}
-     * @allow (get, list) All users can view regenerative intents.
-     * @deny (create, update, delete) Non-admin users cannot modify regenerative intents.
-     * @principle Allows public read access with restricted writes.
+     * @description Controls access to user profile documents.
+     * @path /users/{userId}
+     * @allow (create) User with ID 'user123' creates their own profile.
+     * @allow (get) User with ID 'user123' reads their own profile.
+     * @allow (update) User with ID 'user123' updates their own profile.
+     * @allow (delete) User with ID 'user123' deletes their own profile.
+     * @deny (create) User with ID 'user123' attempts to create a profile for 'user456'.
+     * @principle Enforces document ownership for writes.
      */
-    match /regenerative_intents/{intentId} {
-      allow get, list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+    match /users/{userId} {
+      // Verify identity
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Helper function to determine if the current user is the owner of the document.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the current user is the existing owner of the document.
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces user-ownership for profile data, where only the user can modify their own profile.
-     * @path /users/{userId}
-     * @allow (create) A user can create their own profile.
-     * @allow (get, list) Any user can read any profile, as profiles are public.
-     * @allow (update, delete) A user can only update or delete their own profile.
-     * @deny Requests that attempt to modify another user's profile.
-     * @principle Enforces user-ownership for writes.
+     * @description Controls access to regenerative intent submissions.
+     * @path /regenerative_intents/{intentId}
+     * @allow (get) Any user can read a regenerative intent.
+     * @allow (list) Any user can list regenerative intents.
+     * @allow (create) A user can create a regenerative intent where the email matches their auth.
+     * @allow (update) Only the owner (email) of a regenerative intent can update it.
+     * @allow (delete) Only the owner (email) of a regenerative intent can delete it.
+     * @deny (create) A user attempts to create a regenerative intent with an email that doesn't match their auth.
+     * @deny (update) A user attempts to update a regenerative intent they don't own.
+     * @principle Allows public read access with owner-only writes.
      */
-    match /users/{userId} {
+    match /regenerative_intents/{intentId} {
+      // Verify identity
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Helper function to determine if the current user is the owner of the document.
+      //CRITICAL: RegenerativeIntent entity must have a field 'email'
+      function isOwner(email) {
+          return request.auth.token.email == email;
+      }
+
+      // Helper function to check if the current user is the existing owner of the document.
+      function isExistingOwner(email) {
+        return isOwner(email) && resource.data != null && resource.data.email == email;
+      }
+
       allow get, list: if true;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
-    }
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      // Placeholder for admin check. Implement your admin authentication logic here.
-      // Example: return request.auth.token.email == 'admin@example.com';
-      return false;
+      allow create: if isSignedIn() && request.resource.data.email == request.auth.token.email;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.email);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.email);
     }
   }
 }

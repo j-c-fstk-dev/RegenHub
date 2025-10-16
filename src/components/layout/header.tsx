@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Sprout, LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -66,6 +66,7 @@ const Header = () => {
               </Button>
             </SheetTrigger>
             <SheetContent side="right">
+              <SheetTitle className="sr-only">Mobile Menu</SheetTitle>
               <div className="flex flex-col gap-6 pt-10">
                 <Link href="/" className="flex items-center space-x-2">
                   <Sprout className="h-6 w-6 text-primary" />
