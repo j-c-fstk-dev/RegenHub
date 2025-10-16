@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Security rules for the regenerative_intents collection.
+     * @path /regenerative_intents/{intentId}
+     * @allow (create) - An admin user can create a new regenerative intent.
+     * @allow (update) - An admin user can update an existing regenerative intent.
+     * @allow (delete) - An admin user can delete an existing regenerative intent.
+     * @allow (get) - An admin user can get a regenerative intent.
+     * @allow (list) - An admin user can list regenerative intents.
+     * @deny (create) - A non-admin user cannot create a new regenerative intent.
+     * @deny (update) - A non-admin user cannot update an existing regenerative intent.
+     * @deny (delete) - A non-admin user cannot delete an existing regenerative intent.
+     * @deny (get) - A non-admin user cannot get a regenerative intent.
+     * @deny (list) - A non-admin user cannot list regenerative intents.
+     * @principle Enforces role-based access control: only admin users can manage intents.
+     */
+    match /regenerative_intents/{intentId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Security rules for the admin_users collection.
+     * @path /admin_users/{adminId}
+     * @allow (get) - An admin user can get their own profile.
+     * @allow (create) - An admin user profile can be created (typically by backend).
+     * @allow (update) - An admin user can update their own profile.
+     * @allow (delete) - An admin user profile can be deleted (typically by backend).
+     * @allow (list) - Listing admin users is disallowed.
+     * @deny (get) - A non-admin user cannot get an admin profile.
+     * @deny (create) - A non-admin user cannot create an admin profile.
+     * @deny (update) - A non-admin user cannot update another admin profile.
+     * @deny (delete) - A non-admin user cannot delete another admin profile.
+     * @deny (list) - Non-admins cannot list admin users.
+     * @principle Enforces role-based access control: only admins can manage admin profiles.
+     */
+    match /admin_users/{adminId} {
+      allow get: if isAdmin() && request.auth.uid == adminId;
+      allow list: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin() && request.auth.uid == adminId;
+      allow delete: if isAdmin() && request.auth.uid == adminId;
+    }
+
+    // ---- Helper functions ----
+
+    /**
+     * @description Checks if the user is signed in.
+     * @return {boolean} True if the user is signed in, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the user is an administrator.
+     *              This is determined by the existence of a document with their UID
+     *              in the /admin_users collection.
+     * @return {boolean} True if the user is an administrator, false otherwise.
+     */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admin_users/$(request.auth.uid));
+    }
+
+    /**
+     * @description Checks if the user is the owner of the resource.
+     * @param {string} userId The user ID to check.
+     * @return {boolean} True if the user is the owner, false otherwise.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+  }
+}
