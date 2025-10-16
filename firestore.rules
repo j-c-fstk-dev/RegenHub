@@ -1,90 +1,70 @@
 /**
- * @fileoverview Firestore Security Rules for Prototyping.
+ * @fileOverview Firestore Security Rules for the Regenerative Intent application.
  *
  * Core Philosophy:
- * This ruleset prioritizes security by enforcing strict ownership and role-based access control.
- * It assumes a public-read, owner-write model for most data unless otherwise specified.
- * Data shape validation is minimized to allow for rapid prototyping and schema iteration.
+ * This ruleset enforces a public-read, owner-write model for regenerative intents,
+ * allowing anyone to view the submitted intents while restricting modifications to
+ * administrative users. User profiles are readable by anyone but writable only by the user.
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile information. Only the user themselves can modify their profile.
- * - /regenerative_intents/{intentId}: Stores regenerative intents. Publicly readable, but write access is restricted.
+ * - /regenerative_intents/{intentId}: Stores the submitted regenerative intents.
+ * - /users/{userId}: Stores public user profile information.
  *
  * Key Security Decisions:
- * - Public read access to regenerative intents to encourage community participation and transparency.
- * - Owner-only write access to regenerative intents, ensuring that only the submitter can modify their own submission.
- * - No user listing is allowed to prevent enumeration.
- * - Ambiguous relationships default to strict owner-only access.
+ * - Users can list all regenerative intents.
+ * - Only authenticated admins can create, update, or delete intents.
+ * - Users can only modify their own profile data.
+ *
+ * Denormalization for Authorization:
+ *  The current data model doesn't support an `ownerId` field on `regenerative_intents`.
+ *  Admin status is not denormalized. Assuming an external mechanism to identify admins.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the current user is signed in.
-     * @return {boolean} True if the user is signed in, false otherwise.
+     * @description Allows public read access to regenerative intents while restricting write access to admins.
+     * @path /regenerative_intents/{intentId}
+     * @allow (get, list) All users can view regenerative intents.
+     * @deny (create, update, delete) Non-admin users cannot modify regenerative intents.
+     * @principle Allows public read access with restricted writes.
      */
+    match /regenerative_intents/{intentId} {
+      allow get, list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Enforces user-ownership for profile data, where only the user can modify their own profile.
+     * @path /users/{userId}
+     * @allow (create) A user can create their own profile.
+     * @allow (get, list) Any user can read any profile, as profiles are public.
+     * @allow (update, delete) A user can only update or delete their own profile.
+     * @deny Requests that attempt to modify another user's profile.
+     * @principle Enforces user-ownership for writes.
+     */
+    match /users/{userId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * @description Checks if the current user is the owner of the resource.
-     * @param {string} userId - The user ID to compare against the request's auth UID.
-     * @return {boolean} True if the user is the owner, false otherwise.
-     */
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
 
-    /**
-     * @description Checks if the current user is the owner of the resource and the resource exists.
-     * @param {string} userId - The user ID to compare against the request's auth UID.
-     * @return {boolean} True if the user is the owner and the resource exists, false otherwise.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Rules for user profiles.
-     * @path /users/{userId}
-     * @allow (create) User with UID 'user123' creates their profile at /users/user123.
-     * @allow (get) User with UID 'user123' reads their profile at /users/user123.
-     * @allow (update) User with UID 'user123' updates their profile at /users/user123.
-     * @deny (create) User with UID 'user123' tries to create a profile at /users/user456.
-     * @deny (update) User with UID 'user123' tries to update the profile at /users/user456.
-     * @deny (delete) Any user tries to delete a user profile.
-     * @deny (list) Any user tries to list user profiles.
-     * @principle Enforces document ownership for writes.
-     */
-    match /users/{userId} {
-      allow get: if true;
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if false;
-    }
-
-    /**
-     * @description Rules for regenerative intents.
-     * @path /regenerative_intents/{intentId}
-     * @allow (get) Any user can read a regenerative intent.
-     * @allow (list) Any user can list regenerative intents.
-     * @allow (create) User with UID 'user123' creates a regenerative intent. MUST ensure the document has a ownership (`ownerId`) field.
-     * @allow (update) Owner of the intent can update it.
-     * @allow (delete) Owner of the intent can delete it.
-     * @deny (create) User with UID 'user123' tries to create a regenerative intent without being the owner.
-     * @deny (update) User with UID 'user123' tries to update a regenerative intent they don't own.
-     * @deny (delete) User with UID 'user123' tries to delete a regenerative intent they don't own.
-     * @principle Allows public read access but restricts write access to the owner.
-     */
-    match /regenerative_intents/{intentId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false;  // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false;  // TODO: Add owner validation once the schema is updated with an ownership field.
+    function isAdmin() {
+      // Placeholder for admin check. Implement your admin authentication logic here.
+      // Example: return request.auth.token.email == 'admin@example.com';
+      return false;
     }
   }
 }

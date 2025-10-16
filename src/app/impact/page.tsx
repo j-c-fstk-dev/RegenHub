@@ -73,14 +73,12 @@ const ImpactPage = () => {
     if (!intents) {
         return [];
     }
-    // Use a Set to store unique, valid, and trimmed action types.
     const types = new Set<string>();
     intents.forEach(intent => {
-        if (typeof intent.actionType === 'string' && intent.actionType.trim()) {
+        if (intent.actionType && typeof intent.actionType === 'string' && intent.actionType.trim() !== '') {
             types.add(intent.actionType.trim());
         }
     });
-    // Return a sorted array from the Set.
     return Array.from(types).sort();
   }, [intents]);
 
@@ -107,7 +105,7 @@ const ImpactPage = () => {
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 {uniqueActionTypes.map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                    type && <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
