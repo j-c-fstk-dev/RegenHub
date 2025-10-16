@@ -73,8 +73,12 @@ const ImpactPage = () => {
   
   const uniqueActionTypes = useMemo(() => {
     if (!intents) return [];
-    // Explicitly filter out any falsy values (null, undefined, '') to prevent errors.
-    const types = new Set(intents.map(i => i.actionType).filter(type => type && type.trim() !== ''));
+    const types = new Set<string>();
+    intents.forEach(intent => {
+        if (typeof intent.actionType === 'string' && intent.actionType.trim() !== '') {
+            types.add(intent.actionType);
+        }
+    });
     return Array.from(types);
   }, [intents]);
 
@@ -100,7 +104,7 @@ const ImpactPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Types</SelectItem>
-                {uniqueActionTypes?.map(type => (
+                {uniqueActionTypes.map(type => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
