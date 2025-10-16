@@ -39,11 +39,10 @@ const ImpactPage = () => {
     let q = query(
       collection(firestore, 'regenerative_intents'),
       where('status', '==', 'verified'),
-      where('visibleOnWall', '!=', false), 
-      orderBy('visibleOnWall', 'desc'), 
+      where('visibleOnWall', '!=', false),
       orderBy('actionDate', 'desc')
     );
-
+    
     if (filters.location) {
       q = query(q, where('location', '>=', filters.location), where('location', '<=', filters.location + '\uf8ff'));
     }
@@ -70,18 +69,9 @@ const ImpactPage = () => {
   };
   
   const uniqueActionTypes = useMemo(() => {
-    if (!intents) {
-        return [];
-    }
-    const types = new Set<string>();
-    intents.forEach(intent => {
-        if (intent.actionType && typeof intent.actionType === 'string' && intent.actionType.trim() !== '') {
-            types.add(intent.actionType.trim());
-        }
-    });
-    return Array.from(types).sort();
+    if (!intents) return [];
+    return Array.from(new Set(intents.map(intent => intent.actionType).filter(Boolean)));
   }, [intents]);
-
 
   return (
     <div className="container py-12">
@@ -105,7 +95,7 @@ const ImpactPage = () => {
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 {uniqueActionTypes.map(type => (
-                    type && <SelectItem key={type} value={type}>{type}</SelectItem>
+                    type ? <SelectItem key={type} value={type}>{type}</SelectItem> : null
                 ))}
               </SelectContent>
             </Select>
