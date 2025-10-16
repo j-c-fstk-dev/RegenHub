@@ -1,14 +1,28 @@
+'use client';
+
 import Link from 'next/link';
-import { Sprout } from 'lucide-react';
+import { Sprout, LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 const Header = () => {
+  const { user } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push('/');
+  };
+
   const navItems = [
     { name: 'Impact Wall', href: '/impact' },
     { name: 'About', href: '/about' },
-    { name: 'Admin', href: '/admin' },
+    ...(user ? [{ name: 'Admin', href: '/admin' }] : []),
   ];
 
   return (
@@ -30,6 +44,17 @@ const Header = () => {
           ))}
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-2">
+          {user ? (
+             <Button variant="ghost" size="icon" onClick={handleSignOut}>
+                <LogOut className="h-5 w-5" />
+             </Button>
+          ) : (
+            <Button asChild variant="ghost" size="icon">
+                <Link href="/login">
+                    <UserIcon className="h-5 w-5" />
+                </Link>
+            </Button>
+          )}
           <Button asChild className="hidden sm:inline-flex">
             <Link href="/register">Submit Your Intent</Link>
           </Button>

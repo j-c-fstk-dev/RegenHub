@@ -27,14 +27,6 @@
           "type": "string",
           "description": "Location where the action was performed (textual description)."
         },
-        "latitude": {
-          "type": "number",
-          "description": "Latitude of the location where the action was performed."
-        },
-        "longitude": {
-          "type": "number",
-          "description": "Longitude of the location where the action was performed."
-        },
         "numberOfParticipants": {
           "type": "number",
           "description": "Number of participants involved in the action."
@@ -93,7 +85,6 @@
         }
       },
       "required": [
-        "id",
         "actionName",
         "actionType",
         "actionDate",
@@ -102,74 +93,46 @@
         "shortDescription",
         "responsibleName",
         "email",
-        "certificateRequested",
         "submissionDate",
         "status"
       ]
     },
-    "AdminUser": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "AdminUser",
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's public profile information.",
       "type": "object",
-      "description": "Represents an administrator user who can verify intents. (Authentication system data not stored)",
       "properties": {
-        "id": {
+        "displayName": {
           "type": "string",
-          "description": "Unique identifier for the Admin User."
+          "description": "The user's chosen display name."
         },
-        "email": {
+        "avatarUrl": {
           "type": "string",
-          "description": "Email address of the admin user.",
-          "format": "email"
+          "description": "URL for the user's avatar image."
         }
       },
       "required": [
-        "id",
-        "email"
+        "displayName"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/regenerative_intents/{intentId}",
-        "definition": {
-          "entityName": "RegenerativeIntent",
-          "schema": {
-            "$ref": "#/backend/entities/RegenerativeIntent"
-          },
-          "description": "Stores submitted regenerative intents.  Admin users can read and modify these intents. Includes all intent data including mediaUrls and status for verification and display in the admin panel.",
-          "params": [
-            {
-              "name": "intentId",
-              "description": "Unique identifier for the Regenerative Intent document."
-            }
-          ]
-        }
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
       },
-      {
-        "path": "/admin_users/{adminId}",
-        "definition": {
-          "entityName": "AdminUser",
-          "schema": {
-            "$ref": "#/backend/entities/AdminUser"
-          },
-          "description": "Stores administrator user profiles, used for authentication and authorization to access the admin panel.",
-          "params": [
-            {
-              "name": "adminId",
-              "description": "Unique identifier for the Admin User."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore data structure is designed to support the Regen Hub application, emphasizing a clear separation of concerns, authorization independence, and scalability. The primary collection, `/regenerative_intents`, stores the submitted intents.  To facilitate the admin panel functionality, all submitted intents are stored directly in this top-level collection, enabling easy querying and display. An `/admin_users` collection stores administrator details for authentication purposes. This setup prioritizes simplicity for the MVP, and denormalization to remove authorization dependencies.\n\n**Authorization Independence:**  There are no subcollections or hierarchical dependencies requiring `get()` calls in the security rules. Access to intents is controlled via the `status` field and verified through the `admin_users` collection.\n\n**QAPs (Queries are not Filters):**\n*   The structure enables listing operations. Only admins can read all intents.\n\n\n*   Non-admins cannot read any documents.  List operations are secured because only authenticated admins can list the `/regenerative_intents` collection.\n\n\n*   The structure uses structural segregation.\n\n\n*   Admin role existence in the `/admin_users` collection determines administrative privileges."
+      "description": "Stores public information for each user."
+    },
+    "/regenerative_intents/{intentId}": {
+      "schema": {
+        "$ref": "#/entities/RegenerativeIntent"
+      },
+      "description": "Stores submitted regenerative intents. Admin users can read and modify these intents."
+    }
   }
 }

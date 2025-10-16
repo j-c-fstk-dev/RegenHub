@@ -1,69 +1,112 @@
-"use server";
+'use server';
 
-import { z } from "zod";
-import { aiAssistedIntentVerification } from "@/ai/flows/ai-assisted-intent-verification";
+import { z } from 'zod';
+import {
+  aiAssistedIntentVerification,
+  AIAssistedIntentVerificationInput,
+} from '@/ai/flows/ai-assisted-intent-verification';
+import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { collection, addDoc, serverTimestamp, Firestore } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
-// A simplified input schema for the action, as the full schema is on the client.
-const ActionInputSchema = z.object({
-  actionName: z.string(),
+const formSchema = z.object({
+  actionName: z.string().min(5),
   actionType: z.string(),
-  actionDescription: z.string(),
-  location: z.string(),
-  numberOfParticipants: z.number(),
-  photos: z.array(z.string()),
-  socialMediaLinks: z.array(z.string()),
-  contactEmail: z.string().email(),
+  actionDate: z.string(),
+  location: z.string().min(3),
+  numberOfParticipants: z.coerce.number().int().min(1),
+  shortDescription: z.string().min(20).max(500),
+  media: z.array(z.string()), // Array of data URIs
+  socialMediaLinks: z.array(z.string().url()).optional(),
+  responsibleName: z.string().min(2),
+  projectName: z.string().optional(),
+  customTag: z.string().optional(),
+  email: z.string().email(),
 });
 
-type ActionInput = z.infer<typeof ActionInputSchema>;
+type ActionInput = z.infer<typeof formSchema>;
 
+async function uploadMedia(mediaDataUris: string[], intentId: string): Promise<string[]> {
+  const { firebaseApp } = initializeFirebase();
+  const storage = getStorage(firebaseApp);
+  const urls: string[] = [];
 
-async function sendEmailNotification(data: ActionInput) {
-    // In a real app, you would use an email service like Resend, SendGrid, or AWS SES.
-    // For this example, we'll just log to the console.
-    console.log("Sending email notification to admin about new submission from:", data.contactEmail);
-    console.log("Submission details:", JSON.stringify(data, null, 2));
-
-    // Example of what it might look like with a real service:
-    //
-    // import { Resend } from 'resend';
-    // const resend = new Resend(process.env.RESEND_API_KEY);
-    //
-    // await resend.emails.send({
-    //   from: 'submissions@regen-hub.com',
-    //   to: 'admin@regen-hub.com',
-    //   subject: `New Intent Submission: ${data.actionName}`,
-    //   html: `<p>A new intent has been submitted by ${data.contactEmail}.</p><p>Details: ${data.actionDescription}</p>`
-    // });
+  for (let i = 0; i < mediaDataUris.length; i++) {
+    const dataUri = mediaDataUris[i];
+    const fileExtension = dataUri.substring(dataUri.indexOf('/') + 1, dataUri.indexOf(';'));
+    const storageRef = ref(storage, `intents/${intentId}/media_${Date.now()}.${fileExtension}`);
     
-    return Promise.resolve();
-}
-
-
-export async function submitIntent(
-  data: ActionInput
-): Promise<{ success: boolean; error?: string; verification?: any }> {
-  const validatedData = ActionInputSchema.safeParse(data);
-
-  if (!validatedData.success) {
-    return { success: false, error: "Invalid data provided." };
+    // The data URI needs to be stripped of its prefix before uploading
+    const base64Data = dataUri.split(',')[1];
+    
+    const snapshot = await uploadString(storageRef, base64Data, 'base64', {
+      contentType: dataUri.substring(dataUri.indexOf(':') + 1, dataUri.indexOf(';')),
+    });
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    urls.push(downloadURL);
   }
 
+  return urls;
+}
+
+export async function submitIntent(data: ActionInput): Promise<{ success: boolean; error?: string; intentId?: string }> {
+  const validatedData = formSchema.safeParse(data);
+
+  if (!validatedData.success) {
+    console.error('Invalid data provided:', validatedData.error.flatten().fieldErrors);
+    return { success: false, error: 'Invalid data provided.' };
+  }
+  
+  const { media, ...formData } = validatedData.data;
+
   try {
-    const verificationResult = await aiAssistedIntentVerification(validatedData.data);
+    const { firestore } = initializeFirebase();
     
-    console.log("AI Verification Result:", verificationResult);
-    
-    // In a real application, you would now save the intent and the verification result to a database.
-    
-    // Send email notification
-    await sendEmailNotification(validatedData.data);
+    // 1. Create a document reference with an auto-generated ID first
+    const newIntentRef = collection(firestore, 'regenerative_intents');
+    // To get an ID before saving, we'll add the doc in a two-step process
+    // (though for this flow, we can just create the doc and get its ID)
+    const docRef = await addDoc(newIntentRef, {
+        ...formData,
+        status: 'pending',
+        submissionDate: serverTimestamp(),
+        mediaUrls: [], // temporary
+        certificateRequested: true, // Assuming this for now
+        autoGeneratedTag: '', // TODO
+    });
 
+    const intentId = docRef.id;
 
-    return { success: true, verification: verificationResult };
+    // 2. Upload media to Firebase Storage with the new intentId
+    const mediaUrls = await uploadMedia(media, intentId);
+
+    // 3. Update the Firestore document with the media URLs
+    await updateDoc(docRef, { mediaUrls });
+
+    // 4. (Optional) AI verification - can be done in parallel or via a Cloud Function trigger later
+    const aiInput: AIAssistedIntentVerificationInput = {
+      actionName: formData.actionName,
+      actionType: formData.actionType,
+      actionDescription: formData.shortDescription,
+      location: formData.location,
+      numberOfParticipants: formData.numberOfParticipants,
+      photos: mediaUrls, // Use uploaded URLs
+      socialMediaLinks: formData.socialMediaLinks || [],
+    };
+    // Not awaiting this, as it can run in the background
+    aiAssistedIntentVerification(aiInput).then(verificationResult => {
+      console.log('AI Verification Result:', verificationResult);
+      // Optionally update the intent with the AI result
+      updateDoc(docRef, { aiVerification: verificationResult });
+    });
+
+    return { success: true, intentId };
 
   } catch (error) {
-    console.error("Error during AI verification:", error);
-    return { success: false, error: "An error occurred during the verification process." };
+    console.error('Error during intent submission:', error);
+    if (error instanceof Error) {
+        return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unknown error occurred during submission.' };
   }
 }

@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -12,103 +12,103 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { submitIntent } from "@/app/register/actions";
-import { useToast } from "@/hooks/use-toast";
-import { useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { submitIntent } from '@/app/register/actions';
+import { useToast } from '@/hooks/use-toast';
+import { useState, useTransition } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
-  actionName: z.string().min(5, { message: "Action name must be at least 5 characters." }),
-  actionType: z.string({ required_error: "Please select an action type." }),
-  actionDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Please enter a valid date." }),
-  location: z.string().min(3, { message: "Location is required." }),
-  numberOfParticipants: z.coerce.number().int().min(1, { message: "At least one participant is required." }),
-  actionDescription: z.string().min(20, { message: "Description must be at least 20 characters." }).max(500),
-  photos: typeof window === 'undefined' ? z.any() : z.instanceof(FileList).refine(files => files.length > 0, 'At least one photo is required.'),
-  socialMediaLinks: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-  submitterName: z.string().min(2, { message: "Your name is required." }),
+  actionName: z.string().min(5, { message: 'Action name must be at least 5 characters.' }),
+  actionType: z.string({ required_error: 'Please select an action type.' }),
+  actionDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Please enter a valid date.' }),
+  location: z.string().min(3, { message: 'Location is required.' }),
+  numberOfParticipants: z.coerce.number().int().min(1, { message: 'At least one participant is required.' }),
+  shortDescription: z.string().min(20, { message: 'Description must be at least 20 characters.' }).max(500),
+  media: typeof window === 'undefined' ? z.any() : z.instanceof(FileList).refine(files => files.length > 0, 'At least one media file is required.'),
+  socialMediaLinks: z.string().url({ message: 'Please enter a valid URL.' }).optional().or(z.literal('')),
+  responsibleName: z.string().min(2, { message: 'Your name is required.' }),
   projectName: z.string().optional(),
   customTag: z.string().optional(),
-  contactEmail: z.string().email({ message: "Please enter a valid email address." }),
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
 });
+
+type FormValues = z.infer<typeof formSchema>;
 
 export function RegisterForm() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      actionName: "",
+      actionName: '',
       actionType: undefined,
-      actionDate: "",
-      location: "",
+      actionDate: '',
+      location: '',
       numberOfParticipants: 1,
-      actionDescription: "",
-      socialMediaLinks: "",
-      submitterName: "",
-      projectName: "",
-      customTag: "",
-      contactEmail: "",
+      shortDescription: '',
+      socialMediaLinks: '',
+      responsibleName: '',
+      projectName: '',
+      customTag: '',
+      email: '',
     },
   });
 
   const fileToDataUri = (file: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
-      if(event.target?.result) {
+      if (event.target?.result) {
         resolve(event.target.result as string);
       } else {
-        reject(new Error("Failed to read file."));
+        reject(new Error('Failed to read file.'));
       }
     };
-    reader.onerror = (error) => {
-      reject(error);
-    };
+    reader.onerror = (error) => reject(error);
     reader.readAsDataURL(file);
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
     startTransition(async () => {
       try {
-        const photos = Array.from(values.photos);
-        const photoDataUris = await Promise.all(photos.map(fileToDataUri));
+        const mediaFiles = Array.from(values.media);
+        const mediaDataUris = await Promise.all(mediaFiles.map(fileToDataUri));
 
         const result = await submitIntent({
           ...values,
-          photos: photoDataUris,
+          media: mediaDataUris,
           socialMediaLinks: values.socialMediaLinks ? [values.socialMediaLinks] : [],
         });
         
         if (result.success) {
             toast({
-                title: "Intent Submitted!",
-                description: "Your action is now pending verification. Thank you!",
+                title: 'Intent Submitted!',
+                description: 'Your action is now pending verification. Thank you!',
             });
             form.reset();
         } else {
             toast({
-                variant: "destructive",
-                title: "Submission Failed",
-                description: result.error || "An unknown error occurred.",
+                variant: 'destructive',
+                title: 'Submission Failed',
+                description: result.error || 'An unknown error occurred.',
             });
         }
       } catch (error) {
         toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to process your submission. Please try again.",
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to process your submission. Please try again.',
         });
       }
     });
@@ -188,7 +188,7 @@ export function RegisterForm() {
             />
             <FormField
               control={form.control}
-              name="actionDescription"
+              name="shortDescription"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Brief description</FormLabel>
@@ -201,13 +201,14 @@ export function RegisterForm() {
             />
              <FormField
               control={form.control}
-              name="photos"
+              name="media"
               render={({ field: { onChange, value, ...fieldProps } }) => (
                 <FormItem>
-                  <FormLabel>Upload photos (proof of action)</FormLabel>
+                  <FormLabel>Upload photos or videos</FormLabel>
                   <FormControl>
-                    <Input type="file" multiple accept="image/*" {...fieldProps} onChange={e => onChange(e.target.files)} />
+                    <Input type="file" multiple accept="image/*,video/*" {...fieldProps} onChange={e => onChange(e.target.files)} />
                   </FormControl>
+                  <FormDescription>You can upload multiple images and videos.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -229,12 +230,12 @@ export function RegisterForm() {
                 <h3 className="text-lg font-semibold font-headline">Identification</h3>
                  <FormField
                     control={form.control}
-                    name="submitterName"
+                    name="responsibleName"
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Your Name</FormLabel>
                         <FormControl>
-                            <Input placeholder="Jane Doe" {...field} />
+                            <Input placeholder="Jane Doe" {...field} value={field.value ?? ''} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -247,7 +248,7 @@ export function RegisterForm() {
                         <FormItem>
                         <FormLabel>Project or Collective Name (optional)</FormLabel>
                         <FormControl>
-                            <Input placeholder="e.g., Green Thumbs Initiative" {...field} />
+                            <Input placeholder="e.g., Green Thumbs Initiative" {...field} value={field.value ?? ''} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -260,7 +261,7 @@ export function RegisterForm() {
                         <FormItem>
                         <FormLabel>Custom Tag (optional)</FormLabel>
                         <FormControl>
-                            <Input placeholder="my-project-tag" {...field} />
+                            <Input placeholder="my-project-tag" {...field} value={field.value ?? ''} />
                         </FormControl>
                         <FormDescription>A unique tag to group all your actions. If left blank, one will be generated.</FormDescription>
                         <FormMessage />
@@ -270,7 +271,7 @@ export function RegisterForm() {
             </div>
             <FormField
               control={form.control}
-              name="contactEmail"
+              name="email"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Contact Email</FormLabel>
