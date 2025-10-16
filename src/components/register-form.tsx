@@ -14,56 +14,50 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check, ChevronsUpDown, Sprout, HandHeart, MessageCircle, GraduationCap, Users, Home, Euro, Recycle, Globe, BrainCircuit, Heart, FlaskConical, CircleUserRound, Star } from 'lucide-react';
 import { useFirestore, useStorage } from '@/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { runAiVerification } from '@/app/register/actions';
 import { AIAssistedIntentVerificationInput } from '@/ai/flows/ai-assisted-intent-verification';
+import { cn } from '@/lib/utils';
 
 const actionCategories = [
-    { category: "Personal", action: "Regenerative Self-Care", description: "Practices that restore body, mind, and spirit in an integrated way." },
-    { category: "Interpersonal", action: "Listening and Mutual Support Circles", description: "Regular meetings for sharing and collective empowerment." },
-    { category: "Interpersonal", action: "Mediation and Nonviolent Communication", description: "Conscious dialogue and conflict resolution processes." },
-    { category: "Personal", action: "Experiential Learning Journeys", description: "Transformative experiences focused on self-knowledge and reconnection." },
-    { category: "Social", action: "Participatory Governance", description: "Horizontal and transparent community decision-making structures." },
-    { category: "Social", action: "Local Community Projects", description: "Creation of gardens, solidarity kitchens, joint efforts, or ecovillages." },
-    { category: "Social", action: "Community Care Networks", description: "Connection between people for mutual support and resilience." },
-    { category: "Economic", action: "Regenerative Businesses", description: "Modeling of enterprises with positive social and ecological impact." },
-    { category: "Economic", action: "Local Currencies and Solidarity Exchanges", description: "Decentralized and fair economic systems." },
-    { category: "Economic", action: "Collaborative Regenerative Financing", description: "Mobilization of ethical and transparent resources for positive impact." },
-    { category: "Economic", action: "Ethical Value Chains", description: "Transparency and traceability in production and consumption." },
-    { category: "Ecological", action: "Ecosystem Restoration", description: "Reforestation, spring protection, soil recovery." },
-    { category: "Ecological", action: "Community Gardens", description: "Regenerative cultivation for food security and environmental education." },
-    { category: "Ecological", action: "Circular Composting and Recycling", description: "Management of organic waste and reuse of materials." },
-    { category: "Ecological", action: "Biodiversity Monitoring", description: "Observation and recording of species and ecological dynamics." },
-    { category: "Educational", action: "Environmental and Ecological Education", description: "Training and awareness for sustainability and regeneration." },
-    { category: "Cultural", action: "Regenerative Art and Expression", description: "Artistic creations that inspire reconnection, beauty, and consciousness." },
-    { category: "Cultural/Spiritual", action: "Seasonal Rituals and Celebrations", description: "Symbolic gatherings that honor the Earth's cycles." },
-    { category: "Cultural", action: "Rescue of Ancestral Knowledge", description: "Preservation and transmission of traditional knowledge." },
-    { category: "Technological", action: "Open Impact Tools", description: "Development of collaborative regenerative software and systems." },
-    { category: "Technological", action: "Proof-of-Impact (Living Validation)", description: "Measurement and transparency of regenerative actions via open data." },
-    { category: "Technological", action: "Interoperability of Regenerative Data", description: "Connection between platforms and impact ecosystems." },
-    { category: "Ecological/Social", action: "Climate Adaptation Plans", description: "Local strategies for resilience and mitigation of climate change." },
-    { category: "Leadership", action: "Training of Regenerative Leaders", description: "Training to lead ecological and social transition processes." },
-    { category: "Other", action: "Other", description: "Any other regenerative action not listed above." }
+    { category: "Personal", action: "Regenerative Self-Care", icon: HandHeart },
+    { category: "Interpersonal", action: "Listening and Mutual Support Circles", icon: MessageCircle },
+    { category: "Interpersonal", action: "Mediation and Nonviolent Communication", icon: MessageCircle },
+    { category: "Personal", action: "Experiential Learning Journeys", icon: HandHeart },
+    { category: "Social", action: "Participatory Governance", icon: Users },
+    { category: "Social", action: "Local Community Projects", icon: Home },
+    { category: "Social", action: "Community Care Networks", icon: Users },
+    { category: "Economic", action: "Regenerative Businesses", icon: Euro },
+    { category: "Economic", action: "Local Currencies and Solidarity Exchanges", icon: Euro },
+    { category: "Economic", action: "Collaborative Regenerative Financing", icon: Euro },
+    { category: "Economic", action: "Ethical Value Chains", icon: Euro },
+    { category: "Ecological", action: "Ecosystem Restoration", icon: Sprout },
+    { category: "Ecological", action: "Community Gardens", icon: Sprout },
+    { category: "Ecological", action: "Circular Composting and Recycling", icon: Recycle },
+    { category: "Ecological", action: "Biodiversity Monitoring", icon: Sprout },
+    { category: "Educational", action: "Environmental and Ecological Education", icon: GraduationCap },
+    { category: "Cultural", action: "Regenerative Art and Expression", icon: Heart },
+    { category: "Cultural/Spiritual", action: "Seasonal Rituals and Celebrations", icon: Star },
+    { category: "Cultural", action: "Rescue of Ancestral Knowledge", icon: Heart },
+    { category: "Technological", action: "Open Impact Tools", icon: BrainCircuit },
+    { category: "Technological", action: "Proof-of-Impact (Living Validation)", icon: BrainCircuit },
+    { category: "Technological", action: "Interoperability of Regenerative Data", icon: BrainCircuit },
+    { category: "Ecological/Social", action: "Climate Adaptation Plans", icon: Globe },
+    { category: "Leadership", action: "Training of Regenerative Leaders", icon: CircleUserRound },
 ];
 
 const formSchema = z.object({
   actionName: z.string().min(5, { message: 'Action name must be at least 5 characters.' }),
-  actionType: z.string({ required_error: 'Please select an action type.' }),
-  otherActionTypeDescription: z.string().optional(),
+  actionType: z.string({ required_error: 'Please select or create an action type.' }),
   actionDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Please enter a valid date.' }),
   location: z.string().min(3, { message: 'Location is required.' }),
   numberOfParticipants: z.coerce.number().int().min(1, { message: 'At least one participant is required.' }),
@@ -74,14 +68,6 @@ const formSchema = z.object({
   projectName: z.string().optional(),
   customTag: z.string().optional(),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-}).refine(data => {
-    if (data.actionType === 'Other' && (!data.otherActionTypeDescription || data.otherActionTypeDescription.trim().length < 5)) {
-        return false;
-    }
-    return true;
-}, {
-    message: 'Please provide a brief description for the "Other" action type (min. 5 characters).',
-    path: ['otherActionTypeDescription'],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -91,14 +77,13 @@ export function RegisterForm() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const storage = useStorage();
-
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       actionName: '',
       actionType: undefined,
-      otherActionTypeDescription: '',
       actionDate: '',
       location: '',
       numberOfParticipants: 1,
@@ -110,8 +95,6 @@ export function RegisterForm() {
       email: '',
     },
   });
-
-  const watchActionType = form.watch('actionType');
 
   const fileToDataUri = (file: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -148,7 +131,7 @@ export function RegisterForm() {
   }
 
   async function onSubmit(values: FormValues) {
-    if (!firestore) {
+    if (!firestore || !storage) {
         toast({
             variant: 'destructive',
             title: 'Error',
@@ -161,11 +144,9 @@ export function RegisterForm() {
       try {
         const { media, ...formData } = values;
         
-        // 1. Create document placeholder in Firestore
         const newIntentRef = collection(firestore, 'regenerative_intents');
         const docRef = await addDoc(newIntentRef, {
             ...formData,
-            actionType: formData.actionType === 'Other' ? formData.otherActionTypeDescription : formData.actionType,
             socialMediaLinks: formData.socialMediaLinks ? [formData.socialMediaLinks] : [],
             status: 'pending',
             submissionDate: serverTimestamp(),
@@ -175,15 +156,17 @@ export function RegisterForm() {
         });
         const intentId = docRef.id;
 
-        // 2. Convert media files and upload them
+        toast({
+            title: 'Processing...',
+            description: 'Uploading media files. Please wait.',
+        });
+
         const mediaFiles = Array.from(media);
         const mediaDataUris = await Promise.all(mediaFiles.map(fileToDataUri));
         const mediaUrls = await uploadMedia(mediaDataUris, intentId);
 
-        // 3. Update the document with final media URLs
         await updateDoc(docRef, { mediaUrls });
 
-        // 4. Trigger AI verification (non-blocking server action)
         const aiInput: AIAssistedIntentVerificationInput = {
           actionName: formData.actionName,
           actionType: formData.actionType,
@@ -194,7 +177,6 @@ export function RegisterForm() {
           socialMediaLinks: formData.socialMediaLinks ? [formData.socialMediaLinks] : [],
         };
 
-        // Don't await this, let it run in the background
         runAiVerification(aiInput, intentId).then(response => {
             if (response.success) {
                 console.log("AI Verification started for intent:", intentId);
@@ -242,42 +224,73 @@ export function RegisterForm() {
               control={form.control}
               name="actionType"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Type of action</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an action type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {actionCategories.map(({ category, action }) => (
-                           <SelectItem key={action} value={action}>
-                           {`[${category}] ${action}`}
-                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value
+                            ? actionCategories.find(
+                                (item) => item.action === field.value
+                              )?.action
+                            : "Select or type an action"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search action or create new..." />
+                        <CommandList>
+                          <CommandEmpty>
+                             <CommandItem
+                                onSelect={() => {
+                                  form.setValue('actionType', form.getValues('actionType'));
+                                  setPopoverOpen(false);
+                                }}
+                              >
+                                Create: "{form.getValues('actionType')}"
+                              </CommandItem>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {actionCategories.map((item) => (
+                              <CommandItem
+                                value={item.action}
+                                key={item.action}
+                                onSelect={() => {
+                                  form.setValue("actionType", item.action);
+                                  setPopoverOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    item.action === field.value
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                <item.icon className="mr-2 h-4 w-4 text-muted-foreground"/>
+                                {item.action}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            {watchActionType === 'Other' && (
-                 <FormField
-                 control={form.control}
-                 name="otherActionTypeDescription"
-                 render={({ field }) => (
-                   <FormItem>
-                     <FormLabel>Describe your action</FormLabel>
-                     <FormControl>
-                       <Input placeholder="Briefly describe the action type" {...field} />
-                     </FormControl>
-                     <FormMessage />
-                   </FormItem>
-                 )}
-               />
-            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <FormField control={form.control} name="actionDate" render={({ field }) => (
@@ -357,7 +370,7 @@ export function RegisterForm() {
                         <FormItem>
                         <FormLabel>Your Name</FormLabel>
                         <FormControl>
-                            <Input placeholder="Jane Doe" {...field} value={field.value ?? ''} />
+                            <Input placeholder="Jane Doe" {...field} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -370,7 +383,7 @@ export function RegisterForm() {
                         <FormItem>
                         <FormLabel>Project or Collective Name (optional)</FormLabel>
                         <FormControl>
-                            <Input placeholder="e.g., Green Thumbs Initiative" {...field} value={field.value ?? ''} />
+                            <Input placeholder="e.g., Green Thumbs Initiative" {...field} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -383,7 +396,7 @@ export function RegisterForm() {
                         <FormItem>
                         <FormLabel>Custom Tag (optional)</FormLabel>
                         <FormControl>
-                            <Input placeholder="my-project-tag" {...field} value={field.value ?? ''} />
+                            <Input placeholder="my-project-tag" {...field} />
                         </FormControl>
                         <FormDescription>A unique tag to group all your actions. If left blank, one will be generated.</FormDescription>
                         <FormMessage />
