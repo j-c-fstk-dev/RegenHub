@@ -8,7 +8,7 @@ import { Map, Users, CheckCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
 import { useState, useMemo } from "react";
 
 type RegenerativeIntent = {
@@ -39,30 +39,38 @@ const ImpactPage = () => {
     let q = query(
       collection(firestore, 'regenerative_intents'),
       where('status', '==', 'verified'),
-      where('visibleOnWall', '==', true),
-      orderBy('actionDate', 'desc')
+      where('visibleOnWall', '==', true)
     );
     
-    if (filters.location) {
-      q = query(q, where('location', '>=', filters.location), where('location', '<=', filters.location + '\uf8ff'));
-    }
-    if (filters.actionType) {
-      q = query(q, where('actionType', '==', filters.actionType));
-    }
-    if (filters.date) {
-      const startDate = new Date(filters.date);
-      const endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + 1);
-      q = query(q, where('actionDate', '>=', filters.date), where('actionDate', '<', endDate.toISOString().split('T')[0]));
-    }
-    if (filters.tag) {
-      q = query(q, where('customTag', '==', filters.tag));
-    }
+    // The base query is simple and doesn't require composite indexes.
+    // Additional filters are applied client-side.
     
     return q;
-  }, [firestore, filters]);
+  }, [firestore]);
 
   const { data: intents, isLoading } = useCollection<RegenerativeIntent>(intentsQuery);
+  
+  const filteredAndSortedIntents = useMemo(() => {
+    if (!intents) return [];
+
+    let filtered = intents;
+
+    if (filters.location) {
+      filtered = filtered.filter(intent => intent.location.toLowerCase().includes(filters.location.toLowerCase()));
+    }
+    if (filters.actionType) {
+        filtered = filtered.filter(intent => intent.actionType === filters.actionType);
+    }
+    if (filters.date) {
+        filtered = filtered.filter(intent => intent.actionDate === filters.date);
+    }
+    if (filters.tag) {
+        filtered = filtered.filter(intent => intent.customTag === filters.tag);
+    }
+
+    return filtered.sort((a, b) => new Date(b.actionDate).getTime() - new Date(a.actionDate).getTime());
+  }, [intents, filters]);
+
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({...prev, [filterName]: value}));
@@ -71,7 +79,7 @@ const ImpactPage = () => {
   const uniqueActionTypes = useMemo(() => {
     if (!intents) return [];
     const types = new Set(intents.map(intent => intent.actionType));
-    return Array.from(types).filter(type => !!type); // Ensure no empty strings
+    return Array.from(types).filter(type => !!type);
   }, [intents]);
 
   return (
@@ -112,7 +120,7 @@ const ImpactPage = () => {
          </div>
       )}
 
-      {!isLoading && (!intents || intents.length === 0) && (
+      {!isLoading && (!filteredAndSortedIntents || filteredAndSortedIntents.length === 0) && (
         <div className="text-center text-muted-foreground py-16">
             <p>No verified actions to display yet.</p>
             <p>Be the first to submit one!</p>
@@ -120,7 +128,7 @@ const ImpactPage = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {intents && intents.map(intent => (
+        {filteredAndSortedIntents && filteredAndSortedIntents.map(intent => (
           <Card key={intent.id} className="overflow-hidden transition-shadow duration-300 hover:shadow-lg">
             <CardHeader className="p-0">
               <div className="relative h-48 w-full">
@@ -166,3 +174,5 @@ const ImpactPage = () => {
 };
 
 export default ImpactPage;
+
+    

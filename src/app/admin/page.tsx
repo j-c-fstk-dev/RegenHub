@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -26,14 +26,13 @@ import {
   useCollection,
   useUser,
   useMemoFirebase,
-  updateDocumentNonBlocking
 } from '@/firebase';
 import {
   collection,
   doc,
   Timestamp,
   query,
-  orderBy,
+  updateDoc,
 } from 'firebase/firestore';
 import {
   Dialog,
@@ -81,15 +80,15 @@ const AdminPage = () => {
   const intentsQuery = useMemoFirebase(
     () => {
       // Only create the query if the user is loaded and authenticated
-      if (!firestore || isUserLoading || !user) {
+      if (!firestore || !user) {
         return null;
       }
+      // Simplified query to avoid needing a composite index
       return query(
         collection(firestore, 'regenerative_intents'),
-        orderBy('submissionDate', 'desc')
       );
     },
-    [firestore, user, isUserLoading]
+    [firestore, user]
   );
 
   const {
@@ -97,6 +96,13 @@ const AdminPage = () => {
     isLoading: isSubmissionsLoading,
     error,
   } = useCollection<RegenerativeIntent>(intentsQuery);
+
+  // Sort on the client-side
+  const sortedSubmissions = useMemo(() => {
+    if (!submissions) return [];
+    return [...submissions].sort((a, b) => b.submissionDate.toMillis() - a.submissionDate.toMillis());
+  }, [submissions]);
+
   const [selectedSubmission, setSelectedSubmission] =
     useState<RegenerativeIntent | null>(null);
 
@@ -106,14 +112,13 @@ const AdminPage = () => {
   ) => {
     if (!firestore) return;
     const intentRef = doc(firestore, 'regenerative_intents', intentId);
-    updateDocumentNonBlocking(intentRef, { status });
+    updateDoc(intentRef, { status });
   };
   
   const handleVisibilityToggle = (intentId: string, currentVisibility?: boolean) => {
     if(!firestore) return;
     const intentRef = doc(firestore, 'regenerative_intents', intentId);
-    // Explicitly set to true or false. If currentVisibility is undefined, default to true.
-    updateDocumentNonBlocking(intentRef, { visibleOnWall: !(currentVisibility ?? false) });
+    updateDoc(intentRef, { visibleOnWall: !(currentVisibility ?? false) });
   };
 
   if (isUserLoading || (user && isSubmissionsLoading)) {
@@ -166,8 +171,8 @@ const AdminPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {submissions && submissions.length > 0 ? (
-                submissions.map((submission) => (
+              {sortedSubmissions && sortedSubmissions.length > 0 ? (
+                sortedSubmissions.map((submission) => (
                   <TableRow key={submission.id}>
                     <TableCell className="font-medium">
                       {submission.actionName}
