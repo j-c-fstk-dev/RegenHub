@@ -39,14 +39,12 @@ const ImpactPage = () => {
     let q = query(
       collection(firestore, 'regenerative_intents'),
       where('status', '==', 'verified'),
-      where('visibleOnWall', '!=', false), // Exclude if explicitly false
-      orderBy('visibleOnWall', 'desc'), // This is a trick to make the where filter work
+      where('visibleOnWall', '!=', false), 
+      orderBy('visibleOnWall', 'desc'), 
       orderBy('actionDate', 'desc')
     );
 
     if (filters.location) {
-      // Note: Firestore doesn't support partial string search natively.
-      // This is a simple equality check. For better search, use a search service.
       q = query(q, where('location', '>=', filters.location), where('location', '<=', filters.location + '\uf8ff'));
     }
     if (filters.actionType) {
@@ -104,7 +102,7 @@ const ImpactPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Types</SelectItem>
-                {uniqueActionTypes.map(type => (
+                {uniqueActionTypes.filter(type => type).map(type => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
