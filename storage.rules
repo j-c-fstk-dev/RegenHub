@@ -1,0 +1,17 @@
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow public read access to all files so they can be displayed in the app.
+    match /{allPaths=**} {
+      allow read;
+    }
+
+    // Allow anyone to write to the intents folder, as the form is public.
+    // This allows for uploading media during submission.
+    match /intents/{intentId}/{allPaths=**} {
+      allow write;
+    }
+  }
+}
