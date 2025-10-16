@@ -1,3 +1,34 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-background",
+      "description": "A diverse group of volunteers planting trees in a sunny field, smiling.",
+      "imageUrl": "https://picsum.photos/seed/hero-bg/1920/1080",
+      "imageHint": "community planting"
+    },
+    {
+      "id": "plant-trees",
+      "description": "Close-up of hands planting a small native tree in a city sidewalk patch.",
+      "imageUrl": "https://picsum.photos/seed/plant-trees/600/400",
+      "imageHint": "planting tree"
+    },
+    {
+      "id": "workshop",
+      "description": "A person leading an environmental workshop for a group of engaged students.",
+      "imageUrl": "https://picsum.photos/seed/workshop/600/400",
+      "imageHint": "environmental workshop"
+    },
+    {
+      "id": "river-cleanup",
+      "description": "Volunteers with bags full of trash collected from a local river bank.",
+      "imageUrl": "https://picsum.photos/seed/river-cleanup/600/400",
+      "imageHint": "river cleanup"
+    },
+    {
+      "id": "concept-image",
+      "description": "Abstract visual representing connections between people, nature, and data.",
+      "imageUrl": "https://picsum.photos/seed/concept/800/600",
+      "imageHint": "nature network"
+    }
+  ]
 }
