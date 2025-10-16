@@ -9,7 +9,7 @@ const Footer = () => {
           <div className="flex items-center gap-2">
             <Sprout className="h-5 w-5 text-primary" />
             <div className="text-center text-sm text-muted-foreground md:text-left">
-              <p>Built by BeRegen & Monthly Earth Day.</p>
+              <p>Built by BeRegen.</p>
               <p>Open-source, community-led, regeneratively aligned.</p>
             </div>
           </div>

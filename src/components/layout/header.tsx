@@ -8,7 +8,7 @@ const Header = () => {
   const navItems = [
     { name: 'Impact Wall', href: '/impact' },
     { name: 'About', href: '/about' },
-    { name: 'Calendar', href: '/calendar' },
+    { name: 'Admin', href: '/admin' },
   ];
 
   return (

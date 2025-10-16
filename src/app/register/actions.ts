@@ -12,9 +12,33 @@ const ActionInputSchema = z.object({
   numberOfParticipants: z.number(),
   photos: z.array(z.string()),
   socialMediaLinks: z.array(z.string()),
+  contactEmail: z.string().email(),
 });
 
 type ActionInput = z.infer<typeof ActionInputSchema>;
+
+
+async function sendEmailNotification(data: ActionInput) {
+    // In a real app, you would use an email service like Resend, SendGrid, or AWS SES.
+    // For this example, we'll just log to the console.
+    console.log("Sending email notification to admin about new submission from:", data.contactEmail);
+    console.log("Submission details:", JSON.stringify(data, null, 2));
+
+    // Example of what it might look like with a real service:
+    //
+    // import { Resend } from 'resend';
+    // const resend = new Resend(process.env.RESEND_API_KEY);
+    //
+    // await resend.emails.send({
+    //   from: 'submissions@regen-hub.com',
+    //   to: 'admin@regen-hub.com',
+    //   subject: `New Intent Submission: ${data.actionName}`,
+    //   html: `<p>A new intent has been submitted by ${data.contactEmail}.</p><p>Details: ${data.actionDescription}</p>`
+    // });
+    
+    return Promise.resolve();
+}
+
 
 export async function submitIntent(
   data: ActionInput
@@ -30,11 +54,12 @@ export async function submitIntent(
     
     console.log("AI Verification Result:", verificationResult);
     
-    // In a real application, you would now save the intent and the verification result to a database (e.g., Supabase).
-    // The intent would be marked as 'pending' or automatically 'verified' based on the AI's confidence.
-    // e.g., if (!verificationResult.isPotentiallyFalse && verificationResult.confidenceScore > 0.8) { ... }
+    // In a real application, you would now save the intent and the verification result to a database.
+    
+    // Send email notification
+    await sendEmailNotification(validatedData.data);
 
-    // For now, we just simulate a successful submission.
+
     return { success: true, verification: verificationResult };
 
   } catch (error) {
