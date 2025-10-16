@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { Check, X, Eye, Loader2, AlertCircle, EyeOff, EyeIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   useFirestore,
@@ -44,6 +44,8 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import Image from 'next/image';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 
 type RegenerativeIntent = {
@@ -62,6 +64,7 @@ type RegenerativeIntent = {
   projectName?: string;
   customTag?: string;
   email: string;
+  visibleOnWall?: boolean;
 };
 
 const statusStyles = {
@@ -100,6 +103,12 @@ const AdminPage = () => {
     if (!firestore) return;
     const intentRef = doc(firestore, 'regenerative_intents', intentId);
     updateDocumentNonBlocking(intentRef, { status });
+  };
+  
+  const handleVisibilityToggle = (intentId: string, currentVisibility?: boolean) => {
+    if(!firestore) return;
+    const intentRef = doc(firestore, 'regenerative_intents', intentId);
+    updateDocumentNonBlocking(intentRef, { visibleOnWall: !currentVisibility });
   };
 
   if (isUserLoading || isSubmissionsLoading) {
@@ -147,6 +156,7 @@ const AdminPage = () => {
                 <TableHead>Submitter</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Visible</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -171,6 +181,11 @@ const AdminPage = () => {
                       >
                         {submission.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => handleVisibilityToggle(submission.id, submission.visibleOnWall)}>
+                            {submission.visibleOnWall === false ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                        </Button>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -210,7 +225,7 @@ const AdminPage = () => {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No submissions yet.
@@ -269,7 +284,7 @@ const AdminPage = () => {
                   {selectedSubmission.shortDescription}
                 </p>
                 {selectedSubmission.socialMediaLinks &&
-                  selectedSubmission.socialMediaLinks.length > 0 && (
+                  selectedSubmission.socialMediaLinks.length > 0 && selectedSubmission.socialMediaLinks[0] && (
                     <div>
                       <h3 className="font-semibold">Social Media</h3>
                       <a
@@ -282,6 +297,14 @@ const AdminPage = () => {
                       </a>
                     </div>
                   )}
+                  <div className="flex items-center space-x-2 pt-4">
+                    <Switch
+                        id="visibility-switch"
+                        checked={selectedSubmission.visibleOnWall !== false}
+                        onCheckedChange={() => handleVisibilityToggle(selectedSubmission.id, selectedSubmission.visibleOnWall)}
+                    />
+                    <Label htmlFor="visibility-switch">Visible on Impact Wall</Label>
+                </div>
               </div>
               <div className="space-y-4">
                 <h3 className="font-semibold">Media</h3>
