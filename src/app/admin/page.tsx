@@ -45,6 +45,8 @@ import {
 import Image from 'next/image';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 type RegenerativeIntent = {
@@ -112,13 +114,31 @@ const AdminPage = () => {
   ) => {
     if (!firestore) return;
     const intentRef = doc(firestore, 'regenerative_intents', intentId);
-    updateDoc(intentRef, { status });
+    const updatedData = { status };
+    updateDoc(intentRef, updatedData)
+      .catch(error => {
+        const contextualError = new FirestorePermissionError({
+            path: intentRef.path,
+            operation: 'update',
+            requestResourceData: updatedData
+        });
+        errorEmitter.emit('permission-error', contextualError);
+    });
   };
   
   const handleVisibilityToggle = (intentId: string, currentVisibility?: boolean) => {
     if(!firestore) return;
     const intentRef = doc(firestore, 'regenerative_intents', intentId);
-    updateDoc(intentRef, { visibleOnWall: !(currentVisibility ?? false) });
+    const updatedData = { visibleOnWall: !(currentVisibility ?? false) };
+    updateDoc(intentRef, updatedData)
+      .catch(error => {
+        const contextualError = new FirestorePermissionError({
+            path: intentRef.path,
+            operation: 'update',
+            requestResourceData: updatedData
+        });
+        errorEmitter.emit('permission-error', contextualError);
+    });
   };
 
   if (isUserLoading || (user && isSubmissionsLoading)) {
@@ -360,5 +380,3 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
-
-    
