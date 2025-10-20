@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, Timestamp } from 'firebase/firestore';
 import { useState, useMemo } from "react";
+import { ImpactMap } from "@/components/impact-map";
 
 type RegenerativeIntent = {
   id: string;
@@ -82,6 +83,19 @@ const ImpactPage = () => {
     return Array.from(types).filter(type => !!type);
   }, [intents]);
 
+  const mapLocations = useMemo(() => {
+    if (!filteredAndSortedIntents) return [];
+    return filteredAndSortedIntents.map(intent => ({
+      id: intent.id,
+      name: intent.actionName,
+      position: {
+        // This is a mock position. In a real app, you'd get this from a geocoding service.
+        lat: Math.random() * 180 - 90,
+        lng: Math.random() * 360 - 180,
+      }
+    }));
+  }, [filteredAndSortedIntents]);
+
   return (
     <div className="container py-12">
       <header className="mb-12 text-center">
@@ -92,6 +106,10 @@ const ImpactPage = () => {
           Explore the collective mural of regenerative actions from around the world.
         </p>
       </header>
+
+      <div className="mb-8">
+        <ImpactMap locations={mapLocations} />
+      </div>
 
       <Card className="mb-8">
         <CardContent className="p-4">
@@ -174,5 +192,3 @@ const ImpactPage = () => {
 };
 
 export default ImpactPage;
-
-    
