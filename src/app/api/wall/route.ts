@@ -5,16 +5,12 @@ import { getFirestore, Query } from 'firebase-admin/firestore';
 
 // Ensure Firebase is initialized only once
 if (getApps().length === 0) {
-  try {
-    const serviceAccount: ServiceAccount = JSON.parse(
-      process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
-    );
-    initializeApp({
-      credential: cert(serviceAccount),
-    });
-  } catch (error) {
-    console.error('Firebase Admin initialization error:', error);
-  }
+  const serviceAccount: ServiceAccount = JSON.parse(
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
+  );
+  initializeApp({
+    credential: cert(serviceAccount),
+  });
 }
 
 const db = getFirestore();
