@@ -1,74 +1,150 @@
 /**
- * @fileOverview Firestore Security Rules for the application.
+ * @fileoverview Firestore Security Rules for the regenerative actions platform.
  *
  * Core Philosophy:
- * This ruleset enforces a combination of user-owned data (user profiles) and public read access with owner-only writes (regenerative intents).
+ * This ruleset employs a strict user-ownership model for most data, with public read access where appropriate, and admin overrides where necessary.
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile information, accessible only to the owning user.
- * - /regenerative_intents/{intentId}: Stores submitted regenerative intents, publicly readable but writable only by the authenticated user who created them.
+ * - /actors/{actorId}: Represents an actor (individual or entity). Accessible only to the actor themselves.
+ * - /actors/{actorId}/actions/{actionId}: Actions performed by an actor. Accessible only to the actor.
+ * - /actors/{actorId}/actions/{actionId}/proofs/{proofId}: Proofs for an action. Accessible only to the actor.
+ * - /actors/{actorId}/actions/{actionId}/certificate/current: Certificate for a verified action. Accessible only to the actor.
+ * - /batches/{batchId}: Batches of anchored certificates. Publicly readable, writeable by admins only.
+ * - /users/{userId}: User profile information, including admin roles. Accessible only to the user themselves, and updatable by admins.
  *
  * Key Security Decisions:
- * - User profiles are private and only accessible to the owning user.
- * - Regenerative intents are publicly readable to encourage community engagement, but can only be created, updated, or deleted by their creator.
- * - Data shape validation is relaxed to allow for rapid prototyping. Only authorization-critical fields are validated.
- *
- * Denormalization for Authorization:
- * - Regenerative intents MUST include a creatorId field that matches the authenticated user's UID. This enables secure owner-only write rules without requiring additional reads.
- *
- * Structural Segregation:
- * - Public read access is enabled through the top-level /regenerative_intents collection, avoiding the need for a boolean flag to distinguish between public and private intents.
+ * - Actors can only manage their own data (actions, proofs, certificates).
+ * - Batches are publicly readable but only writable by admins.
+ * - User profiles are readable only by the user, but can be updated by admins.
+ * - Listing of actors or actions is not explicitly restricted, but should be carefully considered in the application's data access patterns.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows access to user profile information.
-     * @path /users/{userId}
-     * @allow (create) - Authenticated user creates their profile.
-     * @allow (get, list) - Authenticated user reads their own profile.
-     * @allow (update, delete) - Authenticated user updates or deletes their own profile.
-     * @deny (create, get, list, update, delete) - Any other user attempts to access this profile.
-     * @principle Enforces document ownership for writes.
+     * @description Controls access to actor documents.
+     * @path /actors/{actorId}
+     * @allow (create) User with UID 'user_abc' can create an actor document if actorId matches their UID.
+     * @allow (get, list) User with UID 'user_abc' can read the actor document if actorId matches their UID.
+     * @allow (update, delete) User with UID 'user_abc' can update/delete the actor document if actorId matches their UID.
+     * @deny (create) User with UID 'user_xyz' cannot create an actor document if actorId is 'user_abc'.
+     * @deny (get, list) User with UID 'user_xyz' cannot read the actor document if actorId is 'user_abc'.
+     * @deny (update, delete) User with UID 'user_xyz' cannot update/delete the actor document if actorId is 'user_abc'.
+     * @principle Enforces document ownership for all operations.
      */
-    match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if isOwner(userId);
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isOwner(userId) && request.resource.data.displayName == resource.data.displayName;
-      allow delete: if isOwner(userId) && resource != null;
+    match /actors/{actorId} {
+      allow get, list: if isSignedIn() && isOwner(actorId);
+      allow create: if isSignedIn() && isOwner(actorId) && request.resource.data.regenId == actorId;
+      allow update: if isSignedIn() && isExistingOwner(actorId) && request.resource.data.regenId == resource.data.regenId;
+      allow delete: if isSignedIn() && isExistingOwner(actorId);
     }
 
     /**
-     * @description Allows public read access to regenerative intents, but restricts write access to the intent's owner.
-     * @path /regenerative_intents/{intentId}
-     * @allow (get, list) - Any user can read a regenerative intent.
-     * @allow (create) - Authenticated user can create a regenerative intent, with the 'creatorId' field matching their UID.
-     * @allow (update, delete) - The owner (creator) of the intent can modify or delete it.
-     * @deny (create, update, delete) - Unauthenticated users cannot create, update, or delete intents.
-     * @deny (create, update, delete) - Users cannot modify or delete intents they don't own.
-     * @principle Enforces owner-only writes for regenerative intents, while allowing public reads.
+     * @description Controls access to action documents under a specific actor.
+     * @path /actors/{actorId}/actions/{actionId}
+     * @allow (create) User with UID 'user_abc' can create an action under their actor document (actorId = 'user_abc').
+     * @allow (get, list) User with UID 'user_abc' can read their own actions (actorId = 'user_abc').
+     * @allow (update, delete) User with UID 'user_abc' can update/delete their own actions (actorId = 'user_abc').
+     * @deny (create) User with UID 'user_xyz' cannot create an action under actorId 'user_abc'.
+     * @deny (get, list) User with UID 'user_xyz' cannot read actions under actorId 'user_abc'.
+     * @deny (update, delete) User with UID 'user_xyz' cannot update/delete actions under actorId 'user_abc'.
+     * @principle Enforces strict ownership for actions within the actor's scope.
      */
-    match /regenerative_intents/{intentId} {
-      function isOwner(ownerId) {
-        return request.auth.uid == ownerId;
-      }
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isExistingOwner(ownerId) {
-          return isOwner(ownerId) && resource != null;
-      }
+    match /actors/{actorId}/actions/{actionId} {
+      allow get, list: if isSignedIn() && isOwner(actorId);
+      allow create: if isSignedIn() && isOwner(actorId);
+      allow update: if isSignedIn() && isExistingOwner(actorId);
+      allow delete: if isSignedIn() && isExistingOwner(actorId);
+    }
+
+    /**
+     * @description Controls access to proof documents for a specific action.
+     * @path /actors/{actorId}/actions/{actionId}/proofs/{proofId}
+     * @allow (create) User with UID 'user_abc' can create proofs for their actions (actorId = 'user_abc').
+     * @allow (get, list) User with UID 'user_abc' can read proofs for their own actions (actorId = 'user_abc').
+     * @allow (update, delete) User with UID 'user_abc' can update/delete proofs for their own actions (actorId = 'user_abc').
+     * @deny (create) User with UID 'user_xyz' cannot create proofs under actorId 'user_abc'.
+     * @deny (get, list) User with UID 'user_xyz' cannot read proofs under actorId 'user_abc'.
+     * @deny (update, delete) User with UID 'user_xyz' cannot update/delete proofs under actorId 'user_abc'.
+     * @principle Enforces strict ownership for proofs linked to actions.
+     */
+    match /actors/{actorId}/actions/{actionId}/proofs/{proofId} {
+      allow get, list: if isSignedIn() && isOwner(actorId);
+      allow create: if isSignedIn() && isOwner(actorId);
+      allow update: if isSignedIn() && isExistingOwner(actorId);
+      allow delete: if isSignedIn() && isExistingOwner(actorId);
+    }
+
+    /**
+     * @description Controls access to certificate documents for a specific action.
+     * @path /actors/{actorId}/actions/{actionId}/certificate/current
+     * @allow (create) User with UID 'user_abc' can create a certificate for their action (actorId = 'user_abc').
+     * @allow (get, list) User with UID 'user_abc' can read the certificate for their action (actorId = 'user_abc').
+     * @allow (update, delete) User with UID 'user_abc' can update/delete the certificate for their action (actorId = 'user_abc').
+     * @deny (create) User with UID 'user_xyz' cannot create a certificate under actorId 'user_abc'.
+     * @deny (get, list) User with UID 'user_xyz' cannot read a certificate under actorId 'user_abc'.
+     * @deny (update, delete) User with UID 'user_xyz' cannot update/delete a certificate under actorId 'user_abc'.
+     * @principle Enforces strict ownership for certificates linked to actions.
+     */
+    match /actors/{actorId}/actions/{actionId}/certificate/current {
+      allow get, list: if isSignedIn() && isOwner(actorId);
+      allow create: if isSignedIn() && isOwner(actorId);
+      allow update: if isSignedIn() && isExistingOwner(actorId);
+      allow delete: if isSignedIn() && isExistingOwner(actorId);
+    }
+
+    /**
+     * @description Controls access to batch documents.
+     * @path /batches/{batchId}
+     * @allow (get, list) Any user can read batch documents.
+     * @allow (create, update, delete) Only admins can create, update, or delete batch documents.
+     * @deny (create, update, delete) Non-admin users cannot create, update, or delete batch documents.
+     * @principle Public read access with admin-only writes.
+     */
+    match /batches/{batchId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isExistingOwner(resource.data.email);
-      allow delete: if isExistingOwner(resource.data.email);
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+       /**
+     * @description Controls access to user profile documents.
+     * @path /users/{userId}
+     * @allow (get, list) User with UID 'user_abc' can read their own profile (userId = 'user_abc').
+     * @allow (create) User with UID 'user_abc' can create their own profile (userId = 'user_abc').
+     * @allow (update) User with UID 'user_abc' can update their own profile (userId = 'user_abc') or an admin can update any profile.
+     * @allow (delete) User with UID 'user_abc' can delete their own profile (userId = 'user_abc') or an admin can delete any profile.
+     * @deny (get, list) User with UID 'user_xyz' cannot read the profile of user 'user_abc'.
+     * @deny (create) User with UID 'user_xyz' cannot create a profile for user 'user_abc'.
+     * @deny (update) User with UID 'user_xyz' cannot update the profile of user 'user_abc'.
+     * @deny (delete) User with UID 'user_xyz' cannot delete the profile of user 'user_abc'.
+     * @principle Users can only manage their own profile, with admin override for updates.
+     */
+    match /users/{userId} {
+          allow get: if isSignedIn() && isOwner(userId);
+          allow list: if isSignedIn() && isOwner(userId);
+          allow create: if isSignedIn() && isOwner(userId);
+          allow update: if (isSignedIn() && isOwner(userId)) || isAdmin();
+          allow delete: if (isSignedIn() && isOwner(userId)) || isAdmin();
+    }
+
+    // Define helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }
 }
