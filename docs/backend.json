@@ -60,6 +60,18 @@
             }
           }
         },
+        "humanVerification": {
+            "type": "object",
+            "description": "Result of the human-assisted verification.",
+            "properties": {
+                "impactScore": {
+                    "type": "number"
+                },
+                "regenScore": {
+                    "type": "number"
+                }
+            }
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"

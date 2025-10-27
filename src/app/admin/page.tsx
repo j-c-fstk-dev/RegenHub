@@ -1,11 +1,13 @@
+
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription
 } from '@/components/ui/card';
 import {
   Table,
@@ -17,26 +19,43 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { Check, Loader2, AlertCircle, Sparkles, User, Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase';
 import { approveAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type Action = {
   id: string;
   actorId: string;
   title: string;
-  status: 'pending' | 'verified' | 'rejected';
+  description: string;
+  status: 'pending' | 'review_ready' | 'review_failed' | 'verified' | 'rejected';
   createdAt: { _seconds: number; _nanoseconds: number; };
-  // Add other fields from your Action entity as needed
+  aiVerification?: {
+    trustScore: number;
+    reasoning: string;
+  };
 };
 
-const statusStyles = {
-  pending: 'default',
-  verified: 'secondary',
-  rejected: 'destructive',
+const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
+  pending: { variant: 'outline', text: 'Pending AI' },
+  review_ready: { variant: 'default', text: 'Review Ready' },
+  review_failed: { variant: 'destructive', text: 'AI Review Failed' },
+  verified: { variant: 'secondary', text: 'Verified' },
+  rejected: { variant: 'destructive', text: 'Rejected' },
 };
+
 
 const AdminPage = () => {
   const { user, isUserLoading } = useUser();
@@ -46,25 +65,25 @@ const AdminPage = () => {
   const [submissions, setSubmissions] = useState<Action[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<Action | null>(null);
+  const [impactScore, setImpactScore] = useState<number | string>('');
 
   useEffect(() => {
-    // In a real app, you would fetch submissions from your backend
-    // For now, we'll use a placeholder.
-    // Replace this with a fetch to an admin-only API endpoint.
+    // In a real app, you would fetch all submissions from a secure admin endpoint
     const fetchSubmissions = async () => {
        try {
-        // This is a placeholder. You'd need an admin-specific API
-        // to fetch all actions, including pending ones.
-        const response = await fetch('/api/wall');
-        if(!response.ok) throw new Error("Failed to fetch");
+        // This should be an admin-only API endpoint that can query all statuses
+        const response = await fetch('/api/wall?all=true'); // A real API would secure this
+        if(!response.ok) throw new Error("Failed to fetch submissions");
         let data = await response.json();
-        // The wall only shows verified, so we will add some mock pending data
-        const mockPending: Action[] = [
-            { id: 'mock1', actorId: 'actor1', title: 'Mock Pending Action 1', status: 'pending', createdAt: { _seconds: Date.now() / 1000, _nanoseconds: 0 } },
-            { id: 'mock2', actorId: 'actor2', title: 'Mock Pending Action 2', status: 'pending', createdAt: { _seconds: Date.now() / 1000, _nanoseconds: 0 } },
-        ];
-        // In a real implementation, your admin endpoint would return all necessary data
-        setSubmissions([...data, ...mockPending]);
+        
+        // Sort by status to bring actionable items to the top
+        data.sort((a: Action, b: Action) => {
+          const order = ['review_ready', 'pending', 'review_failed', 'verified', 'rejected'];
+          return order.indexOf(a.status) - order.indexOf(b.status);
+        });
+
+        setSubmissions(data);
       } catch (e) {
         setError('Could not load submissions.');
         console.error(e);
@@ -77,12 +96,18 @@ const AdminPage = () => {
     }
   }, [user]);
 
-  const handleApprove = async (actorId: string, actionId: string) => {
-    const result = await approveAction(actorId, actionId);
+  const handleApprove = async () => {
+    if (!selectedSubmission || typeof impactScore !== 'number') {
+      toast({ variant: 'destructive', title: 'Error', description: 'Impact score is required and must be a number.' });
+      return;
+    }
+    
+    const result = await approveAction(selectedSubmission.actorId, selectedSubmission.id, impactScore);
     if (result.success) {
       toast({ title: 'Success', description: 'Action approved successfully.' });
-      // Refresh list
-      setSubmissions(submissions.map(s => s.id === actionId ? { ...s, status: 'verified' } : s));
+      setSubmissions(submissions.map(s => s.id === selectedSubmission.id ? { ...s, status: 'verified' } : s));
+      setSelectedSubmission(null);
+      setImpactScore('');
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.error });
     }
@@ -129,8 +154,9 @@ const AdminPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Action Name</TableHead>
+                <TableHead>Action Title</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>AI Trust</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -146,37 +172,30 @@ const AdminPage = () => {
                       {new Date(submission.createdAt._seconds * 1000).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          statusStyles[submission.status as keyof typeof statusStyles] as any
-                        }
-                      >
-                        {submission.status}
-                      </Badge>
+                      {submission.aiVerification?.trustScore !== undefined ? (
+                        <div className="flex items-center gap-1">
+                            <Sparkles className="h-4 w-4 text-accent"/>
+                            <span>{submission.aiVerification.trustScore}%</span>
+                        </div>
+                      ): (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                       <Badge variant={statusStyles[submission.status]?.variant || 'default'}>
+                        {statusStyles[submission.status]?.text || submission.status}
+                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          // onClick={() => setSelectedSubmission(submission)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {submission.status === 'pending' && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() =>
-                                handleApprove(submission.actorId, submission.id)
-                              }
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                          </>
+                       {submission.status === 'review_ready' && (
+                          <Dialog onOpenChange={(open) => !open && setSelectedSubmission(null)}>
+                            <DialogTrigger asChild>
+                              <Button onClick={() => setSelectedSubmission(submission)}>
+                                <Check className="mr-2 h-4 w-4" /> Review
+                              </Button>
+                            </DialogTrigger>
+                          </Dialog>
                         )}
-                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -186,7 +205,7 @@ const AdminPage = () => {
                     colSpan={5}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    No submissions yet.
+                    No submissions to review.
                   </TableCell>
                 </TableRow>
               )}
@@ -194,6 +213,60 @@ const AdminPage = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {selectedSubmission && (
+        <Dialog open={!!selectedSubmission} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle className="font-headline text-2xl">{selectedSubmission.title}</DialogTitle>
+                    <DialogDescription>Review the details of the submission and the AI's analysis before approving.</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2"><User className="h-5 w-5"/>Submission Details</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <p><strong className="text-muted-foreground">Description:</strong> {selectedSubmission.description}</p>
+                        </CardContent>
+                    </Card>
+                     <Card className="bg-accent/10 border-accent/50">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent"/>AI Verification</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                           <div className="flex items-baseline gap-2">
+                             <strong className="text-muted-foreground">Trust Score:</strong>
+                             <span className="font-bold text-xl text-accent">{selectedSubmission.aiVerification?.trustScore ?? 'N/A'}%</span>
+                           </div>
+                            <p><strong className="text-muted-foreground">Reasoning:</strong> {selectedSubmission.aiVerification?.reasoning ?? 'N/A'}</p>
+                        </CardContent>
+                    </Card>
+                </div>
+                 <div className="space-y-4">
+                    <Label htmlFor="impact-score" className="font-bold text-lg">Assign Impact Score (0-100)</Label>
+                    <Input 
+                        id="impact-score" 
+                        type="number" 
+                        min="0" 
+                        max="100" 
+                        value={impactScore}
+                        onChange={(e) => setImpactScore(parseInt(e.target.value, 10))}
+                        placeholder="e.g., 85"
+                        className="max-w-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">Assign a score based on the action's real-world impact, relevance, and regenerative value.</p>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setSelectedSubmission(null)}>Cancel</Button>
+                    <Button onClick={handleApprove} disabled={typeof impactScore !== 'number' || impactScore < 0 || impactScore > 100}>
+                        <Check className="mr-2 h-4 w-4" />Approve Action
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      )}
+
     </div>
   );
 };

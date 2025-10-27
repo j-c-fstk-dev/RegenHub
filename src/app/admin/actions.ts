@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getFirestore } from 'firebase-admin/firestore';
@@ -23,11 +24,16 @@ const db = getFirestore();
  * This is a server action callable from the admin dashboard.
  * @param actorId The ID of the actor who submitted the action.
  * @param actionId The ID of the action to approve.
+ * @param impactScore The human-assigned score for the action's impact.
  */
-export async function approveAction(actorId: string, actionId: string) {
+export async function approveAction(actorId: string, actionId: string, impactScore: number) {
   if (!actorId || !actionId) {
     return { success: false, error: 'Missing actorId or actionId' };
   }
+  if (impactScore === undefined || impactScore < 0 || impactScore > 100) {
+    return { success: false, error: 'Invalid Impact Score. Must be between 0 and 100.' };
+  }
+
 
   const actionRef = db.collection('actors').doc(actorId).collection('actions').doc(actionId);
 
@@ -38,13 +44,19 @@ export async function approveAction(actorId: string, actionId: string) {
     }
     const actionData = actionDoc.data()!;
 
-    // 1. Update action status to verified
+    // 1. Calculate RegenScore
+    const trustScore = actionData.aiVerification?.trustScore ?? 0;
+    const regenScore = Math.round((trustScore * 0.6) + (impactScore * 0.4));
+
+    // 2. Update action status and scores
     await actionRef.update({
       status: 'verified',
+      'humanVerification.impactScore': impactScore,
+      'humanVerification.regenScore': regenScore,
       updatedAt: new Date(),
     });
 
-    // 2. Generate and store the certificate (ETAPA 3.1)
+    // 3. Generate and store the certificate
     const certificateData = {
       version: '1.0',
       actorId: actorId,
@@ -53,6 +65,11 @@ export async function approveAction(actorId: string, actionId: string) {
       description: actionData.description,
       category: actionData.category,
       timestamp: new Date().toISOString(),
+      scores: {
+        trustScore,
+        impactScore,
+        regenScore,
+      },
     };
     
     const certificateJson = JSON.stringify(certificateData);
