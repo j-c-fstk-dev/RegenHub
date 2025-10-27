@@ -1,3 +1,4 @@
+
 import { Card, CardContent } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Link, MapPin, Users, Calendar, Camera, HeartHandshake } from 'lucide-react';

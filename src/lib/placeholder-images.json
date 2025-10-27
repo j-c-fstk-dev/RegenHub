@@ -3,31 +3,31 @@
     {
       "id": "hero-background",
       "description": "A diverse group of volunteers planting trees in a sunny field, smiling.",
-      "imageUrl": "https://picsum.photos/seed/hero-bg/1920/1080",
+      "imageUrl": "https://images.unsplash.com/photo-1601408656579-bd835432e773?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Y29tbXVuaXR5JTIwcGxhbnRpbmd8ZW58MHx8fHwxNzYxNTYxNTE0fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "community planting"
     },
     {
       "id": "plant-trees",
       "description": "Close-up of hands planting a small native tree in a city sidewalk patch.",
-      "imageUrl": "https://picsum.photos/seed/plant-trees/600/400",
+      "imageUrl": "https://images.unsplash.com/photo-1524602585632-a2a01c12307c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwbGFudGluZyUyMHRyZWV8ZW58MHx8fHwxNzYxNTgyMDAzfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "planting tree"
     },
     {
       "id": "workshop",
       "description": "A person leading an environmental workshop for a group of engaged students.",
-      "imageUrl": "https://picsum.photos/seed/workshop/600/400",
+      "imageUrl": "https://images.unsplash.com/photo-1758522274399-8d3fd26a02f7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxlbnZpcm9ubWVudGFsJTIwd29ya3Nob3B8ZW58MHx8fHwxNzYxNjAzOTI2fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "environmental workshop"
     },
     {
       "id": "river-cleanup",
       "description": "Volunteers with bags full of trash collected from a local river bank.",
-      "imageUrl": "https://picsum.photos/seed/river-cleanup/600/400",
+      "imageUrl": "https://images.unsplash.com/photo-1758599669317-efd787d954ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxyaXZlciUyMGNsZWFudXB8ZW58MHx8fHwxNzYxNTc5NzQyfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "river cleanup"
     },
     {
       "id": "concept-image",
       "description": "Abstract visual representing connections between people, nature, and data.",
-      "imageUrl": "https://picsum.photos/seed/concept/800/600",
+      "imageUrl": "https://images.unsplash.com/photo-1741991781457-74727b8addd7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bmF0dXJlJTIwbmV0d29ya3xlbnwwfHx8fDE3NjE2MDM5MjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "nature network"
     }
   ]
