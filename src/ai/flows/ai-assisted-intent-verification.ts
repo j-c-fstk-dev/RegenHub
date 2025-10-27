@@ -12,20 +12,17 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const AIAssistedIntentVerificationInputSchema = z.object({
-  actionName: z.string().describe('The name of the action performed.'),
-  actionType: z.string().describe('The type of action performed (e.g., planting, cleaning).'),
-  actionDescription: z.string().describe('A detailed description of the action performed.'),
-  location: z.string().describe('The location where the action was performed.'),
-  numberOfParticipants: z.number().describe('The number of participants involved in the action.'),
-  photos: z.array(z.string()).describe('Array of photo URLs as data URIs of the action performed.'),
-  socialMediaLinks: z.array(z.string()).describe('Array of social media links related to the action.'),
+  title: z.string().describe('The name of the action performed.'),
+  description: z.string().describe('A detailed description of the action performed.'),
+  category: z.string().optional().describe('The type of action performed (e.g., planting, cleaning).'),
+  location: z.string().optional().describe('The location where the action was performed.'),
+  proofs: z.array(z.object({ type: z.string(), url: z.string() })).optional().describe('Array of proofs of the action performed.'),
 });
 export type AIAssistedIntentVerificationInput = z.infer<typeof AIAssistedIntentVerificationInputSchema>;
 
 const AIAssistedIntentVerificationOutputSchema = z.object({
-  isPotentiallyFalse: z.boolean().describe('Whether the intent submission is potentially false or low quality.'),
-  reason: z.string().describe('The reason why the intent submission is potentially false or low quality.'),
-  confidenceScore: z.number().describe('A score indicating the confidence level of the AI in its assessment.'),
+  trustScore: z.number().describe('A trust score from 0 (no trust) to 100 (fully trustworthy).'),
+  reasoning: z.string().describe('The reasoning behind the assigned trust score.'),
 });
 export type AIAssistedIntentVerificationOutput = z.infer<typeof AIAssistedIntentVerificationOutputSchema>;
 
@@ -37,26 +34,25 @@ const prompt = ai.definePrompt({
   name: 'aiAssistedIntentVerificationPrompt',
   input: {schema: AIAssistedIntentVerificationInputSchema},
   output: {schema: AIAssistedIntentVerificationOutputSchema},
-  prompt: `You are an AI assistant designed to help verify the validity and quality of intent submissions for regenerative actions. 
+  prompt: `
+You are a verification agent for regenerative impact reports.
 
-  Analyze the following information provided about the intent submission:
+Analyze the following submission:
+Title: "{{title}}"
+Description: "{{description}}"
+Category: "{{category}}"
+Location: "{{location}}"
+Proofs: {{#each proofs}}[{{this.type}}: {{this.url}}] {{/each}}
 
-  Action Name: {{{actionName}}}
-  Action Type: {{{actionType}}}
-  Action Description: {{{actionDescription}}}
-  Location: {{{location}}}
-  Number of Participants: {{{numberOfParticipants}}}
-  Photos: {{#each photos}}{{media url=this}}{{/each}}
-  Social Media Links: {{#each socialMediaLinks}}{{{this}}}, {{/each}}
+Evaluate the following:
+1. Is the description specific and coherent?
+2. Does it describe a real, tangible action (not just an intention)?
+3. Does it include verifiable or measurable outcomes?
+4. Are there any indications of fake, copied, or unrelated data?
+5. Assign a trust score from 0 (no trust) to 100 (fully trustworthy).
 
-  Based on this information, determine if the intent submission is potentially false or of low quality. Consider factors such as the coherence of the description, the reasonableness of the number of participants, the presence and relevance of photos and social media links, and any other red flags that might indicate the submission is not genuine. Photos are passed in as data URIs.
-
-  Respond with a JSON object that includes the following fields:
-
-  - isPotentiallyFalse: A boolean value indicating whether the intent submission is potentially false or low quality. Set to true if there are reasons to suspect the submission, and false otherwise.
-  - reason: A string explaining the reason why the intent submission is potentially false or low quality. Provide a detailed explanation of the red flags or inconsistencies that led to this conclusion. If isPotentiallyFalse is false, this field should explain what makes the submission trustworthy.
-  - confidenceScore: A number between 0 and 1 indicating the confidence level of the AI in its assessment. A higher score indicates greater confidence.
-  `,
+Return a JSON object with your evaluation.
+`,
 });
 
 const aiAssistedIntentVerificationFlow = ai.defineFlow(

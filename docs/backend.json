@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Actor": {
@@ -45,7 +46,19 @@
         "status": {
           "type": "string",
           "description": "The verification status of the action.",
-          "enum": ["pending", "verified", "rejected"]
+          "enum": ["pending", "review_ready", "verified", "rejected", "review_failed"]
+        },
+        "aiVerification": {
+          "type": "object",
+          "description": "Result of the AI-assisted verification.",
+          "properties": {
+            "trustScore": {
+              "type": "number"
+            },
+            "reasoning": {
+              "type": "string"
+            }
+          }
         },
         "createdAt": {
           "type": "string",

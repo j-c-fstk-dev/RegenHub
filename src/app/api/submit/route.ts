@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { initializeApp, cert, getApps, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import * as crypto from 'crypto';
+import { aiAssistedIntentVerification } from '@/ai/flows/ai-assisted-intent-verification';
 
 // Ensure Firebase is initialized only once
 if (getApps().length === 0) {
@@ -35,41 +36,43 @@ export async function POST(req: Request) {
       .digest('hex')
       .slice(0, 12);
 
-    // Transaction to ensure atomicity
-    const { actorRef, actionRef } = await db.runTransaction(async (transaction) => {
-      const actorsRef = db.collection('actors');
-      const actorQuery = actorsRef.where('regenId', '==', regenId).limit(1);
-      const actorSnap = await transaction.get(actorQuery);
+    let actorRef: FirebaseFirestore.DocumentReference;
+    
+    // Check if actor exists or create a new one
+    const actorsRef = db.collection('actors');
+    const actorQuery = actorsRef.where('regenId', '==', regenId).limit(1);
+    const actorSnap = await actorQuery.get();
 
-      let actorRef;
-
-      if (actorSnap.empty) {
+    if (actorSnap.empty) {
         actorRef = db.collection('actors').doc();
-        transaction.set(actorRef, {
+        await actorRef.set({
           displayName,
           regenId,
           createdAt: new Date(),
         });
       } else {
         actorRef = actorSnap.docs[0].ref;
-      }
-
-      const actionRef = actorRef.collection('actions').doc();
-      transaction.set(actionRef, {
+    }
+    
+    // Create the action document first with 'pending' status
+    const actionRef = actorRef.collection('actions').doc();
+    await actionRef.set({
         title,
         description,
         category,
         location,
-        status: 'pending',
+        status: 'pending', // Start as pending
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+    });
 
-      if (Array.isArray(proofs)) {
+    // Add proofs if they exist
+    if (Array.isArray(proofs)) {
+        const batch = db.batch();
         proofs.forEach((p: any) => {
           if(p.url) {
             const proofRef = actionRef.collection('proofs').doc();
-            transaction.set(proofRef, {
+            batch.set(proofRef, {
               type: p.type || 'link',
               url: p.url,
               hash: crypto.createHash('sha256').update(p.url).digest('hex'),
@@ -77,10 +80,27 @@ export async function POST(req: Request) {
             });
           }
         });
-      }
-      
-      return { actorRef, actionRef };
-    });
+        await batch.commit();
+    }
+
+    // Run AI verification asynchronously (don't block the response to the user)
+    aiAssistedIntentVerification({ title, description, category, location, proofs })
+        .then(async (aiResult) => {
+            await actionRef.update({
+                aiVerification: aiResult,
+                status: 'review_ready', // Update status for human review
+                updatedAt: new Date(),
+            });
+            console.log(`AI verification complete for action ${actionRef.id}`);
+        })
+        .catch(aiError => {
+            console.error(`AI verification failed for action ${actionRef.id}:`, aiError);
+            // Optionally, update the document with an error status
+            actionRef.update({ 
+                status: 'review_failed',
+                aiError: aiError instanceof Error ? aiError.message : 'Unknown AI error'
+            }).catch(dbError => console.error('Failed to write AI error to DB:', dbError));
+        });
 
     return NextResponse.json({ success: true, actorId: actorRef.id, actionId: actionRef.id }, { status: 200 });
 
