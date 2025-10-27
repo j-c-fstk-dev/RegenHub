@@ -7,94 +7,72 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Map, Users, CheckCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, Timestamp } from 'firebase/firestore';
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ImpactMap } from "@/components/impact-map";
 
-type RegenerativeIntent = {
+type Action = {
   id: string;
-  customTag?: string;
-  actionName: string;
+  actorId: string;
+  title: string;
+  description: string;
+  category: string;
   location: string;
-  numberOfParticipants: number;
-  mediaUrls: string[];
-  status: 'pending' | 'verified' | 'rejected';
-  visibleOnWall?: boolean;
-  actionType: string;
-  actionDate: string;
+  createdAt: { _seconds: number; _nanoseconds: number; };
+  // Add proofs when that data is available
 };
 
 const ImpactPage = () => {
-  const firestore = useFirestore();
+  const [actions, setActions] = useState<Action[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
     location: '',
-    actionType: '',
-    date: '',
-    tag: ''
+    category: '',
   });
 
-  const intentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-
-    let q = query(
-      collection(firestore, 'regenerative_intents'),
-      where('status', '==', 'verified'),
-      where('visibleOnWall', '==', true)
-    );
-    
-    // The base query is simple and doesn't require composite indexes.
-    // Additional filters are applied client-side.
-    
-    return q;
-  }, [firestore]);
-
-  const { data: intents, isLoading } = useCollection<RegenerativeIntent>(intentsQuery);
+  useEffect(() => {
+    setIsLoading(true);
+    fetch('/api/wall')
+      .then(res => res.json())
+      .then((data: Action[]) => {
+        setActions(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch actions:", err);
+        setIsLoading(false);
+      });
+  }, []);
   
-  const filteredAndSortedIntents = useMemo(() => {
-    if (!intents) return [];
-
-    let filtered = intents;
-
-    if (filters.location) {
-      filtered = filtered.filter(intent => intent.location.toLowerCase().includes(filters.location.toLowerCase()));
-    }
-    if (filters.actionType) {
-        filtered = filtered.filter(intent => intent.actionType === filters.actionType);
-    }
-    if (filters.date) {
-        filtered = filtered.filter(intent => intent.actionDate === filters.date);
-    }
-    if (filters.tag) {
-        filtered = filtered.filter(intent => intent.customTag === filters.tag);
-    }
-
-    return filtered.sort((a, b) => new Date(b.actionDate).getTime() - new Date(a.actionDate).getTime());
-  }, [intents, filters]);
-
+  const filteredActions = useMemo(() => {
+    return actions.filter(action => {
+      const locationMatch = filters.location ? action.location?.toLowerCase().includes(filters.location.toLowerCase()) : true;
+      const categoryMatch = filters.category ? action.category === filters.category : true;
+      return locationMatch && categoryMatch;
+    });
+  }, [actions, filters]);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({...prev, [filterName]: value}));
   };
   
-  const uniqueActionTypes = useMemo(() => {
-    if (!intents) return [];
-    const types = new Set(intents.map(intent => intent.actionType));
-    return Array.from(types).filter(type => !!type);
-  }, [intents]);
+  const uniqueCategories = useMemo(() => {
+    if (!actions) return [];
+    const categories = new Set(actions.map(action => action.category));
+    return Array.from(categories).filter(cat => !!cat);
+  }, [actions]);
 
   const mapLocations = useMemo(() => {
-    if (!filteredAndSortedIntents) return [];
-    return filteredAndSortedIntents.map(intent => ({
-      id: intent.id,
-      name: intent.actionName,
+    if (!filteredActions) return [];
+    return filteredActions.map(action => ({
+      id: action.id,
+      name: action.title,
       position: {
         // This is a mock position. In a real app, you'd get this from a geocoding service.
         lat: Math.random() * 180 - 90,
         lng: Math.random() * 360 - 180,
       }
     }));
-  }, [filteredAndSortedIntents]);
+  }, [filteredActions]);
 
   return (
     <div className="container py-12">
@@ -113,21 +91,19 @@ const ImpactPage = () => {
 
       <Card className="mb-8">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2">
             <Input placeholder="Filter by city..." onChange={e => handleFilterChange('location', e.target.value)} />
-            <Select onValueChange={value => handleFilterChange('actionType', value === 'all' ? '' : value)}>
+            <Select onValueChange={value => handleFilterChange('category', value === 'all' ? '' : value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Filter by type..." />
+                <SelectValue placeholder="Filter by category..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {uniqueActionTypes.map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
+                {uniqueCategories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Input type="date" placeholder="Filter by date..." onChange={e => handleFilterChange('date', e.target.value)} />
-            <Input placeholder="Filter by tag or project..." onChange={e => handleFilterChange('tag', e.target.value)} />
           </div>
         </CardContent>
       </Card>
@@ -138,7 +114,7 @@ const ImpactPage = () => {
          </div>
       )}
 
-      {!isLoading && (!filteredAndSortedIntents || filteredAndSortedIntents.length === 0) && (
+      {!isLoading && filteredActions.length === 0 && (
         <div className="text-center text-muted-foreground py-16">
             <p>No verified actions to display yet.</p>
             <p>Be the first to submit one!</p>
@@ -146,39 +122,34 @@ const ImpactPage = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredAndSortedIntents && filteredAndSortedIntents.map(intent => (
-          <Card key={intent.id} className="overflow-hidden transition-shadow duration-300 hover:shadow-lg">
+        {filteredActions.map(action => (
+          <Card key={action.id} className="overflow-hidden transition-shadow duration-300 hover:shadow-lg">
             <CardHeader className="p-0">
               <div className="relative h-48 w-full">
                 <Image 
-                  src={intent.mediaUrls && intent.mediaUrls.length > 0 ? intent.mediaUrls[0] : 'https://picsum.photos/seed/placeholder/400/300'} 
-                  alt={intent.actionName} 
+                  src={'https://picsum.photos/seed/action/400/300'} 
+                  alt={action.title} 
                   fill 
                   className="object-cover" 
                   data-ai-hint="regenerative action"
                 />
-                {intent.status === 'verified' && (
-                    <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-xs font-bold text-primary-foreground">
-                        <CheckCircle className="h-4 w-4" />
-                        Verified
-                    </div>
-                )}
+                <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-xs font-bold text-primary-foreground">
+                    <CheckCircle className="h-4 w-4" />
+                    Verified
+                </div>
               </div>
               <div className="p-4">
-                {intent.customTag && (
-                  <Link href={`/impact/${intent.customTag}`} className="text-sm font-medium text-accent hover:underline">{`@${intent.customTag}`}</Link>
-                )}
-                <CardTitle className="mt-1 font-headline text-xl">{intent.actionName}</CardTitle>
+                <CardTitle className="mt-1 font-headline text-xl">{action.title}</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Map className="h-4 w-4" />
-                    <span>{intent.location}</span>
+                    <span>{action.location}</span>
                 </div>
                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    <span>{intent.numberOfParticipants} participants</span>
+                    <span>{action.category}</span>
                 </div>
             </CardContent>
             <CardFooter className="px-4 pb-4">

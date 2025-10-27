@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardFooter,
-  CardDescription,
 } from '@/components/ui/card';
 import {
   Table,
@@ -19,53 +17,19 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, Eye, Loader2, AlertCircle, EyeOff, EyeIcon } from 'lucide-react';
+import { Check, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import {
-  useFirestore,
-  useCollection,
-  useUser,
-  useMemoFirebase,
-} from '@/firebase';
-import {
-  collection,
-  doc,
-  Timestamp,
-  query,
-  updateDoc,
-} from 'firebase/firestore';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from '@/components/ui/dialog';
-import Image from 'next/image';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { useUser } from '@/firebase';
+import { approveAction } from './actions';
+import { useToast } from '@/hooks/use-toast';
 
-
-type RegenerativeIntent = {
+type Action = {
   id: string;
-  actionName: string;
-  responsibleName: string;
-  submissionDate: Timestamp;
+  actorId: string;
+  title: string;
   status: 'pending' | 'verified' | 'rejected';
-  actionType: string;
-  actionDate: string;
-  location: string;
-  numberOfParticipants: number;
-  shortDescription: string;
-  mediaUrls: string[];
-  socialMediaLinks: string[];
-  projectName?: string;
-  customTag?: string;
-  email: string;
-  visibleOnWall?: boolean;
+  createdAt: { _seconds: number; _nanoseconds: number; };
+  // Add other fields from your Action entity as needed
 };
 
 const statusStyles = {
@@ -77,71 +41,54 @@ const statusStyles = {
 const AdminPage = () => {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
-  const firestore = useFirestore();
+  const { toast } = useToast();
 
-  const intentsQuery = useMemoFirebase(
-    () => {
-      // Only create the query if the user is loaded and authenticated
-      if (!firestore || !user) {
-        return null;
+  const [submissions, setSubmissions] = useState<Action[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // In a real app, you would fetch submissions from your backend
+    // For now, we'll use a placeholder.
+    // Replace this with a fetch to an admin-only API endpoint.
+    const fetchSubmissions = async () => {
+       try {
+        // This is a placeholder. You'd need an admin-specific API
+        // to fetch all actions, including pending ones.
+        const response = await fetch('/api/wall');
+        if(!response.ok) throw new Error("Failed to fetch");
+        let data = await response.json();
+        // The wall only shows verified, so we will add some mock pending data
+        const mockPending: Action[] = [
+            { id: 'mock1', actorId: 'actor1', title: 'Mock Pending Action 1', status: 'pending', createdAt: { _seconds: Date.now() / 1000, _nanoseconds: 0 } },
+            { id: 'mock2', actorId: 'actor2', title: 'Mock Pending Action 2', status: 'pending', createdAt: { _seconds: Date.now() / 1000, _nanoseconds: 0 } },
+        ];
+        // In a real implementation, your admin endpoint would return all necessary data
+        setSubmissions([...data, ...mockPending]);
+      } catch (e) {
+        setError('Could not load submissions.');
+        console.error(e);
+      } finally {
+        setIsLoading(false);
       }
-      // Simplified query to avoid needing a composite index
-      return query(
-        collection(firestore, 'regenerative_intents'),
-      );
-    },
-    [firestore, user]
-  );
+    };
+    if(user) {
+        fetchSubmissions();
+    }
+  }, [user]);
 
-  const {
-    data: submissions,
-    isLoading: isSubmissionsLoading,
-    error,
-  } = useCollection<RegenerativeIntent>(intentsQuery);
-
-  // Sort on the client-side
-  const sortedSubmissions = useMemo(() => {
-    if (!submissions) return [];
-    return [...submissions].sort((a, b) => b.submissionDate.toMillis() - a.submissionDate.toMillis());
-  }, [submissions]);
-
-  const [selectedSubmission, setSelectedSubmission] =
-    useState<RegenerativeIntent | null>(null);
-
-  const handleUpdateStatus = (
-    intentId: string,
-    status: 'verified' | 'rejected'
-  ) => {
-    if (!firestore) return;
-    const intentRef = doc(firestore, 'regenerative_intents', intentId);
-    const updatedData = { status };
-    updateDoc(intentRef, updatedData)
-      .catch(error => {
-        const contextualError = new FirestorePermissionError({
-            path: intentRef.path,
-            operation: 'update',
-            requestResourceData: updatedData
-        });
-        errorEmitter.emit('permission-error', contextualError);
-    });
+  const handleApprove = async (actorId: string, actionId: string) => {
+    const result = await approveAction(actorId, actionId);
+    if (result.success) {
+      toast({ title: 'Success', description: 'Action approved successfully.' });
+      // Refresh list
+      setSubmissions(submissions.map(s => s.id === actionId ? { ...s, status: 'verified' } : s));
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
   };
   
-  const handleVisibilityToggle = (intentId: string, currentVisibility?: boolean) => {
-    if(!firestore) return;
-    const intentRef = doc(firestore, 'regenerative_intents', intentId);
-    const updatedData = { visibleOnWall: !(currentVisibility ?? false) };
-    updateDoc(intentRef, updatedData)
-      .catch(error => {
-        const contextualError = new FirestorePermissionError({
-            path: intentRef.path,
-            operation: 'update',
-            requestResourceData: updatedData
-        });
-        errorEmitter.emit('permission-error', contextualError);
-    });
-  };
-
-  if (isUserLoading || (user && isSubmissionsLoading)) {
+  if (isUserLoading || (user && isLoading)) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -176,53 +123,43 @@ const AdminPage = () => {
                 <AlertCircle className="h-5 w-5" />
                 <h3 className="font-semibold">Error Loading Submissions</h3>
               </div>
-              <p className="ml-7 text-sm">{error.message}</p>
+              <p className="ml-7 text-sm">{error}</p>
             </div>
           )}
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Action Name</TableHead>
-                <TableHead>Submitter</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Visible</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedSubmissions && sortedSubmissions.length > 0 ? (
-                sortedSubmissions.map((submission) => (
+              {submissions && submissions.length > 0 ? (
+                submissions.map((submission) => (
                   <TableRow key={submission.id}>
                     <TableCell className="font-medium">
-                      {submission.actionName}
+                      {submission.title}
                     </TableCell>
-                    <TableCell>{submission.responsibleName}</TableCell>
                     <TableCell>
-                      {submission.submissionDate.toDate().toLocaleDateString()}
+                      {new Date(submission.createdAt._seconds * 1000).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant={
-                          statusStyles[
-                            submission.status as keyof typeof statusStyles
-                          ] as any
+                          statusStyles[submission.status as keyof typeof statusStyles] as any
                         }
                       >
                         {submission.status}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => handleVisibilityToggle(submission.id, submission.visibleOnWall)}>
-                            {submission.visibleOnWall ? <EyeIcon className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                        </Button>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => setSelectedSubmission(submission)}
+                          // onClick={() => setSelectedSubmission(submission)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -232,19 +169,10 @@ const AdminPage = () => {
                               variant="outline"
                               size="icon"
                               onClick={() =>
-                                handleUpdateStatus(submission.id, 'verified')
+                                handleApprove(submission.actorId, submission.id)
                               }
                             >
                               <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              onClick={() =>
-                                handleUpdateStatus(submission.id, 'rejected')
-                              }
-                            >
-                              <X className="h-4 w-4" />
                             </Button>
                           </>
                         )}
@@ -255,7 +183,7 @@ const AdminPage = () => {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={5}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No submissions yet.
@@ -266,115 +194,6 @@ const AdminPage = () => {
           </Table>
         </CardContent>
       </Card>
-
-      {selectedSubmission && (
-        <Dialog
-          open={!!selectedSubmission}
-          onOpenChange={(isOpen) => !isOpen && setSelectedSubmission(null)}
-        >
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle className="font-headline text-2xl">
-                {selectedSubmission.actionName}
-              </DialogTitle>
-              <DialogDescription>
-                Submitted by {selectedSubmission.responsibleName} (
-                {selectedSubmission.email}) on{' '}
-                {selectedSubmission.submissionDate
-                  .toDate()
-                  .toLocaleDateString()}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid max-h-[70vh] grid-cols-1 gap-6 overflow-y-auto p-1 md:grid-cols-2">
-              <div className="space-y-4">
-                <h3 className="font-semibold">Submission Details</h3>
-                <p>
-                  <strong>Action Type:</strong> {selectedSubmission.actionType}
-                </p>
-                <p>
-                  <strong>Action Date:</strong>{' '}
-                  {new Date(selectedSubmission.actionDate).toLocaleDateString()}
-                </p>
-                <p>
-                  <strong>Location:</strong> {selectedSubmission.location}
-                </p>
-                <p>
-                  <strong>Participants:</strong>{' '}
-                  {selectedSubmission.numberOfParticipants}
-                </p>
-                <p>
-                  <strong>Project:</strong>{' '}
-                  {selectedSubmission.projectName || 'N/A'}
-                </p>
-                <p>
-                  <strong>Tag:</strong> {selectedSubmission.customTag || 'N/A'}
-                </p>
-                <h3 className="font-semibold">Description</h3>
-                <p className="text-sm text-muted-foreground">
-                  {selectedSubmission.shortDescription}
-                </p>
-                {selectedSubmission.socialMediaLinks &&
-                  selectedSubmission.socialMediaLinks.length > 0 && selectedSubmission.socialMediaLinks[0] && (
-                    <div>
-                      <h3 className="font-semibold">Social Media</h3>
-                      <a
-                        href={selectedSubmission.socialMediaLinks[0]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        View Post
-                      </a>
-                    </div>
-                  )}
-                  <div className="flex items-center space-x-2 pt-4">
-                    <Switch
-                        id="visibility-switch"
-                        checked={selectedSubmission.visibleOnWall}
-                        onCheckedChange={() => handleVisibilityToggle(selectedSubmission.id, selectedSubmission.visibleOnWall)}
-                    />
-                    <Label htmlFor="visibility-switch">Visible on Impact Wall</Label>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <h3 className="font-semibold">Media</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {selectedSubmission.mediaUrls &&
-                  selectedSubmission.mediaUrls.length > 0 ? (
-                    selectedSubmission.mediaUrls.map((url, index) => (
-                      <div key={index} className="relative aspect-square">
-                        {url.includes('video') ? (
-                          <video
-                            src={url}
-                            controls
-                            className="h-full w-full rounded-md object-cover"
-                          />
-                        ) : (
-                          <Image
-                            src={url}
-                            alt={`Submission media ${index + 1}`}
-                            fill
-                            className="rounded-md object-cover"
-                          />
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No media submitted.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-            <CardFooter className="flex justify-end gap-2 pt-6">
-              <DialogClose asChild>
-                <Button variant="outline">Close</Button>
-              </DialogClose>
-            </CardFooter>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 };
