@@ -7,14 +7,18 @@ import { revalidatePath } from 'next/cache';
 import { keccak256 } from 'ethers';
 
 // Ensure Firebase is initialized only once
-if (getApps().length === 0) {
-  const serviceAccount: ServiceAccount = JSON.parse(
-    process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
-  );
+try {
+  if (getApps().length === 0) {
+    const serviceAccount: ServiceAccount = JSON.parse(
+      process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
+    );
 
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+  }
+} catch (error) {
+    console.error('Firebase Admin initialization error:', error);
 }
 
 const db = getFirestore();
@@ -38,6 +42,9 @@ export async function approveAction(actorId: string, actionId: string, impactSco
   const actionRef = db.collection('actors').doc(actorId).collection('actions').doc(actionId);
 
   try {
+     if (getApps().length === 0) {
+      return { success: false, error: 'Firebase Admin not initialized.' };
+    }
     const actionDoc = await actionRef.get();
     if (!actionDoc.exists) {
       return { success: false, error: 'Action not found.' };

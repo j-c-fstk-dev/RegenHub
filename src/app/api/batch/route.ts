@@ -6,14 +6,18 @@ import { MerkleTree } from "merkletreejs";
 import { keccak256 } from "ethers";
 
 // Ensure Firebase is initialized only once
-if (getApps().length === 0) {
-  const serviceAccount: ServiceAccount = JSON.parse(
-    process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
-  );
+try {
+  if (getApps().length === 0) {
+    const serviceAccount: ServiceAccount = JSON.parse(
+      process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
+    );
 
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+  }
+} catch (error) {
+    console.error('Firebase Admin initialization error:', error);
 }
 
 const db = getFirestore();
@@ -31,6 +35,9 @@ const db = getFirestore();
  */
 export async function GET(req: Request) {
     try {
+        if (getApps().length === 0) {
+            return NextResponse.json({ success: false, error: "Firebase Admin not initialized." }, { status: 500 });
+        }
         console.log("Simulating weekly batch run...");
 
         // 1. Query all certificates that haven't been batched yet.

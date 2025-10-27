@@ -1,17 +1,21 @@
-
 import { NextResponse, NextRequest } from 'next/server';
 import { initializeApp, cert, getApps, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, Query } from 'firebase-admin/firestore';
 
 // Ensure Firebase is initialized only once
-if (getApps().length === 0) {
-  const serviceAccount: ServiceAccount = JSON.parse(
-    process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
-  );
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
+try {
+    if (getApps().length === 0) {
+        const serviceAccount: ServiceAccount = JSON.parse(
+          process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
+        );
+        initializeApp({
+          credential: cert(serviceAccount),
+        });
+    }
+} catch(error) {
+    console.error('Firebase Admin initialization error:', error);
 }
+
 
 const db = getFirestore();
 
@@ -20,6 +24,9 @@ export async function GET(req: NextRequest) {
   const showAll = searchParams.get('all') === 'true';
 
   try {
+    if (getApps().length === 0) {
+        return NextResponse.json({ success: false, error: "Firebase Admin not initialized." }, { status: 500 });
+    }
     let actionsQuery: Query = db.collectionGroup('actions');
 
     // For the public wall, only show verified. For admin, show all.
