@@ -26,14 +26,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useUser } from '@/firebase';
 
 
 const formSchema = z.object({
-  displayName: z.string().min(2, { message: 'Your name is required.' }),
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  // For simplicity, we are not asking the user to select an org/project in the form yet.
+  // We will associate this with a default/first project of the user in the API.
   title: z.string().min(5, { message: 'Action name must be at least 5 characters.' }),
   description: z.string().min(20, { message: 'Description must be at least 20 characters.' }).max(500),
-  category: z.string().optional(),
+  category: z.string().nonempty({ message: "Please select a category."}),
   location: z.string().optional(),
   proofs: z.string().url({ message: 'Please enter a valid URL for your proof.' }).optional().or(z.literal('')),
 });
@@ -43,12 +44,11 @@ type FormValues = z.infer<typeof formSchema>;
 export function RegisterForm() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const { user } = useUser();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      displayName: '',
-      email: '',
       title: '',
       description: '',
       category: '',
@@ -58,11 +58,20 @@ export function RegisterForm() {
   });
 
   const onSubmit = (values: FormValues) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Not Authenticated', description: 'You must be logged in to submit an action.' });
+        return;
+    }
+
     startTransition(async () => {
       const proofsArray = values.proofs ? [{ type: 'link', url: values.proofs }] : [];
       const payload = {
+        // Mocking orgId and projectId for now. In a real app, this would come from user's context.
+        orgId: "mock-org-id",
+        projectId: "mock-project-id",
+        intentId: "mock-intent-id",
         ...values,
-        proofs: proofsArray,
+        mediaUrls: proofsArray.map(p => p.url),
       };
 
       try {
@@ -100,37 +109,6 @@ export function RegisterForm() {
       <CardContent className="p-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold font-headline">About You</h3>
-                <FormField
-                  control={form.control}
-                  name="displayName"
-                  render={({ field }) => (
-                      <FormItem>
-                      <FormLabel>Your Name</FormLabel>
-                      <FormControl>
-                          <Input placeholder="Jane Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                      </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contact Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
-                      </FormControl>
-                       <FormDescription>For verification questions and to send your certificate.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-            </div>
             
             <div className="space-y-4">
               <h3 className="text-lg font-semibold font-headline">About the Action</h3>
@@ -219,9 +197,9 @@ export function RegisterForm() {
              </div>
 
 
-            <Button type="submit" className="w-full" disabled={isPending}>
+            <Button type="submit" className="w-full" disabled={isPending || !user}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit Intent
+              {user ? 'Submit Intent' : 'Please log in to submit'}
             </Button>
           </form>
         </Form>
