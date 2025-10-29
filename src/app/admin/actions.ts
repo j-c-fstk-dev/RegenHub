@@ -58,3 +58,33 @@ export async function approveAction(
     return { success: false, error: `Failed to approve action: ${errorMessage}` };
   }
 }
+
+
+/**
+ * Updates the wallet address for a user's profile.
+ * @param userId The ID of the user document.
+ * @param walletAddress The new wallet address to save.
+ */
+export async function updateUserWallet(
+  userId: string,
+  walletAddress: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!userId || !walletAddress) {
+    return { success: false, error: 'User ID and wallet address are required.' };
+  }
+
+  try {
+    const db = initializeAdminApp();
+    const userRef = doc(db, 'users', userId);
+
+    await updateDoc(userRef, {
+      walletAddress: walletAddress,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating user wallet:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return { success: false, error: `Failed to update wallet: ${errorMessage}` };
+  }
+}

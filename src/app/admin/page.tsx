@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -20,8 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/firebase';
-import { approveAction } from './actions';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { approveAction, updateUserWallet } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -35,6 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AIAssistedIntentVerificationOutput } from '@/ai/flows/ai-assisted-intent-verification';
 import { BrowserProvider, Eip1193Provider } from 'ethers';
+import { doc } from 'firebase/firestore';
 
 type Action = {
   id: string;
@@ -50,9 +51,13 @@ interface WindowWithEthereum extends Window {
     ethereum?: Eip1193Provider;
 }
 
-const WalletConnector = () => {
-    const [walletAddress, setWalletAddress] = useState<string | null>(null);
+const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: string }) => {
+    const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    const savedAddress = userProfile?.walletAddress;
 
     const connectWallet = async () => {
         const localWindow = window as WindowWithEthereum;
@@ -61,7 +66,7 @@ const WalletConnector = () => {
                 const provider = new BrowserProvider(localWindow.ethereum);
                 const signer = await provider.getSigner();
                 const address = await signer.getAddress();
-                setWalletAddress(address);
+                setConnectedAddress(address);
                 setError(null);
             } catch (err) {
                 console.error("Failed to connect wallet:", err);
@@ -71,27 +76,58 @@ const WalletConnector = () => {
             setError("MetaMask is not installed. Please install it to connect your wallet.");
         }
     };
+    
+    const handleSaveWallet = async () => {
+        if (!connectedAddress || !userId) return;
+        setIsSaving(true);
+        const result = await updateUserWallet(userId, connectedAddress);
+        if (result.success) {
+            toast({ title: 'Success', description: 'Wallet address updated successfully.' });
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: result.error });
+        }
+        setIsSaving(false);
+    };
+
+    const isAddressUnsaved = connectedAddress && (connectedAddress !== savedAddress);
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/> Web3 Wallet</CardTitle>
             </CardHeader>
-            <CardContent>
-                {walletAddress ? (
+            <CardContent className="space-y-4">
+                {savedAddress && (
                     <div>
-                        <p className="text-sm font-medium">Connected Address:</p>
-                        <p className="text-xs text-muted-foreground break-all">{walletAddress}</p>
-                    </div>
-                ) : (
-                    <div>
-                        <p className="text-sm text-muted-foreground mb-4">Connect your wallet to manage your on-chain identity.</p>
-                        <Button onClick={connectWallet} className="w-full">
-                            Connect Wallet
-                        </Button>
-                        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+                        <p className="text-sm font-medium">Saved Address:</p>
+                        <p className="text-xs text-muted-foreground break-all">{savedAddress}</p>
                     </div>
                 )}
+                {connectedAddress && connectedAddress !== savedAddress && (
+                     <div>
+                        <p className="text-sm font-medium">Connected Address:</p>
+                        <p className="text-xs text-muted-foreground break-all">{connectedAddress}</p>
+                    </div>
+                )}
+
+                {!connectedAddress && !savedAddress && (
+                     <p className="text-sm text-muted-foreground">Connect your wallet to manage your on-chain identity.</p>
+                )}
+
+                <div className="flex flex-col gap-2">
+                    <Button onClick={connectWallet} disabled={!!connectedAddress}>
+                        {connectedAddress || savedAddress ? 'Connect Different Wallet' : 'Connect Wallet'}
+                    </Button>
+
+                    {isAddressUnsaved && (
+                        <Button onClick={handleSaveWallet} disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save to Profile
+                        </Button>
+                    )}
+                </div>
+
+                {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
             </CardContent>
         </Card>
     );
@@ -110,12 +146,20 @@ const AdminPage = () => {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const firestore = useFirestore();
 
   const [submissions, setSubmissions] = useState<Action[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<Action | null>(null);
   const [impactScore, setImpactScore] = useState<number | string>('');
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user?.uid]);
+
+  const { data: userProfile } = useDoc(userDocRef);
 
   useEffect(() => {
     const fetchSubmissions = async () => {
@@ -282,7 +326,7 @@ const AdminPage = () => {
                 </Card>
             </main>
             <aside className="space-y-8 lg:col-span-1">
-                <WalletConnector />
+                {user && <WalletConnector userProfile={userProfile} userId={user.uid} />}
             </aside>
         </div>
 
