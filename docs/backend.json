@@ -1,76 +1,46 @@
 
 {
   "entities": {
-    "Actor": {
-      "title": "Actor",
-      "description": "Represents an individual or entity submitting a regenerative action.",
+    "Organization": {
+      "title": "Organization",
+      "description": "Represents an organization or collective.",
       "type": "object",
       "properties": {
-        "displayName": {
+        "name": {
           "type": "string",
-          "description": "The name of the actor."
+          "description": "The name of the organization."
         },
-        "regenId": {
+        "bio": {
           "type": "string",
-          "description": "A unique, private ID generated from the actor's email."
+          "description": "A short biography of the organization."
         },
-        "createdAt": {
+        "image": {
           "type": "string",
-          "format": "date-time",
-          "description": "Timestamp of when the actor was first created."
-        }
-      },
-      "required": ["displayName", "regenId", "createdAt"]
-    },
-    "Action": {
-      "title": "Action",
-      "description": "A specific regenerative action performed by an actor.",
-      "type": "object",
-      "properties": {
-        "title": {
+          "description": "URL for the organization's logo or image."
+        },
+        "createdBy": {
           "type": "string",
-          "description": "The title of the action."
+          "description": "The UID of the user who created the organization."
         },
-        "description": {
+        "walletAddress": {
           "type": "string",
-          "description": "A detailed description of the action."
+          "description": "Primary wallet address for the organization."
         },
-        "category": {
+        "ens": {
           "type": "string",
-          "description": "The category of the action (e.g., Ecological, Social)."
+          "description": "Optional ENS name."
         },
-        "location": {
+        "gnosisSafe": {
           "type": "string",
-          "description": "The location where the action took place."
+          "description": "Optional Gnosis Safe address for multisig."
         },
-        "status": {
+        "slug": {
           "type": "string",
-          "description": "The verification status of the action.",
-          "enum": ["pending", "review_ready", "verified", "rejected", "review_failed"]
+          "description": "A unique slug for the organization's public profile."
         },
-        "aiVerification": {
-          "type": "object",
-          "description": "Result of the AI-assisted verification.",
-          "properties": {
-            "trustScore": {
-              "type": "number"
-            },
-            "reasoning": {
-              "type": "string"
-            }
-          }
-        },
-        "humanVerification": {
-            "type": "object",
-            "description": "Result of the human-assisted verification.",
-            "properties": {
-                "impactScore": {
-                    "type": "number"
-                },
-                "regenScore": {
-                    "type": "number"
-                }
-            }
+        "isVerified": {
+          "type": "boolean",
+          "description": "Whether the organization is verified by BeRegen."
         },
         "createdAt": {
           "type": "string",
@@ -81,54 +51,30 @@
           "format": "date-time"
         }
       },
-      "required": ["title", "description", "category", "status", "createdAt"]
+      "required": ["name", "createdBy", "slug", "createdAt"]
     },
-    "Proof": {
-      "title": "Proof",
-      "description": "A piece of evidence (like a URL or file hash) supporting an action.",
+    "Project": {
+      "title": "Project",
+      "description": "A specific project run by an organization.",
       "type": "object",
       "properties": {
-        "type": {
+        "orgId": {
           "type": "string",
-          "description": "The type of proof (e.g., 'link', 'image')."
+          "description": "Reference to the parent organization."
         },
-        "url": {
-          "type": "string",
-          "description": "The URL to the proof media."
-        },
-        "hash": {
-          "type": "string",
-          "description": "A SHA256 hash of the proof content for integrity."
-        }
-      },
-      "required": ["type", "url", "hash"]
-    },
-    "Certificate": {
-      "title": "Certificate",
-      "description": "The data representing the final verified certificate for an action.",
-      "type": "object",
-      "properties": {
-        "hash": {
-          "type": "string",
-          "description": "Keccak256 hash of the certificate JSON."
-        },
-        "anchoredAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp when the certificate was generated."
-        }
-      },
-      "required": ["hash", "anchoredAt"]
-    },
-    "Batch": {
-      "title": "Batch",
-      "description": "Represents a weekly batch of anchored certificates.",
-      "type": "object",
-      "properties": {
-        "merkleRoot": {
+        "title": {
           "type": "string"
         },
-        "txHash": {
+        "description": {
+          "type": "string"
+        },
+        "impactCategory": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "createdBy": {
           "type": "string"
         },
         "createdAt": {
@@ -136,72 +82,118 @@
           "format": "date-time"
         }
       },
-      "required": ["merkleRoot", "txHash", "createdAt"]
+      "required": ["orgId", "title", "createdBy", "createdAt"]
+    },
+    "Intent": {
+      "title": "Intent",
+      "description": "A declaration of what a project intends to accomplish.",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "orgId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "goalDescription": { "type": "string" },
+        "targetDate": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["projectId", "orgId", "title", "createdBy", "createdAt"]
+    },
+    "Action": {
+      "title": "Action",
+      "description": "A specific regenerative action performed and submitted for validation.",
+      "type": "object",
+      "properties": {
+        "intentId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "orgId": { "type": "string" },
+        "description": { "type": "string" },
+        "mediaUrls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["submitted", "under_review", "approved", "rejected"]
+        },
+        "validatorId": { "type": "string" },
+        "validationComments": { "type": "string" },
+        "validationScore": { "type": "number" },
+        "certificateUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "validatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["intentId", "projectId", "orgId", "description", "status", "createdAt"]
     },
     "UserProfile": {
       "title": "User Profile",
-      "description": "Represents a user's public profile information for admin access.",
+      "description": "Represents a user's profile information.",
       "type": "object",
       "properties": {
-        "displayName": {
-          "type": "string",
-          "description": "The user's chosen display name."
-        },
-        "avatarUrl": {
-          "type": "string",
-          "description": "URL for the user's avatar image."
-        },
+        "name": { "type": "string" },
+        "bio": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "walletAddress": { "type": "string" },
+        "ens": { "type": "string" },
         "role": {
           "type": "string",
-          "enum": ["admin"]
-        }
+          "enum": ["member", "validator", "admin"]
+        },
+        "orgs": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "isPublic": { "type": "boolean" }
       },
-      "required": [
-        "displayName"
-      ]
+      "required": ["name", "email"]
+    },
+    "Certificate": {
+      "title": "Certificate",
+      "description": "The data representing the final verified certificate for an action.",
+      "type": "object",
+      "properties": {
+        "actionId": { "type": "string" },
+        "score": { "type": "number" },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "validatorId": { "type": "string" },
+        "qrCodeUrl": { "type": "string" }
+      },
+      "required": ["actionId", "score", "issuedAt", "validatorId"]
     }
   },
   "auth": {
     "providers": [
-      "password"
+      "password",
+      "google.com"
     ]
   },
   "firestore": {
-    "/actors/{actorId}": {
-      "schema": {
-        "$ref": "#/entities/Actor"
-      },
-      "description": "Stores information about the individuals or groups performing actions."
+    "/organizations/{orgId}": {
+      "schema": { "$ref": "#/entities/Organization" },
+      "description": "Stores organization data."
     },
-    "/actors/{actorId}/actions/{actionId}": {
-      "schema": {
-        "$ref": "#/entities/Action"
-      },
-      "description": "Stores the specific actions submitted by an actor."
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Stores project data, sub-collection of an organization."
     },
-    "/actors/{actorId}/actions/{actionId}/proofs/{proofId}": {
-      "schema": {
-        "$ref": "#/entities/Proof"
-      },
-      "description": "Stores the evidence linked to a specific action."
+    "/intents/{intentId}": {
+      "schema": { "$ref": "#/entities/Intent" },
+      "description": "Stores intent data, related to a project."
     },
-    "/actors/{actorId}/actions/{actionId}/certificate/current": {
-      "schema": {
-        "$ref": "#/entities/Certificate"
-      },
-      "description": "Stores the generated certificate for a verified action."
+    "/actions/{actionId}": {
+      "schema": { "$ref": "#/entities/Action" },
+      "description": "Stores action data, the core submission for validation."
     },
-    "/batches/{batchId}": {
-      "schema": {
-        "$ref": "#/entities/Batch"
-      },
-      "description": "Stores the on-chain anchor details for weekly Merkle batches."
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores user profile data."
     },
-     "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/UserProfile"
-      },
-      "description": "Stores public information for each user, including admin roles."
+    "/certificates/{certificateId}": {
+      "schema": { "$ref": "#/entities/Certificate" },
+      "description": "Stores generated certificates for approved actions."
     }
   }
 }
+
+    
