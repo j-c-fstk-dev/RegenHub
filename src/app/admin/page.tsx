@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText } from 'lucide-react';
+import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase';
 import { approveAction } from './actions';
@@ -34,6 +34,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AIAssistedIntentVerificationOutput } from '@/ai/flows/ai-assisted-intent-verification';
+import { BrowserProvider, Eip1193Provider } from 'ethers';
 
 type Action = {
   id: string;
@@ -43,6 +44,59 @@ type Action = {
   createdAt: { _seconds: number; _nanoseconds: number; };
   aiVerification?: AIAssistedIntentVerificationOutput;
 };
+
+// Define a type for the Ethereum window object
+interface WindowWithEthereum extends Window {
+    ethereum?: Eip1193Provider;
+}
+
+const WalletConnector = () => {
+    const [walletAddress, setWalletAddress] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const connectWallet = async () => {
+        const localWindow = window as WindowWithEthereum;
+        if (localWindow.ethereum) {
+            try {
+                const provider = new BrowserProvider(localWindow.ethereum);
+                const signer = await provider.getSigner();
+                const address = await signer.getAddress();
+                setWalletAddress(address);
+                setError(null);
+            } catch (err) {
+                console.error("Failed to connect wallet:", err);
+                setError("Failed to connect wallet. Please make sure MetaMask is unlocked.");
+            }
+        } else {
+            setError("MetaMask is not installed. Please install it to connect your wallet.");
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/> Web3 Wallet</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {walletAddress ? (
+                    <div>
+                        <p className="text-sm font-medium">Connected Address:</p>
+                        <p className="text-xs text-muted-foreground break-all">{walletAddress}</p>
+                    </div>
+                ) : (
+                    <div>
+                        <p className="text-sm text-muted-foreground mb-4">Connect your wallet to manage your on-chain identity.</p>
+                        <Button onClick={connectWallet} className="w-full">
+                            Connect Wallet
+                        </Button>
+                        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+};
+
 
 const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
   submitted: { variant: 'outline', text: 'Pending AI' },
@@ -124,7 +178,7 @@ const AdminPage = () => {
     return null;
   }
 
-  const renderFlags = (flags: AIAssistedIntentVerificationOutput['flags']) => {
+  const renderFlags = (flags?: AIAssistedIntentVerificationOutput['flags']) => {
     if (!flags) return <p className="text-sm text-muted-foreground">No flags raised.</p>;
     const activeFlags = Object.entries(flags).filter(([, value]) => value);
     if (activeFlags.length === 0) return <p className="text-sm text-muted-foreground">No flags raised.</p>;
@@ -143,87 +197,95 @@ const AdminPage = () => {
 
   return (
     <div className="container py-12">
-      <header className="mb-8">
-        <h1 className="font-headline text-4xl font-bold text-primary">
-          Admin Panel
-        </h1>
-        <p className="mt-2 text-lg text-muted-foreground">
-          Review and approve intent submissions.
-        </p>
-      </header>
+        <header className="mb-8">
+            <h1 className="font-headline text-4xl font-bold text-primary">
+            Admin Panel
+            </h1>
+            <p className="mt-2 text-lg text-muted-foreground">
+            Review submissions and manage your regenerative identity.
+            </p>
+        </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Submissions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-destructive">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5" />
-                <h3 className="font-semibold">Error Loading Submissions</h3>
-              </div>
-              <p className="ml-7 text-sm">{error}</p>
-            </div>
-          )}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Action Title</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>AI Score</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {submissions && submissions.length > 0 ? (
-                submissions.map((submission) => (
-                  <TableRow key={submission.id}>
-                    <TableCell className="font-medium">
-                      {submission.title}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(submission.createdAt._seconds * 1000).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {submission.aiVerification?.finalScore !== undefined ? (
-                        <div className="flex items-center gap-1">
-                            <Sparkles className="h-4 w-4 text-accent"/>
-                            <span className="font-bold">{submission.aiVerification.finalScore}</span>
+        <div className="grid gap-8 lg:grid-cols-3">
+            <main className="lg:col-span-2">
+                <Card>
+                    <CardHeader>
+                    <CardTitle>Recent Submissions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                    {error && (
+                        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-destructive">
+                        <div className="flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5" />
+                            <h3 className="font-semibold">Error Loading Submissions</h3>
                         </div>
-                      ): (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                       <Badge variant={statusStyles[submission.status]?.variant || 'default'}>
-                        {statusStyles[submission.status]?.text || submission.status}
-                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                       {(submission.status === 'review_ready' || submission.status === 'review_failed') && (
-                            <Button onClick={() => handleReviewClick(submission)}>
-                                <Check className="mr-2 h-4 w-4" /> Review
-                            </Button>
+                        <p className="ml-7 text-sm">{error}</p>
+                        </div>
+                    )}
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Action Title</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>AI Score</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {submissions && submissions.length > 0 ? (
+                            submissions.map((submission) => (
+                            <TableRow key={submission.id}>
+                                <TableCell className="font-medium">
+                                {submission.title}
+                                </TableCell>
+                                <TableCell>
+                                {new Date(submission.createdAt._seconds * 1000).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                {submission.aiVerification?.finalScore !== undefined ? (
+                                    <div className="flex items-center gap-1">
+                                        <Sparkles className="h-4 w-4 text-accent"/>
+                                        <span className="font-bold">{submission.aiVerification.finalScore}</span>
+                                    </div>
+                                ): (
+                                    <span className="text-muted-foreground">-</span>
+                                )}
+                                </TableCell>
+                                <TableCell>
+                                <Badge variant={statusStyles[submission.status]?.variant || 'default'}>
+                                    {statusStyles[submission.status]?.text || submission.status}
+                                </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                {(submission.status === 'review_ready' || submission.status === 'review_failed') && (
+                                        <Button onClick={() => handleReviewClick(submission)}>
+                                            <Check className="mr-2 h-4 w-4" /> Review
+                                        </Button>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                            <TableCell
+                                colSpan={5}
+                                className="h-24 text-center text-muted-foreground"
+                            >
+                                {isLoading ? 'Loading submissions...' : 'No submissions to review.'}
+                            </TableCell>
+                            </TableRow>
                         )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    No submissions to review.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                        </TableBody>
+                    </Table>
+                    </CardContent>
+                </Card>
+            </main>
+            <aside className="space-y-8 lg:col-span-1">
+                <WalletConnector />
+            </aside>
+        </div>
+
 
       {selectedSubmission && (
         <Dialog open={!!selectedSubmission} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
