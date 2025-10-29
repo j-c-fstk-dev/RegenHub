@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -19,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, AlertCircle, Sparkles, User, Info } from 'lucide-react';
+import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase';
 import { approveAction } from './actions';
@@ -29,33 +28,29 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AIAssistedIntentVerificationOutput } from '@/ai/flows/ai-assisted-intent-verification';
 
 type Action = {
   id: string;
-  actorId: string;
   title: string;
   description: string;
-  status: 'pending' | 'review_ready' | 'review_failed' | 'verified' | 'rejected';
+  status: 'submitted' | 'review_ready' | 'review_failed' | 'verified' | 'rejected';
   createdAt: { _seconds: number; _nanoseconds: number; };
-  aiVerification?: {
-    trustScore: number;
-    reasoning: string;
-  };
+  aiVerification?: AIAssistedIntentVerificationOutput;
 };
 
 const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
-  pending: { variant: 'outline', text: 'Pending AI' },
+  submitted: { variant: 'outline', text: 'Pending AI' },
   review_ready: { variant: 'default', text: 'Review Ready' },
-  review_failed: { variant: 'destructive', text: 'AI Review Failed' },
+  review_failed: { variant: 'destructive', text: 'AI Failed' },
   verified: { variant: 'secondary', text: 'Verified' },
   rejected: { variant: 'destructive', text: 'Rejected' },
 };
-
 
 const AdminPage = () => {
   const { user, isUserLoading } = useUser();
@@ -69,17 +64,14 @@ const AdminPage = () => {
   const [impactScore, setImpactScore] = useState<number | string>('');
 
   useEffect(() => {
-    // In a real app, you would fetch all submissions from a secure admin endpoint
     const fetchSubmissions = async () => {
        try {
-        // This should be an admin-only API endpoint that can query all statuses
-        const response = await fetch('/api/wall?all=true'); // A real API would secure this
+        const response = await fetch('/api/wall?all=true'); 
         if(!response.ok) throw new Error("Failed to fetch submissions");
         let data = await response.json();
         
-        // Sort by status to bring actionable items to the top
         data.sort((a: Action, b: Action) => {
-          const order = ['review_ready', 'pending', 'review_failed', 'verified', 'rejected'];
+          const order = ['review_ready', 'submitted', 'review_failed', 'verified', 'rejected'];
           return order.indexOf(a.status) - order.indexOf(b.status);
         });
 
@@ -95,14 +87,20 @@ const AdminPage = () => {
         fetchSubmissions();
     }
   }, [user]);
+  
+  const handleReviewClick = (submission: Action) => {
+    setSelectedSubmission(submission);
+    // Pre-fill score if AI provided one, otherwise empty
+    setImpactScore(submission.aiVerification?.finalScore || '');
+  };
 
   const handleApprove = async () => {
-    if (!selectedSubmission || typeof impactScore !== 'number') {
+    if (!selectedSubmission || typeof impactScore !== 'number' || !user) {
       toast({ variant: 'destructive', title: 'Error', description: 'Impact score is required and must be a number.' });
       return;
     }
     
-    const result = await approveAction(selectedSubmission.actorId, selectedSubmission.id, impactScore);
+    const result = await approveAction(selectedSubmission.id, impactScore, user.uid);
     if (result.success) {
       toast({ title: 'Success', description: 'Action approved successfully.' });
       setSubmissions(submissions.map(s => s.id === selectedSubmission.id ? { ...s, status: 'verified' } : s));
@@ -125,6 +123,23 @@ const AdminPage = () => {
     router.push('/login');
     return null;
   }
+
+  const renderFlags = (flags: AIAssistedIntentVerificationOutput['flags']) => {
+    if (!flags) return <p className="text-sm text-muted-foreground">No flags raised.</p>;
+    const activeFlags = Object.entries(flags).filter(([, value]) => value);
+    if (activeFlags.length === 0) return <p className="text-sm text-muted-foreground">No flags raised.</p>;
+    return (
+      <ul className="space-y-1 text-sm">
+        {activeFlags.map(([key, value]) => (
+          <li key={key} className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <span className="font-semibold">{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</span>
+          </li>
+        ))}
+      </ul>
+    )
+  };
+
 
   return (
     <div className="container py-12">
@@ -156,7 +171,7 @@ const AdminPage = () => {
               <TableRow>
                 <TableHead>Action Title</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>AI Trust</TableHead>
+                <TableHead>AI Score</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -172,10 +187,10 @@ const AdminPage = () => {
                       {new Date(submission.createdAt._seconds * 1000).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      {submission.aiVerification?.trustScore !== undefined ? (
+                      {submission.aiVerification?.finalScore !== undefined ? (
                         <div className="flex items-center gap-1">
                             <Sparkles className="h-4 w-4 text-accent"/>
-                            <span>{submission.aiVerification.trustScore}%</span>
+                            <span className="font-bold">{submission.aiVerification.finalScore}</span>
                         </div>
                       ): (
                         <span className="text-muted-foreground">-</span>
@@ -187,14 +202,10 @@ const AdminPage = () => {
                        </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                       {submission.status === 'review_ready' && (
-                          <Dialog onOpenChange={(open) => !open && setSelectedSubmission(null)}>
-                            <DialogTrigger asChild>
-                              <Button onClick={() => setSelectedSubmission(submission)}>
+                       {(submission.status === 'review_ready' || submission.status === 'review_failed') && (
+                            <Button onClick={() => handleReviewClick(submission)}>
                                 <Check className="mr-2 h-4 w-4" /> Review
-                              </Button>
-                            </DialogTrigger>
-                          </Dialog>
+                            </Button>
                         )}
                     </TableCell>
                   </TableRow>
@@ -216,51 +227,76 @@ const AdminPage = () => {
 
       {selectedSubmission && (
         <Dialog open={!!selectedSubmission} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="font-headline text-2xl">{selectedSubmission.title}</DialogTitle>
                     <DialogDescription>Review the details of the submission and the AI's analysis before approving.</DialogDescription>
                 </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[60vh] overflow-y-auto pr-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2"><User className="h-5 w-5"/>Submission Details</CardTitle>
+                            <CardTitle className="text-lg flex items-center gap-2"><FileText className="h-5 w-5"/>Submission Details</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <p><strong className="text-muted-foreground">Description:</strong> {selectedSubmission.description}</p>
+                        <CardContent className="space-y-4 text-sm">
+                            <div>
+                                <Label className="font-semibold text-muted-foreground">Description</Label>
+                                <p>{selectedSubmission.description}</p>
+                            </div>
                         </CardContent>
                     </Card>
                      <Card className="bg-accent/10 border-accent/50">
                         <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent"/>AI Verification</CardTitle>
+                            <CardTitle className="text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent"/>AI Analysis</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
+                        <CardContent className="space-y-4 text-sm">
                            <div className="flex items-baseline gap-2">
-                             <strong className="text-muted-foreground">Trust Score:</strong>
-                             <span className="font-bold text-xl text-accent">{selectedSubmission.aiVerification?.trustScore ?? 'N/A'}%</span>
+                             <strong className="text-muted-foreground">AI Recommendation:</strong>
+                             <Badge variant={selectedSubmission.aiVerification?.recommendation === 'approve' ? 'default' : 'destructive'}>{selectedSubmission.aiVerification?.recommendation || 'N/A'}</Badge>
                            </div>
-                            <p><strong className="text-muted-foreground">Reasoning:</strong> {selectedSubmission.aiVerification?.reasoning ?? 'N/A'}</p>
+                           <p><strong className="text-muted-foreground">Summary:</strong> {selectedSubmission.aiVerification?.summary ?? 'N/A'}</p>
+                           <div>
+                             <strong className="text-muted-foreground">Flags:</strong>
+                             {renderFlags(selectedSubmission.aiVerification?.flags)}
+                           </div>
+                            <p><strong className="text-muted-foreground">Notes:</strong> {selectedSubmission.aiVerification?.notes ?? 'N/A'}</p>
                         </CardContent>
                     </Card>
+                    
+                    {selectedSubmission.aiVerification?.subscores && (
+                        <Card className="md:col-span-2">
+                            <CardHeader>
+                                <CardTitle className="text-lg">AI Subscores</CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                {Object.entries(selectedSubmission.aiVerification.subscores).map(([key, value]) => (
+                                    <div key={key} className="flex flex-col items-center p-2 rounded-md bg-secondary">
+                                        <div className="text-2xl font-bold text-primary">{value}<span className="text-sm text-muted-foreground">/10</span></div>
+                                        <div className="text-xs font-medium text-center capitalize">{key.replace(/([A-Z])/g, ' $1')}</div>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+
                 </div>
-                 <div className="space-y-4">
-                    <Label htmlFor="impact-score" className="font-bold text-lg">Assign Impact Score (0-100)</Label>
+                 <div className="space-y-4 pt-4 border-t">
+                    <Label htmlFor="impact-score" className="font-bold text-lg">Assign Final Impact Score (0-100)</Label>
                     <Input 
                         id="impact-score" 
                         type="number" 
                         min="0" 
                         max="100" 
                         value={impactScore}
-                        onChange={(e) => setImpactScore(parseInt(e.target.value, 10))}
-                        placeholder="e.g., 85"
+                        onChange={(e) => setImpactScore(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                        placeholder={`AI Suggestion: ${selectedSubmission.aiVerification?.finalScore ?? 'N/A'}`}
                         className="max-w-xs"
                     />
-                    <p className="text-xs text-muted-foreground">Assign a score based on the action's real-world impact, relevance, and regenerative value.</p>
+                    <p className="text-xs text-muted-foreground">Assign a score based on the action's real-world impact, relevance, and regenerative value. The AI score is a suggestion.</p>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setSelectedSubmission(null)}>Cancel</Button>
                     <Button onClick={handleApprove} disabled={typeof impactScore !== 'number' || impactScore < 0 || impactScore > 100}>
-                        <Check className="mr-2 h-4 w-4" />Approve Action
+                        <Check className="mr-2 h-4 w-4" />Approve & Certify Action
                     </Button>
                 </DialogFooter>
             </DialogContent>

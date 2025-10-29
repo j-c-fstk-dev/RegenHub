@@ -2,32 +2,34 @@ import { NextResponse, NextRequest } from 'next/server';
 import { initializeApp, cert, getApps, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, Query } from 'firebase-admin/firestore';
 
-// Ensure Firebase is initialized only once
-try {
+// Helper to initialize Firebase Admin SDK only once
+function initializeAdminApp() {
     if (getApps().length === 0) {
+      if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
         const serviceAccount: ServiceAccount = JSON.parse(
-          process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
+          process.env.FIREBASE_SERVICE_ACCOUNT_KEY
         );
         initializeApp({
           credential: cert(serviceAccount),
         });
+      } else {
+          console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Admin actions will fail.");
+      }
     }
-} catch(error) {
-    console.error('Firebase Admin initialization error:', error);
+    return getFirestore();
 }
-
-
-const db = getFirestore();
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const showAll = searchParams.get('all') === 'true';
 
   try {
+    const db = initializeAdminApp();
     if (getApps().length === 0) {
         return NextResponse.json({ success: false, error: "Firebase Admin not initialized." }, { status: 500 });
     }
-    let actionsQuery: Query = db.collectionGroup('actions');
+    
+    let actionsQuery: Query = db.collection('actions');
 
     // For the public wall, only show verified. For admin, show all.
     if (!showAll) {
@@ -38,14 +40,10 @@ export async function GET(req: NextRequest) {
 
     const actionsSnapshot = await actionsQuery.get();
 
-    const actions = actionsSnapshot.docs.map(doc => {
-      const parentActorRef = doc.ref.parent.parent;
-      return {
-        id: doc.id,
-        actorId: parentActorRef ? parentActorRef.id : null,
-        ...doc.data()
-      };
-    });
+    const actions = actionsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
     return NextResponse.json(actions, { status: 200 });
 
