@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
-import { aiAssistedIntentVerification } from '@/ai/flows/ai-assisted-intent-verification';
+import { aiAssistedIntentVerification, AIAssistedIntentVerificationInput } from '@/ai/flows/ai-assisted-intent-verification';
 
 // Initialize Firebase Admin SDK
 try {
@@ -15,9 +15,8 @@ try {
         credential: cert(serviceAccount),
       });
     } else {
-        // This is for local development where the key might not be set,
-        // it will fail gracefully in a deployed environment if the key is missing.
-        console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Skipping Admin SDK initialization for local dev.");
+      // This is for local development where the key might not be set.
+      console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Skipping Admin SDK initialization for local dev. API will fail if called.");
     }
   }
 } catch (error) {
@@ -82,18 +81,32 @@ export async function POST(req: NextRequest) {
     });
 
     // 3. Trigger the AI precheck/verification flow asynchronously (don't block the response)
-    aiAssistedIntentVerification({
-        actionId: actionRef.id,
-        title,
-        description,
-        category,
-        location,
-        proofs: mediaUrls.map((url: string) => ({ type: 'link', url }))
+    const aiInput: AIAssistedIntentVerificationInput = {
+      actionId: actionRef.id,
+      project: { title: "Mock Project Title", location: location || "" }, // Mocking some data for now
+      category: category || "Other",
+      description,
+      evidences: (mediaUrls || []).map((url: string) => ({ type: 'link', url })),
+      locale: 'pt-BR',
+    };
+
+    aiAssistedIntentVerification(aiInput).then(aiResult => {
+      // On success, update the action with AI results and change status
+      actionRef.update({ 
+        aiVerification: aiResult,
+        status: 'review_ready' 
+      });
     }).catch(aiError => {
-        // Log the error, but don't fail the user request
+        // Log the error and update the action status to 'review_failed'
         console.error(`AI verification failed for action ${actionRef.id}:`, aiError);
-        // Optionally, update the action status to 'review_failed'
-        actionRef.update({ status: 'review_failed', aiVerification: { reasoning: `AI process failed: ${aiError.message}` } });
+        actionRef.update({ 
+            status: 'review_failed', 
+            aiVerification: { 
+                summary: "AI process failed.",
+                notes: `AI process failed: ${aiError.message}`,
+                flags: { lowTextDensity: true } // Assume failure might be due to bad input
+            }
+        });
     });
 
 
