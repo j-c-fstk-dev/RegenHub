@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText, Wallet, Building, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useDoc } from '@/firebase';
 import { approveAction, updateUserWallet } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -155,7 +155,7 @@ const AdminPage = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<Action | null>(null);
   const [impactScore, setImpactScore] = useState<number | string>('');
 
-  const userDocRef = useMemoFirebase(() => {
+  const userDocRef = useMemo(() => {
     if (!firestore || !user?.uid) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user?.uid]);
@@ -359,7 +359,7 @@ const AdminPage = () => {
                     </CardContent>
                 </Card>
 
-                {user && <WalletConnector userProfile={userProfile} userId={user.uid} />}
+                {user && userProfile && <WalletConnector userProfile={userProfile} userId={user.uid} />}
             </aside>
         </div>
 

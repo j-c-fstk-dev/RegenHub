@@ -13,6 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FirestorePermissionError, errorEmitter } from '@/firebase';
+
 
 const projectFormSchema = z.object({
   title: z.string().min(3, 'Project title must be at least 3 characters.'),
@@ -42,20 +44,29 @@ export function ProjectForm({ userId, orgId, onProjectCreated }: ProjectFormProp
 
   const onSubmit = (values: ProjectFormValues) => {
     if (!firestore) return;
-    startTransition(async () => {
-      try {
-        const projectRef = await addDoc(collection(firestore, 'projects'), {
+    startTransition(() => {
+      const projectData = {
           ...values,
           orgId: orgId,
           createdBy: userId,
           createdAt: serverTimestamp(),
+      };
+      const projectsRef = collection(firestore, 'projects');
+
+      addDoc(projectsRef, projectData)
+        .then(projectRef => {
+          toast({ title: 'Success!', description: 'Your new project has been created.' });
+          onProjectCreated({ id: projectRef.id, ...values });
+        })
+        .catch(e => {
+            console.error(e);
+            const permissionError = new FirestorePermissionError({
+                path: 'projects',
+                operation: 'create',
+                requestResourceData: projectData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
         });
-        toast({ title: 'Success!', description: 'Your new project has been created.' });
-        onProjectCreated({ id: projectRef.id, ...values });
-      } catch (e: any) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not create project.' });
-      }
     });
   };
 

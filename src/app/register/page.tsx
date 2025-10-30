@@ -11,8 +11,8 @@ const RegisterPage = () => {
                 <h1 className="font-headline text-4xl font-bold text-primary md:text-5xl">
                     Register Your Action
                 </h1>
-                <p className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto">
-                    Follow the steps to add your regenerative action to the public impact wall for validation.
+                <p className="mt-4 text-xl text-muted-foreground max-w-3xl mx-auto">
+                   This wizard will guide you through the process of submitting a new regenerative action. Let's get started!
                 </p>
             </header>
             <div className="mx-auto max-w-3xl">

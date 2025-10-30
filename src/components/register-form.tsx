@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition, useEffect, useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FolderPlus, Building } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -32,6 +32,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { OrganizationForm } from './organization-form';
 import { ProjectForm } from './project-form';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const actionFormSchema = z.object({
   projectId: z.string().nonempty({ message: "Please select a project." }),
@@ -56,17 +57,13 @@ export function RegisterForm() {
   
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [currentStep, setCurrentStep] = useState('loading'); // loading, login, no_org, no_project, form, error
+  const [currentStep, setCurrentStep] = useState('loading'); // loading, login, decide, create_org, create_project, form, error
 
-  const fetchOrgAndProjects = useCallback(async () => {
-    // This is the critical guard. Only proceed if user and firestore are ready.
+  const fetchUserOrgsAndProjects = useCallback(async () => {
     if (!user || !firestore) {
-      setCurrentStep('error');
-      console.error("Fetch aborted: User or Firestore not available.");
       return; 
     }
     
-    setCurrentStep('loading');
     try {
       const orgQuery = query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
       const orgSnapshot = await getDocs(orgQuery);
@@ -80,48 +77,36 @@ export function RegisterForm() {
         const projectsSnapshot = await getDocs(projectsQuery);
         const fetchedProjects = projectsSnapshot.docs.map(p => ({ id: p.id, title: p.data().title as string }));
         setProjects(fetchedProjects);
-        setCurrentStep(fetchedProjects.length > 0 ? 'form' : 'no_project');
       } else {
         setOrganization(null);
         setProjects([]);
-        setCurrentStep('no_org');
       }
     } catch (error) {
-      console.error("Error fetching user organization and project data:", error);
+      console.error("Error fetching user data:", error);
       toast({ variant: 'destructive', title: 'Error Loading Data', description: 'Could not load your profile. Please try again.' });
       setCurrentStep('error');
     }
   }, [user, firestore, toast]);
 
   useEffect(() => {
-    // 1. Wait until the authentication state is fully resolved.
     if (isUserLoading) {
       setCurrentStep('loading');
       return;
     }
-
-    // 2. If authentication is resolved and there's no user, show login prompt.
     if (!user) {
       setCurrentStep('login');
       return;
     }
-
-    // 3. If user is logged in and firestore is available, fetch their data.
     if (user && firestore) {
-      fetchOrgAndProjects();
+      fetchUserOrgsAndProjects().then(() => {
+         setCurrentStep('decide');
+      });
     }
-  }, [user, isUserLoading, firestore, fetchOrgAndProjects]);
+  }, [user, isUserLoading, firestore, fetchUserOrgsAndProjects]);
 
   const form = useForm<ActionFormValues>({
     resolver: zodResolver(actionFormSchema),
-    defaultValues: {
-      projectId: '',
-      title: '',
-      description: '',
-      category: '',
-      location: '',
-      mediaUrls: '',
-    },
+    defaultValues: { projectId: '', title: '', description: '', category: '', location: '', mediaUrls: ''},
   });
 
   const onSubmit = (values: ActionFormValues) => {
@@ -133,7 +118,7 @@ export function RegisterForm() {
     startSubmitTransition(async () => {
       const payload = {
         orgId: organization.id,
-        intentId: "mock-intent-id", // Still mocking intent for now
+        intentId: "mock-intent-id",
         ...values,
         mediaUrls: values.mediaUrls ? [values.mediaUrls] : [],
       };
@@ -142,40 +127,27 @@ export function RegisterForm() {
         const token = await user.getIdToken();
         const response = await fetch('/api/submit', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
           body: JSON.stringify(payload),
         });
 
         const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || 'An unknown error occurred.');
 
-        if (!response.ok || !result.success) {
-          throw new Error(result.error || 'An unknown error occurred.');
-        }
-
-        toast({
-          title: 'Action Submitted!',
-          description: 'Your action is now pending verification. Thank you!',
-        });
+        toast({ title: 'Action Submitted!', description: 'Your action is now pending verification. Thank you!'});
         form.reset();
         router.push('/admin');
 
       } catch (error) {
         console.error("Submission error:", error);
-        toast({
-          variant: 'destructive',
-          title: 'Submission Failed',
-          description: error instanceof Error ? error.message : 'Please try again.',
-        });
+        toast({ variant: 'destructive', title: 'Submission Failed', description: error instanceof Error ? error.message : 'Please try again.'});
       }
     });
   }
 
   const handleOrgCreated = (newOrg: Organization) => {
     setOrganization(newOrg);
-    setCurrentStep('no_project');
+    setCurrentStep('create_project');
   };
 
   const handleProjectCreated = (newProject: Project) => {
@@ -186,124 +158,93 @@ export function RegisterForm() {
   const renderContent = () => {
     switch (currentStep) {
         case 'loading':
-            return (
-                <div className="flex h-64 items-center justify-center">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                </div>
-            );
+            return ( <div className="flex h-64 items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>);
         case 'login':
             return (
                  <Card>
-                    <CardHeader>
-                        <CardTitle>Step 1: Log In</CardTitle>
-                        <CardDescription>To register an action, you first need an account.</CardDescription>
-                    </CardHeader>
+                    <CardHeader><CardTitle>Step 1: Log In</CardTitle><CardDescription>To register an action, you first need an account.</CardDescription></CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground mb-4">Please log in or sign up to continue. Your actions will be linked to your profile.</p>
-                        <Button asChild className="w-full">
-                           <Link href="/login?redirect=/register">Log In or Sign Up</Link>
+                        <Button asChild className="w-full"><Link href="/login?redirect=/register">Log In or Sign Up</Link></Button>
+                    </CardContent>
+                </Card>
+            );
+        case 'decide':
+            return (
+                 <Card>
+                    <CardHeader><CardTitle>Step 2: Choose Your Path</CardTitle><CardDescription>Are you submitting for an existing project or starting something new?</CardDescription></CardHeader>
+                    <CardContent className="space-y-4">
+                        <Button className="w-full" onClick={() => setCurrentStep('form')} disabled={!organization || projects.length === 0}>
+                            <FolderPlus className="mr-2" /> Submit to an Existing Project
                         </Button>
+                        <Button className="w-full" variant="outline" onClick={() => setCurrentStep('create_org')}>
+                            <Building className="mr-2" /> Create a New Organization
+                        </Button>
+                        {!organization && <p className="text-xs text-center text-muted-foreground">You must create an organization first.</p>}
+                        {organization && projects.length === 0 && <p className="text-xs text-center text-muted-foreground">You have an organization but no projects. Create a project first.</p>}
                     </CardContent>
                 </Card>
             );
-        case 'no_org':
+
+        case 'create_org':
             return (
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Step 2: Create an Organization</CardTitle>
-                        <CardDescription>Actions are submitted on behalf of an organization or collective.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {user && <OrganizationForm userId={user.uid} onOrgCreated={handleOrgCreated} />}
-                    </CardContent>
+                    <CardHeader><CardTitle>Create a New Organization</CardTitle><CardDescription>Actions are submitted on behalf of an organization or collective.</CardDescription></CardHeader>
+                    <CardContent>{user && <OrganizationForm userId={user.uid} onOrgCreated={handleOrgCreated} />}</CardContent>
                 </Card>
             );
-        case 'no_project':
+        case 'create_project':
             return (
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Step 3: Create a Project</CardTitle>
-                        <CardDescription>Every action must be linked to a specific project.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         {user && organization && <ProjectForm userId={user.uid} orgId={organization.id} onProjectCreated={handleProjectCreated} />}
-                    </CardContent>
+                    <CardHeader><CardTitle>Create a New Project</CardTitle><CardDescription>Now, let's create the first project for {organization?.name}.</CardDescription></CardHeader>
+                    <CardContent>{user && organization && <ProjectForm userId={user.uid} orgId={organization.id} onProjectCreated={handleProjectCreated} />}</CardContent>
                 </Card>
             );
         case 'form':
+             if (!organization || projects.length === 0) {
+                 return (
+                    <Card>
+                        <CardHeader><CardTitle>Missing Setup</CardTitle><CardDescription>You need an organization and a project to submit an action.</CardDescription></CardHeader>
+                        <CardContent>
+                            <p className="text-destructive mb-4">You can't submit an action yet because you haven't created a project.</p>
+                             <Button onClick={() => setCurrentStep('decide')}>Go Back</Button>
+                        </CardContent>
+                    </Card>
+                 )
+             }
             return (
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Step 4: Describe your Action</CardTitle>
-                    <CardDescription>You're all set! Fill in the details of the regenerative action you performed.</CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Step 3: Describe Your Action</CardTitle><CardDescription>You're all set! Fill in the details of the regenerative action you performed.</CardDescription></CardHeader>
                   <CardContent>
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                            <FormField
-                              control={form.control}
-                              name="projectId"
-                              render={({ field }) => (
+                              control={form.control} name="projectId" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Project</FormLabel>
                                   <Select onValueChange={field.onChange} defaultValue={field.value} disabled={projects.length === 0}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select the project this action belongs to" />
-                                      </SelectTrigger>
-                                    </FormControl>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select the project this action belongs to" /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                      {projects.map(p => (
-                                         <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
-                                      ))}
+                                      {projects.map(p => (<SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>))}
                                     </SelectContent>
                                   </Select>
-                                  <FormDescription>
-                                    You can create more projects in your <Link href="/admin/organization" className="underline">organization panel</Link>.
-                                  </FormDescription>
+                                  <FormDescription>You can create more projects in your <Link href="/admin/organization" className="underline">organization dashboard</Link>.</FormDescription>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
 
-                           <FormField
-                            control={form.control}
-                            name="title"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Name of the action</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="e.g., Community Tree Planting Day" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="description"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Brief description</FormLabel>
-                                <FormControl>
-                                  <Textarea placeholder="Describe what you did and the outcome." {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                              control={form.control}
-                              name="category"
-                              render={({ field }) => (
+                           <FormField control={form.control} name="title" render={({ field }) => (
+                              <FormItem><FormLabel>Name of the action</FormLabel><FormControl><Input placeholder="e.g., Community Tree Planting Day" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                          <FormField control={form.control} name="description" render={({ field }) => (
+                              <FormItem><FormLabel>Brief description</FormLabel><FormControl><Textarea placeholder="Describe what you did and the outcome." {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                          <FormField control={form.control} name="category" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Category</FormLabel>
                                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select a category" />
-                                      </SelectTrigger>
-                                    </FormControl>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                       <SelectItem value="Ecological">Ecological</SelectItem>
                                       <SelectItem value="Social">Social</SelectItem>
@@ -314,44 +255,22 @@ export function RegisterForm() {
                                   </Select>
                                   <FormMessage />
                                 </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                            control={form.control}
-                            name="location"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Location (City, Country)</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="e.g., Recife, Brazil" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        
+                              )}/>
+                            <FormField control={form.control} name="location" render={({ field }) => (
+                              <FormItem><FormLabel>Location (City, Country)</FormLabel><FormControl><Input placeholder="e.g., Recife, Brazil" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
                          <div className="space-y-4">
                             <h3 className="text-lg font-semibold font-headline">Proof</h3>
-                            <FormField
-                            control={form.control}
-                            name="mediaUrls"
-                            render={({ field }) => (
+                            <FormField control={form.control} name="mediaUrls" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Proof of Action (Link)</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="https://example.com/photo-or-video-of-action" {...field} />
-                                </FormControl>
-                                <FormDescription>Link to a photo, video, blog post, or social media post.</FormDescription>
-                                <FormMessage />
+                                <FormControl><Input placeholder="https://example.com/photo-or-video-of-action" {...field} /></FormControl>
+                                <FormDescription>Link to a photo, video, blog post, or social media post.</FormDescription><FormMessage />
                               </FormItem>
-                            )}
-                          />
+                            )}/>
                          </div>
-
                         <Button type="submit" className="w-full" disabled={isSubmitPending}>
-                          {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Submit Action
+                          {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Action
                         </Button>
                       </form>
                     </Form>
@@ -359,17 +278,8 @@ export function RegisterForm() {
                 </Card>
             );
         case 'error':
-             return (
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Error</CardTitle>
-                        <CardDescription>We couldn't load your data.</CardDescription>
-                    </CardHeader>
-                    <CardContent><p>Something went wrong while trying to load your profile. Please refresh the page and try again.</p></CardContent>
-                </Card>
-             );
-        default:
-            return null;
+             return (<Card><CardHeader><CardTitle>Error</CardTitle><CardDescription>We couldn't load your data.</CardDescription></CardHeader><CardContent><p>Something went wrong. Please refresh the page and try again.</p></CardContent></Card>);
+        default: return null;
     }
   }
 

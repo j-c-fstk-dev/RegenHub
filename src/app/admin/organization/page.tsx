@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useEffect, useState, useTransition, useCallback, useMemo } from 'react';
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, getDoc, collection, query, where, getDocs, writeBatch, serverTimestamp, addDoc, arrayUnion } from 'firebase/firestore';
 import { Loader2, Building, AlertCircle, PlusCircle, FolderKanban } from 'lucide-react';
@@ -72,7 +72,8 @@ const NewProjectDialog = ({ orgId, userId, onProjectCreated }: { orgId: string, 
         createdAt: serverTimestamp(),
       };
       
-      addDoc(collection(firestore, 'projects'), projectData)
+      const projectsRef = collection(firestore, 'projects');
+      addDoc(projectsRef, projectData)
         .then(projectRef => {
             toast({ title: 'Success!', description: 'Your new project has been created.' });
             onProjectCreated({ id: projectRef.id, ...values, impactCategory: values.impactCategory || '' });
@@ -177,7 +178,7 @@ const NewProjectDialog = ({ orgId, userId, onProjectCreated }: { orgId: string, 
 };
 
 
-const OrganizationPage = () => {
+const OrganizationDashboardPage = () => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
@@ -187,45 +188,49 @@ const OrganizationPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const orgsCollectionRef = useMemoFirebase(() => collection(firestore, 'organizations'), [firestore]);
-  const projectsCollectionRef = useMemoFirebase(() => collection(firestore, 'projects'), [firestore]);
+  const orgsCollectionRef = useMemo(() => firestore ? collection(firestore, 'organizations') : null, [firestore]);
+  const projectsCollectionRef = useMemo(() => firestore ? collection(firestore, 'projects') : null, [firestore]);
 
+  const fetchOrgData = useCallback(async () => {
+      if (!user || !firestore || !orgsCollectionRef) return;
+      setIsLoading(true);
+      try {
+          const orgQuery = query(orgsCollectionRef, where('createdBy', '==', user.uid));
+          const orgSnapshot = await getDocs(orgQuery);
 
-  const fetchOrgData = async () => {
-    if (!user || !firestore || !orgsCollectionRef) return;
-    setIsLoading(true);
-    try {
-      const orgQuery = query(orgsCollectionRef, where('createdBy', '==', user.uid));
-      const orgSnapshot = await getDocs(orgQuery);
-      
-      if (!orgSnapshot.empty) {
-        const orgDoc = orgSnapshot.docs[0];
-        const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
-        setOrganization(orgData);
+          if (!orgSnapshot.empty) {
+              const orgDoc = orgSnapshot.docs[0];
+              const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
+              setOrganization(orgData);
 
-        if (projectsCollectionRef) {
-          const projectsQuery = query(projectsCollectionRef, where('orgId', '==', orgData.id));
-          const projectsSnapshot = await getDocs(projectsQuery);
-          const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
-          setProjects(projectsData);
-        }
-      } else {
-        setOrganization(null);
-        setProjects([]);
+              if (projectsCollectionRef) {
+                  const projectsQuery = query(projectsCollectionRef, where('orgId', '==', orgData.id));
+                  const projectsSnapshot = await getDocs(projectsQuery);
+                  const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+                  setProjects(projectsData);
+              }
+          } else {
+              setOrganization(null);
+              setProjects([]);
+          }
+      } catch (err) {
+          console.error('Error fetching data:', err);
+          setError('Failed to load your organization and project data.');
+      } finally {
+          setIsLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      setError('Failed to load your organization and project data.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
+  }, [user, firestore, orgsCollectionRef, projectsCollectionRef]);
+
   useEffect(() => {
-    if (!isUserLoading) {
-        fetchOrgData();
+    if (isUserLoading) return; // Wait for user to be loaded
+
+    if (!user) {
+        router.push('/login?redirect=/admin/organization');
+        return;
     }
-  }, [user, firestore, isUserLoading, orgsCollectionRef, projectsCollectionRef]);
+    
+    fetchOrgData();
+  }, [user, isUserLoading, fetchOrgData, router]);
 
 
   const handleOrgCreated = (newOrg: Organization) => {
@@ -242,11 +247,6 @@ const OrganizationPage = () => {
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!user) {
-    router.push('/login?redirect=/admin/organization');
-    return null;
   }
 
   if (error) {
@@ -334,4 +334,4 @@ const OrganizationPage = () => {
   );
 };
 
-export default OrganizationPage;
+export default OrganizationDashboardPage;
