@@ -33,17 +33,25 @@ const ImpactPage = () => {
     setIsLoading(true);
     fetch('/api/wall')
       .then(res => res.json())
-      .then((data: Action[]) => {
-        setActions(data);
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setActions(data);
+        } else {
+          // If data is not an array (e.g., an error object), set actions to an empty array
+          setActions([]);
+          console.error("API did not return an array of actions:", data);
+        }
         setIsLoading(false);
       })
       .catch(err => {
         console.error("Failed to fetch actions:", err);
+        setActions([]); // Ensure actions is an array on error
         setIsLoading(false);
       });
   }, []);
   
   const filteredActions = useMemo(() => {
+    if (!Array.isArray(actions)) return [];
     return actions.filter(action => {
       const locationMatch = filters.location ? action.location?.toLowerCase().includes(filters.location.toLowerCase()) : true;
       const categoryMatch = filters.category ? action.category === filters.category : true;
