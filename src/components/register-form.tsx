@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -56,12 +56,14 @@ export function RegisterForm() {
   
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentStep, setCurrentStep] = useState('loading');
+  const [currentStep, setCurrentStep] = useState('loading'); // loading, login, no_org, no_project, form, error
 
   const fetchOrgAndProjects = useCallback(async () => {
-    if (!user || !firestore) return;
-    setIsLoading(true);
+    if (!user || !firestore) {
+      setCurrentStep('login');
+      return;
+    };
+    setCurrentStep('loading');
     try {
       const orgQuery = query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
       const orgSnapshot = await getDocs(orgQuery);
@@ -85,8 +87,6 @@ export function RegisterForm() {
       console.error("Error fetching data:", error);
       toast({ variant: 'destructive', title: 'Error', description: 'Could not load your organization and project data.' });
       setCurrentStep('error');
-    } finally {
-      setIsLoading(false);
     }
   }, [user, firestore, toast]);
 
@@ -97,7 +97,6 @@ export function RegisterForm() {
     }
     if (!user) {
       setCurrentStep('login');
-      setIsLoading(false);
       return;
     }
     fetchOrgAndProjects();
