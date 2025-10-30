@@ -59,10 +59,11 @@ export function RegisterForm() {
   const [currentStep, setCurrentStep] = useState('loading'); // loading, login, no_org, no_project, form, error
 
   const fetchOrgAndProjects = useCallback(async () => {
+    // This is the critical guard. Only proceed if user and firestore are ready.
     if (!user || !firestore) {
-      setCurrentStep('login');
-      return;
-    };
+      return; 
+    }
+    
     setCurrentStep('loading');
     try {
       const orgQuery = query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
@@ -75,7 +76,7 @@ export function RegisterForm() {
 
         const projectsQuery = query(collection(firestore, 'projects'), where('orgId', '==', orgData.id));
         const projectsSnapshot = await getDocs(projectsQuery);
-        const fetchedProjects = projectsSnapshot.docs.map(p => ({ id: p.id, title: p.data().title }));
+        const fetchedProjects = projectsSnapshot.docs.map(p => ({ id: p.id, title: p.data().title as string }));
         setProjects(fetchedProjects);
         setCurrentStep(fetchedProjects.length > 0 ? 'form' : 'no_project');
       } else {
@@ -99,6 +100,7 @@ export function RegisterForm() {
       setCurrentStep('login');
       return;
     }
+    // At this point, user is loaded and exists. It's safe to fetch data.
     fetchOrgAndProjects();
   }, [user, isUserLoading, fetchOrgAndProjects]);
 
