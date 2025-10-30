@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, CheckCircle, Users, Map, Calendar, Hash, Loader2, AlertCircle, Building } from "lucide-react";
+import Link from 'next/link';
 
 type Action = {
   id: string;
@@ -131,7 +132,7 @@ const OrgProfilePage = ({ params }: { params: { slug: string } }) => {
                                     <TableHead>Action Title</TableHead>
                                     <TableHead><Calendar className="inline-block h-4 w-4 mr-1"/>Date</TableHead>
                                     <TableHead><Map className="inline-block h-4 w-4 mr-1"/>Location</TableHead>
-                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Details</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -140,11 +141,10 @@ const OrgProfilePage = ({ params }: { params: { slug: string } }) => {
                                         <TableCell className="font-medium">{action.title}</TableCell>
                                         <TableCell>{new Date(action.createdAt._seconds * 1000).toLocaleDateString()}</TableCell>
                                         <TableCell>{action.location || 'N/A'}</TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2 text-primary">
-                                                <CheckCircle className="h-4 w-4"/>
-                                                <span>Verified</span>
-                                            </div>
+                                        <TableCell className="text-right">
+                                            <Button asChild variant="outline" size="sm">
+                                                <Link href={`/action/${action.id}`}>View Certificate</Link>
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}

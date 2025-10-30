@@ -161,7 +161,9 @@ const ImpactPage = () => {
                 </div>
             </CardContent>
             <CardFooter className="px-4 pb-4">
-                <Button variant="outline" className="w-full">View Details</Button>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href={`/action/${action.id}`}>View Details</Link>
+                </Button>
             </CardFooter>
           </Card>
         ))}
