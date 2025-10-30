@@ -63,3 +63,36 @@ export async function startLeapAssessment(): Promise<{ success: boolean; error?:
     return { success: false, error: `Failed to start assessment: ${errorMessage}` };
   }
 }
+
+/**
+ * Saves the data from the 'L - Locate' step of the LEAP assessment.
+ * @param assessmentId The ID of the assessment document.
+ * @param companyData The company data to save.
+ */
+export async function saveLeapL(
+  assessmentId: string,
+  companyData: { sector: string; size: string; sites: { value: string }[] }
+): Promise<{ success: boolean; error?: string }> {
+  if (!assessmentId) {
+    return { success: false, error: "ID da avaliação é obrigatório." };
+  }
+
+  try {
+    const db = initializeAdminApp();
+    const assessmentRef = db.collection('leapAssessments').doc(assessmentId);
+
+    await assessmentRef.update({
+      'company.sector': companyData.sector,
+      'company.size': companyData.size,
+      'company.sites': companyData.sites.map(s => s.value),
+      stage: 'E', // Move to the next stage
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving LEAP stage L:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return { success: false, error: `Failed to save data: ${errorMessage}` };
+  }
+}
