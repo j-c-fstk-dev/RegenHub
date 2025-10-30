@@ -96,3 +96,45 @@ export async function saveLeapL(
     return { success: false, error: `Failed to save data: ${errorMessage}` };
   }
 }
+
+/**
+ * Saves the data from the 'E - Evaluate' step of the LEAP assessment.
+ * @param assessmentId The ID of the assessment document.
+ * @param data The data to save.
+ */
+export async function saveLeapE(
+  assessmentId: string,
+  data: {
+    inputs: {
+      water: { source: string; volume: string };
+      energy: { source: string; consumption: string };
+    };
+    impacts: {
+      practices: string;
+    };
+  }
+): Promise<{ success: boolean; error?: string }> {
+  if (!assessmentId) {
+    return { success: false, error: "ID da avaliação é obrigatório." };
+  }
+
+  try {
+    const db = initializeAdminApp();
+    const assessmentRef = db.collection('leapAssessments').doc(assessmentId);
+
+    await assessmentRef.update({
+      'inputs.water': data.inputs.water,
+      'inputs.energy': data.inputs.energy,
+      // For now, we put practices under a generic 'impacts' field. This can be refined.
+      'impacts.generalPractices': data.impacts.practices,
+      stage: 'A', // Move to the next stage
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving LEAP stage E:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return { success: false, error: `Failed to save data: ${errorMessage}` };
+  }
+}
