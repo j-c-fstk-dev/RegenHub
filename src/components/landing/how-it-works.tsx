@@ -4,33 +4,33 @@ import { HandHeart, FilePenLine, ShieldCheck, GalleryVertical, Award, FileOutput
 const steps = [
     {
       icon: HandHeart,
-      title: "Act",
-      description: "Do something regenerative in the real world."
+      title: "1. Create Org & Project",
+      description: "Set up your organization and define your first regenerative project."
     },
     {
       icon: FilePenLine,
-      title: "Submit",
-      description: "Fill out a short form with info, media, and an optional tag."
+      title: "2. Submit Action",
+      description: "Perform the work and submit a report with evidence (media, links)."
     },
     {
       icon: ShieldCheck,
-      title: "Verify",
-      description: "Our curators or your community confirms the action."
-    },
-    {
-      icon: GalleryVertical,
-      title: "Show",
-      description: "The intent appears on the Public Impact Wall."
+      title: "3. AI-Assisted Review",
+      description: "Our AI pre-checks the data, and a human validator reviews it for approval."
     },
     {
       icon: Award,
-      title: "Own",
-      description: "You get a digital certificate and your own impact dashboard."
+      title: "4. Get Certified",
+      description: "Approved actions receive a score and a digital impact certificate."
+    },
+    {
+      icon: GalleryVertical,
+      title: "5. Showcase Impact",
+      description: "Your action appears on the public wall and your organization's profile."
     },
     {
       icon: FileOutput,
-      title: "Use",
-      description: "Export your data. Inspire others. Build a track record."
+      title: "6. Build Trust",
+      description: "Use your verified track record to gain credibility and support."
     }
   ];
   
@@ -57,7 +57,7 @@ const HowItWorks = () => {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    <CardTitle className="font-headline text-xl">{index + 1}. {step.title}</CardTitle>
+                    <CardTitle className="font-headline text-xl">{step.title}</CardTitle>
                     <p className="text-muted-foreground">{step.description}</p>
                 </CardContent>
             </Card>

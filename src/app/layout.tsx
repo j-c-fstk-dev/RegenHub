@@ -6,8 +6,8 @@ import Footer from '@/components/layout/footer';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'Regen Hub | Where Regenerative Action Becomes Verifiable Impact',
-  description: 'Regen Hub is an open hub for tracking, validating, and celebrating real-world environmental intentions — by anyone, anywhere.',
+  title: 'Regen Impact | Where Regenerative Action Becomes Verifiable Impact',
+  description: 'Regen Impact is an open hub for tracking, validating, and celebrating real-world environmental intentions — by anyone, anywhere.',
 };
 
 export default function RootLayout({

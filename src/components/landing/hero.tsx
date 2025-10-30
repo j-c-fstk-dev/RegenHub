@@ -25,12 +25,11 @@ const Hero = () => {
             Where Regenerative Action Becomes Verifiable Impact.
           </h1>
           <p className="text-lg text-primary-foreground/90 drop-shadow-sm md:text-xl">
-            Regen Hub is an open hub for tracking, validating, and celebrating real-world
-            environmental intentions — by anyone, anywhere.
+            Regen Impact helps grassroots organizations track, validate, and showcase their real-world environmental actions.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Link href="/register">Submit Your Intent</Link>
+              <Link href="/register">Submit Your Action</Link>
             </Button>
             <Button asChild size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground">
               <Link href="/impact">Explore the Public Impact Wall</Link>

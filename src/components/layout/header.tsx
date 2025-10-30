@@ -76,7 +76,7 @@ const Header = () => {
       <div className="container flex h-16 max-w-screen-2xl items-center">
         <Link href="/" className="mr-6 flex items-center space-x-2">
           <Sprout className="h-6 w-6 text-primary" />
-          <span className="font-bold font-headline text-lg">Regen Hub</span>
+          <span className="font-bold font-headline text-lg">Regen Impact</span>
         </Link>
         <nav className="hidden items-center gap-6 text-sm md:flex">
           {navItems.map((item) => (
@@ -102,7 +102,7 @@ const Header = () => {
             </Button>
           )}
           <Button asChild className="hidden sm:inline-flex">
-            <Link href="/register">Submit Your Intent</Link>
+            <Link href="/register">Submit Your Action</Link>
           </Button>
           <Sheet>
             <SheetTrigger asChild>
@@ -116,7 +116,7 @@ const Header = () => {
               <div className="flex flex-col gap-6 pt-10">
                 <Link href="/" className="flex items-center space-x-2">
                   <Sprout className="h-6 w-6 text-primary" />
-                  <span className="font-bold font-headline text-lg">Regen Hub</span>
+                  <span className="font-bold font-headline text-lg">Regen Impact</span>
                 </Link>
                 <nav className="flex flex-col gap-4">
                   {navItems.map((item) => (
@@ -130,7 +130,7 @@ const Header = () => {
                   ))}
                 </nav>
                  <Button asChild size="lg">
-                    <Link href="/register">Submit Your Intent</Link>
+                    <Link href="/register">Submit Your Action</Link>
                 </Button>
               </div>
             </SheetContent>

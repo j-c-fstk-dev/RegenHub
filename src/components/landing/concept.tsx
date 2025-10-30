@@ -5,11 +5,10 @@ import { Link, MapPin, Users, Calendar, Camera, HeartHandshake } from 'lucide-re
 import Image from 'next/image';
 
 const conceptLinks = [
-  { icon: Users, text: 'A person, group, or school' },
-  { icon: MapPin, text: 'A location' },
-  { icon: Calendar, text: 'A time' },
-  { icon: Camera, text: 'A proof (photos, video, testimony)' },
-  { icon: HeartHandshake, text: 'A cause (reforestation, cleanup, education, etc.)' },
+  { icon: Users, text: 'An Organization, Collective, or Group' },
+  { icon: MapPin, text: 'A Project with a clear goal' },
+  { icon: Camera, text: 'Verifiable Evidence (photos, videos, docs)' },
+  { icon: HeartHandshake, text: 'A clear Regenerative Impact' },
 ];
 
 const Concept = () => {
@@ -20,13 +19,13 @@ const Concept = () => {
       <div className="container grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div className="space-y-6">
           <h2 className="font-headline text-3xl font-bold text-primary md:text-4xl">
-            What Is a Regenerative Intent?
+            What Is a Verified Action?
           </h2>
           <p className="text-lg text-muted-foreground">
-            An intent is a declaration of ecological action. It’s not just what you did — it’s what you meant to do for the living world.
+            A verified action is a declaration of real-world work, validated by our hybrid AI + human review process. It’s not just a claim — it’s a credible piece of impact data.
           </p>
           <p className="text-lg text-muted-foreground">
-            In Regen Hub, intents are not just published — they are invited into collective meaning. Each intent can be linked to:
+            In Regen Impact, every submitted action is linked to:
           </p>
           <ul className="space-y-3">
             {conceptLinks.map((item) => (

@@ -3,20 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, XCircle } from 'lucide-react';
 
 const problemItems = [
-  'Regeneration is happening — but it’s invisible.',
-  'No simple way to record, verify, or track small-scale impact.',
-  'Grassroots actions don’t qualify for support or recognition.',
-  'Web3 and digital ecosystems lack grounded entry points.',
+  'Regeneration is happening — but it’s often invisible.',
+  'Grassroots initiatives lack formal recognition for their work.',
+  'Difficulty in proving and tracking small-scale regenerative impact.',
+  'Lack of accessible tools for transparent, decentralized validation.',
 ];
 
 const solutionItems = [
-  'A public registry of intentions.',
-  'A verifiable mural of real actions, updated in real time.',
-  'A tag system to track efforts.',
-  'Lightweight verification process by curators.',
-  'Certificates and rewards to honor participation.',
-  'A personal dashboard for every contributor.',
-  'Exportable reports for schools, grants, and partners.',
+  'A public, verifiable registry of regenerative actions.',
+  'A trust-building system with AI-assisted human validation.',
+  'Digital certificates for each approved action.',
+  'Public profiles for organizations to showcase their track record.',
+  'A simple way for projects to demonstrate their impact to funders.',
+  'An open platform to connect the global regenerative movement.',
 ];
 
 const Intro = () => {
@@ -25,10 +24,10 @@ const Intro = () => {
       <div className="container">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-headline text-3xl font-bold text-primary md:text-4xl">
-            Making Action Visible
+            Making Local Impact Visible
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Regen Hub addresses a simple but profound challenge: countless positive environmental actions go unseen, unrecorded, and unsupported. We provide the infrastructure to change that, turning isolated efforts into a visible, collective force for global regeneration.
+            Regen Impact addresses a profound challenge: countless positive environmental actions go unseen and unrecorded. We provide the tools to change that, turning isolated efforts into a visible, collective force for global regeneration.
           </p>
         </div>
 

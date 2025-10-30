@@ -21,7 +21,7 @@ const DevelopersPage = () => {
           Developer API
         </h1>
         <p className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto">
-          Integrate your applications with the Regen Hub ecosystem. Our open API allows you to submit actions and retrieve verified impact data.
+          Integrate your applications with the Regen Impact ecosystem. Our open API allows you to submit actions and retrieve verified impact data.
         </p>
       </header>
 
@@ -34,10 +34,13 @@ const DevelopersPage = () => {
               <span>/api/submit</span>
             </CardTitle>
             <CardDescription>
-              Submit a new regenerative action to the hub. The action will be created with a "pending" status, awaiting verification by our curators.
+              Submit a new regenerative action to the platform. The action will be created with a `submitted` status, awaiting AI pre-check and human verification.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            <h3 className="font-semibold text-lg">Authentication</h3>
+            <p className="text-sm text-muted-foreground">Requests must include an `Authorization: Bearer &lt;FirebaseIdToken&gt;` header.</p>
+
             <h3 className="font-semibold text-lg">Body Parameters</h3>
             <Table>
               <TableHeader>
@@ -50,16 +53,16 @@ const DevelopersPage = () => {
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell className="font-mono">displayName</TableCell>
+                  <TableCell className="font-mono">orgId</TableCell>
                   <TableCell>string</TableCell>
                   <TableCell>Yes</TableCell>
-                  <TableCell>The name of the person or group submitting the action.</TableCell>
+                  <TableCell>The ID of the organization submitting the action.</TableCell>
                 </TableRow>
-                <TableRow>
-                  <TableCell className="font-mono">email</TableCell>
+                 <TableRow>
+                  <TableCell className="font-mono">projectId</TableCell>
                   <TableCell>string</TableCell>
                   <TableCell>Yes</TableCell>
-                  <TableCell>The contact email of the submitter. Used for verification and to generate a unique, private RegenID.</TableCell>
+                  <TableCell>The ID of the project this action belongs to.</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-mono">title</TableCell>
@@ -70,43 +73,30 @@ const DevelopersPage = () => {
                 <TableRow>
                   <TableCell className="font-mono">description</TableCell>
                   <TableCell>string</TableCell>
-                  <TableCell>No</TableCell>
+                  <TableCell>Yes</TableCell>
                   <TableCell>A detailed description of the action performed.</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-mono">category</TableCell>
-                  <TableCell>string</TableCell>
-                  <TableCell>No</TableCell>
-                  <TableCell>The category of the action (e.g., "Ecological", "Social").</TableCell>
-                </TableRow>
-                 <TableRow>
-                  <TableCell className="font-mono">location</TableCell>
-                  <TableCell>string</TableCell>
-                  <TableCell>No</TableCell>
-                  <TableCell>The location where the action took place (e.g., "Recife, Brazil").</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-mono">proofs</TableCell>
+                  <TableCell className="font-mono">mediaUrls</TableCell>
                   <TableCell>array</TableCell>
                   <TableCell>No</TableCell>
-                  <TableCell>An array of objects, each representing a piece of evidence. Each object should have a `type` ('link', 'image', etc.) and a `url`.</TableCell>
+                  <TableCell>An array of strings, where each string is a URL to a piece of evidence (image, video, etc.).</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
 
             <h3 className="font-semibold text-lg mt-4">Example Usage (cURL)</h3>
             <CodeBlock>
-{`curl -X POST https://your-regenhub-url.com/api/submit \\
+{`curl -X POST https://your-regenimpact-url.com/api/submit \\
   -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer <YOUR_FIREBASE_ID_TOKEN>" \\
   -d '{
-    "displayName": "Jane Doe",
-    "email": "jane@example.com",
+    "orgId": "orgId_123",
+    "projectId": "projId_456",
     "title": "Community Garden Setup",
     "description": "We started a new community garden in the local park, planting vegetables and herbs for everyone to share.",
-    "category": "Ecological",
-    "location": "Sunnyvale, CA",
-    "proofs": [
-      { "type": "link", "url": "https://example.com/blog/garden-setup" }
+    "mediaUrls": [
+      "https://example.com/garden-photo.jpg"
     ]
   }'`}
             </CodeBlock>
@@ -115,7 +105,6 @@ const DevelopersPage = () => {
             <CodeBlock>
 {`{
   "success": true,
-  "actorId": "someActorIdGeneratedByFirestore",
   "actionId": "someActionIdGeneratedByFirestore"
 }`}
             </CodeBlock>
@@ -134,9 +123,13 @@ const DevelopersPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-             <h3 className="font-semibold text-lg">Example Usage (JavaScript Fetch)</h3>
+             <h3 className="font-semibold text-lg">Query Parameters</h3>
+             <p className="text-sm text-muted-foreground">`?all=true` - (For Admin Use) Includes actions with all statuses, not just `verified`.</p>
+
+
+             <h3 className="font-semibold text-lg mt-4">Example Usage (JavaScript Fetch)</h3>
             <CodeBlock>
-{`fetch('https://your-regenhub-url.com/api/wall')
+{`fetch('https://your-regenimpact-url.com/api/wall')
   .then(response => response.json())
   .then(actions => {
     console.log(actions);
@@ -149,25 +142,14 @@ const DevelopersPage = () => {
 {`[
   {
     "id": "actionId1",
-    "actorId": "actorId1",
+    "orgId": "orgId_123",
+    "projectId": "projId_456",
     "title": "Beach Cleanup Day",
     "description": "Collected 50kg of plastic from the local beach.",
-    "category": "Ecological",
-    "location": "Malibu, CA",
     "status": "verified",
+    "validationScore": 85,
     "createdAt": { "_seconds": 1729353921, "_nanoseconds": 123000000 },
-    "updatedAt": { "_seconds": 1729353950, "_nanoseconds": 456000000 }
-  },
-  {
-    "id": "actionId2",
-    "actorId": "actorId2",
-    "title": "Planted 20 Native Trees",
-    "description": "Reforested a small area with native tree species.",
-    "category": "Ecological",
-    "location": "Portland, OR",
-    "status": "verified",
-    "createdAt": { "_seconds": 1729353800, "_nanoseconds": 0 },
-    "updatedAt": { "_seconds": 1729353850, "_nanoseconds": 0 }
+    "validatedAt": { "_seconds": 1729353950, "_nanoseconds": 456000000 }
   }
 ]`}
             </CodeBlock>
