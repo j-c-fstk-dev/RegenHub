@@ -39,13 +39,13 @@ export async function POST(req: NextRequest) {
     const orgId = userData?.orgs?.[0];
 
     if (!orgId) {
-      return NextResponse.json({ success: false, error: "Usuário não está associado a nenhuma organização." }, { status: 400 });
+      return NextResponse.json({ success: false, error: "User is not associated with any organization." }, { status: 400 });
     }
 
     const assessmentRef = await db.collection('leapAssessments').add({
       orgId: orgId,
       stage: 'L',
-      locale: 'pt-BR', // Default locale
+      locale: 'en', // Default locale
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -56,8 +56,9 @@ export async function POST(req: NextRequest) {
     console.error('Error starting LEAP assessment:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
     if (error instanceof Error && (error.message.includes('ID token has expired') || error.message.includes('could not be verified'))) {
-        return NextResponse.json({ success: false, error: 'Sua sessão expirou. Por favor, faça login novamente.'}, { status: 401 });
+        return NextResponse.json({ success: false, error: 'Your session has expired. Please log in again.'}, { status: 401 });
     }
     return NextResponse.json({ success: false, error: `Failed to start assessment: ${errorMessage}` }, { status: 500 });
   }
 }
+

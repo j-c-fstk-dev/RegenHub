@@ -56,7 +56,7 @@ const RadioGroupRating = ({ field, labels }: { field: any, labels: string[] }) =
     <FormControl>
         <RadioGroup
             onValueChange={field.onChange}
-            defaultValue={field.value}
+            defaultValue={String(field.value)}
             className="flex items-center space-x-2"
         >
             {labels.map((label, index) => (

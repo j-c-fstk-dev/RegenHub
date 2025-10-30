@@ -41,19 +41,19 @@ const LeapPage = () => {
     const handleStartAssessment = () => {
         if (!user) {
             toast({ variant: 'destructive', title: 'Access Denied', description: 'You need to be logged in to start an assessment.'});
-            router.push('/login');
+            router.push('/login?redirect=/leap');
             return;
         }
 
         startTransition(async () => {
-            const token = await user.getIdToken();
-            if (!token) {
-                 toast({ variant: 'destructive', title: 'Access Denied', description: 'Invalid session. Please log in again.' });
-                 router.push('/login');
-                 return;
-            }
-
             try {
+                const token = await user.getIdToken();
+                if (!token) {
+                     toast({ variant: 'destructive', title: 'Access Denied', description: 'Invalid session. Please log in again.' });
+                     router.push('/login?redirect=/leap');
+                     return;
+                }
+
                 const response = await fetch('/api/leap/start', {
                     method: 'POST',
                     headers: {
@@ -67,8 +67,8 @@ const LeapPage = () => {
                     router.push(`/leap/assessment/${result.assessmentId}/l`);
                 } else {
                     toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not start the assessment.' });
-                    if (result.error?.includes('expired') || result.error?.includes('Unauthorized')) {
-                        router.push('/login');
+                    if (result.error?.includes('expired') || result.error?.includes('Unauthorized') || result.error?.includes('organization')) {
+                        router.push('/login?redirect=/leap');
                     }
                 }
             } catch (error) {
@@ -119,8 +119,8 @@ const LeapPage = () => {
 
                  <div className="mt-12 text-center">
                     <h3 className="font-headline text-2xl font-bold text-primary">Ready for the Next Step?</h3>
-                    <p className="mt-2 text-muted-foreground">In less than 90 minutes, you can generate your first Nature Intelligence Report.</p>
-                     <Button asChild size="lg" variant="outline" className="mt-6">
+                    <p className="mt-2 text-muted-foreground">In less than 30 minutes, you can generate your first Nature Intelligence Report.</p>
+                     <Button asChild size="lg" variant="outline" className="mt-6" disabled>
                         <Link href="#"><FileText className="mr-2 h-4 w-4"/> View Sample Report</Link>
                     </Button>
                 </div>
