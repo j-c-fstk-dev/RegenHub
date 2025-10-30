@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import {
   Select,
@@ -26,17 +26,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 
 
 const formSchema = z.object({
-  // For simplicity, we are not asking the user to select an org/project in the form yet.
-  // We will associate this with a default/first project of the user in the API.
   title: z.string().min(5, { message: 'Action name must be at least 5 characters.' }),
   description: z.string().min(20, { message: 'Description must be at least 20 characters.' }).max(500),
   category: z.string().nonempty({ message: "Please select a category."}),
   location: z.string().optional(),
-  proofs: z.string().url({ message: 'Please enter a valid URL for your proof.' }).optional().or(z.literal('')),
+  mediaUrls: z.string().url({ message: 'Please enter a valid URL for your proof.' }).optional().or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -45,6 +44,26 @@ export function RegisterForm() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const { user } = useUser();
+  const firestore = useFirestore();
+  const [userOrgId, setUserOrgId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserOrg = async () => {
+      if (user && firestore) {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          // For now, let's just take the first organization.
+          // A real app would let the user choose.
+          if (userData.orgs && userData.orgs.length > 0) {
+            setUserOrgId(userData.orgs[0]);
+          }
+        }
+      }
+    };
+    fetchUserOrg();
+  }, [user, firestore]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -53,7 +72,7 @@ export function RegisterForm() {
       description: '',
       category: '',
       location: '',
-      proofs: '',
+      mediaUrls: '',
     },
   });
 
@@ -62,16 +81,20 @@ export function RegisterForm() {
         toast({ variant: 'destructive', title: 'Not Authenticated', description: 'You must be logged in to submit an action.' });
         return;
     }
+    if (!userOrgId) {
+        toast({ variant: 'destructive', title: 'No Organization', description: 'You must belong to an organization to submit an action. Please create one in the admin panel.' });
+        return;
+    }
 
     startTransition(async () => {
-      const proofsArray = values.proofs ? [{ type: 'link', url: values.proofs }] : [];
       const payload = {
-        // Mocking orgId and projectId for now. In a real app, this would come from user's context.
-        orgId: "mock-org-id",
-        projectId: "mock-project-id",
-        intentId: "mock-intent-id",
+        // Using the user's actual organization ID now.
+        // Mocking projectId and intentId for now.
+        orgId: userOrgId,
+        projectId: "mock-project-id", 
+        intentId: "mock-intent-id", 
         ...values,
-        mediaUrls: proofsArray.map(p => p.url),
+        mediaUrls: values.mediaUrls ? [values.mediaUrls] : [],
       };
 
       try {
@@ -182,7 +205,7 @@ export function RegisterForm() {
                 <h3 className="text-lg font-semibold font-headline">Proof</h3>
                 <FormField
                 control={form.control}
-                name="proofs"
+                name="mediaUrls"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Proof of Action (Link)</FormLabel>
@@ -199,7 +222,7 @@ export function RegisterForm() {
 
             <Button type="submit" className="w-full" disabled={isPending || !user}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {user ? 'Submit Intent' : 'Please log in to submit'}
+              {user ? (userOrgId ? 'Submit Intent' : 'Create an Organization First') : 'Please log in to submit'}
             </Button>
           </form>
         </Form>

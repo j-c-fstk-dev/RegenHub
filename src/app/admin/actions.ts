@@ -1,6 +1,6 @@
 'use server';
 
-import { getFirestore, doc, updateDoc, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, doc, updateDoc, FieldValue, collection, addDoc, writeBatch } from 'firebase-admin/firestore';
 import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
 
 // Helper to initialize Firebase Admin SDK only once
@@ -86,5 +86,48 @@ export async function updateUserWallet(
     console.error('Error updating user wallet:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
     return { success: false, error: `Failed to update wallet: ${errorMessage}` };
+  }
+}
+
+
+/**
+ * Creates a new organization and links it to the user.
+ * @param orgData The data for the new organization.
+ * @param userId The ID of the user creating the organization.
+ */
+export async function createOrganization(
+  orgData: { name: string; bio: string; slug: string },
+  userId: string,
+): Promise<{ success: boolean; error?: string, orgId?: string }> {
+   if (!userId || !orgData.name || !orgData.slug) {
+    return { success: false, error: 'User ID, organization name, and slug are required.' };
+  }
+
+  const db = initializeAdminApp();
+  const batch = writeBatch(db);
+
+  try {
+    // 1. Create the new organization
+    const orgRef = await addDoc(collection(db, 'organizations'), {
+      ...orgData,
+      createdBy: userId,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      isVerified: false, // Orgs start as unverified
+    });
+
+    // 2. Update the user's profile to add the new organization ID
+    const userRef = doc(db, 'users', userId);
+    batch.update(userRef, {
+      orgs: FieldValue.arrayUnion(orgRef.id)
+    });
+
+    await batch.commit();
+
+    return { success: true, orgId: orgRef.id };
+  } catch (error) {
+    console.error('Error creating organization:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return { success: false, error: `Failed to create organization: ${errorMessage}` };
   }
 }

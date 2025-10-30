@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText, Wallet } from 'lucide-react';
+import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText, Wallet, Building } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { approveAction, updateUserWallet } from './actions';
@@ -36,6 +36,7 @@ import { Label } from '@/components/ui/label';
 import { AIAssistedIntentVerificationOutput } from '@/ai/flows/ai-assisted-intent-verification';
 import { BrowserProvider, Eip1193Provider } from 'ethers';
 import { doc } from 'firebase/firestore';
+import Link from 'next/link';
 
 type Action = {
   id: string;
@@ -326,6 +327,18 @@ const AdminPage = () => {
                 </Card>
             </main>
             <aside className="space-y-8 lg:col-span-1">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Building className="h-5 w-5"/> My Organization</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground mb-4">Manage your organization's profile and projects.</p>
+                        <Button asChild className="w-full">
+                            <Link href="/admin/organization">Manage Organization</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+
                 {user && <WalletConnector userProfile={userProfile} userId={user.uid} />}
             </aside>
         </div>
