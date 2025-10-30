@@ -25,6 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Link from 'next/link';
 
 const orgFormSchema = z.object({
   name: z.string().min(3, 'Organization name must be at least 3 characters.'),
@@ -278,6 +279,11 @@ const OrganizationPage = () => {
                     <CardContent>
                         <p className="text-muted-foreground">{organization.bio || "No biography provided."}</p>
                     </CardContent>
+                     <CardFooter>
+                        <Button variant="outline" size="sm" asChild>
+                           <Link href={`/org/${organization.slug}`}>View Public Profile</Link>
+                        </Button>
+                    </CardFooter>
                 </Card>
 
                 <Card>
@@ -300,7 +306,7 @@ const OrganizationPage = () => {
                                 <p className="text-sm text-muted-foreground">{project.impactCategory}</p>
                             </CardContent>
                              <CardFooter>
-                                <Button variant="outline" size="sm" className="w-full">View Details</Button>
+                                <Button variant="outline" size="sm" className="w-full" disabled>View Details</Button>
                             </CardFooter>
                           </Card>
                         ))}
