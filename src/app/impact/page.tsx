@@ -64,13 +64,13 @@ const ImpactPage = () => {
   };
   
   const uniqueCategories = useMemo(() => {
-    if (!actions) return [];
+    if (!Array.isArray(actions)) return [];
     const categories = new Set(actions.map(action => action.category));
     return Array.from(categories).filter(cat => !!cat);
   }, [actions]);
 
   const mapLocations = useMemo(() => {
-    if (!filteredActions) return [];
+    if (!Array.isArray(filteredActions)) return [];
     return filteredActions.map(action => ({
       id: action.id,
       name: action.title,
