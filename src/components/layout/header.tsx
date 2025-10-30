@@ -66,6 +66,7 @@ const Header = () => {
 
   const navItems = [
     { name: 'Impact Wall', href: '/impact' },
+    { name: 'LEAP for PMEs', href: '/leap'},
     { name: 'About', href: '/about' },
     { name: 'Developers', href: '/developers' },
     ...(user ? [{ name: 'Admin', href: '/admin' }] : []),

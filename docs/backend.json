@@ -62,25 +62,12 @@
           "type": "string",
           "description": "Reference to the parent organization."
         },
-        "title": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "impactCategory": {
-          "type": "string"
-        },
-        "location": {
-          "type": "string"
-        },
-        "createdBy": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "impactCategory": { "type": "string" },
+        "location": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["orgId", "title", "createdBy", "createdAt"]
     },
@@ -160,6 +147,86 @@
         "qrCodeUrl": { "type": "string" }
       },
       "required": ["actionId", "score", "issuedAt", "validatorId"]
+    },
+    "LeapAssessment": {
+      "title": "LEAP Assessment",
+      "description": "Stores a PME's LEAP assessment data.",
+      "type": "object",
+      "properties": {
+        "orgId": { "type": "string" },
+        "stage": { "type": "string", "enum": ["L", "E", "A", "P", "done"] },
+        "locale": { "type": "string", "enum": ["pt-BR", "en", "es"] },
+        "company": {
+          "type": "object",
+          "properties": {
+            "sector": { "type": "string" },
+            "size": { "type": "string" },
+            "sites": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "water": { "type": "object" },
+            "energy": { "type": "object" },
+            "materials": { "type": "array", "items": { "type": "object" } },
+            "transport": { "type": "object" }
+          }
+        },
+        "impacts": {
+          "type": "object",
+          "properties": {
+            "soil": { "type": "object" },
+            "water": { "type": "object" },
+            "biodiversity": { "type": "object" },
+            "climate": { "type": "object" }
+          }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "theme": { "type": "string" },
+              "probability": { "type": "number" },
+              "severity": { "type": "number" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "opportunities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "theme": { "type": "string" },
+              "rationale": { "type": "string" },
+              "ease": { "type": "number" },
+              "payoff": { "type": "number" }
+            }
+          }
+        },
+        "plan": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "action": { "type": "string" },
+              "owner": { "type": "string" },
+              "deadline": { "type": "string", "format": "date-time" },
+              "cost": { "type": "number" },
+              "kpi": { "type": "string" }
+            }
+          }
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "reportUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -192,8 +259,10 @@
     "/certificates/{certificateId}": {
       "schema": { "$ref": "#/entities/Certificate" },
       "description": "Stores generated certificates for approved actions."
+    },
+    "/leapAssessments/{assessmentId}": {
+      "schema": { "$ref": "#/entities/LeapAssessment" },
+      "description": "Stores a PME's LEAP assessment data."
     }
   }
 }
-
-    
