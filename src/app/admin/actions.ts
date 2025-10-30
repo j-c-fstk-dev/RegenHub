@@ -1,6 +1,6 @@
 'use server';
 
-import { getFirestore, doc, updateDoc, FieldValue, collection, addDoc, writeBatch } from 'firebase-admin/firestore';
+import { getFirestore, doc, updateDoc, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
 
 // Helper to initialize Firebase Admin SDK only once
@@ -86,82 +86,5 @@ export async function updateUserWallet(
     console.error('Error updating user wallet:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
     return { success: false, error: `Failed to update wallet: ${errorMessage}` };
-  }
-}
-
-
-/**
- * Creates a new organization and links it to the user.
- * @param orgData The data for the new organization.
- * @param userId The ID of the user creating the organization.
- */
-export async function createOrganization(
-  orgData: { name: string; bio: string; slug: string },
-  userId: string,
-): Promise<{ success: boolean; error?: string, orgId?: string }> {
-   if (!userId || !orgData.name || !orgData.slug) {
-    return { success: false, error: 'User ID, organization name, and slug are required.' };
-  }
-
-  const db = initializeAdminApp();
-  const batch = writeBatch(db);
-
-  try {
-    // 1. Create the new organization
-    const orgRef = doc(collection(db, 'organizations'));
-    batch.set(orgRef, {
-      ...orgData,
-      createdBy: userId,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      isVerified: false, // Orgs start as unverified
-    });
-    
-
-    // 2. Update the user's profile to add the new organization ID
-    const userRef = doc(db, 'users', userId);
-    batch.update(userRef, {
-      orgs: FieldValue.arrayUnion(orgRef.id)
-    });
-
-    await batch.commit();
-
-    return { success: true, orgId: orgRef.id };
-  } catch (error) {
-    console.error('Error creating organization:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
-    return { success: false, error: `Failed to create organization: ${errorMessage}` };
-  }
-}
-
-
-/**
- * Creates a new project for an organization.
- * @param projectData The data for the new project.
- * @param orgId The ID of the parent organization.
- * @param userId The ID of the user creating the project.
- */
-export async function createProject(
-  projectData: { title: string; description: string; impactCategory: string; location: string },
-  orgId: string,
-  userId: string
-): Promise<{ success: boolean; error?: string; projectId?: string }> {
-  if (!orgId || !userId || !projectData.title) {
-    return { success: false, error: 'Organization ID, user ID, and project title are required.' };
-  }
-
-  try {
-    const db = initializeAdminApp();
-    const projectRef = await addDoc(collection(db, 'projects'), {
-      ...projectData,
-      orgId: orgId,
-      createdBy: userId,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    return { success: true, projectId: projectRef.id };
-  } catch (error) {
-    console.error('Error creating project:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
-    return { success: false, error: `Failed to create project: ${errorMessage}` };
   }
 }

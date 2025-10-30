@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useTransition } from 'react';
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, getDoc, collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, writeBatch, serverTimestamp, addDoc, arrayUnion } from 'firebase/firestore';
 import { Loader2, Building, AlertCircle, PlusCircle, FolderKanban } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { createOrganization, createProject } from '../actions';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +57,7 @@ type Project = {
 const NewProjectDialog = ({ orgId, userId, onProjectCreated }: { orgId: string, userId: string, onProjectCreated: (newProject: Project) => void }) => {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const firestore = useFirestore();
   const [isOpen, setIsOpen] = useState(false);
 
   const form = useForm<ProjectFormValues>({
@@ -67,14 +67,21 @@ const NewProjectDialog = ({ orgId, userId, onProjectCreated }: { orgId: string, 
 
   const onSubmit = (values: ProjectFormValues) => {
     startTransition(async () => {
-      const result = await createProject(values, orgId, userId);
-      if (result.success && result.projectId) {
+      if (!firestore) return;
+      try {
+        const projectRef = await addDoc(collection(firestore, 'projects'), {
+          ...values,
+          orgId: orgId,
+          createdBy: userId,
+          createdAt: serverTimestamp(),
+        });
         toast({ title: 'Success!', description: 'Your new project has been created.' });
-        onProjectCreated({ id: result.projectId, ...values });
+        onProjectCreated({ id: projectRef.id, ...values, impactCategory: values.impactCategory || '' });
         form.reset();
         setIsOpen(false);
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not create project.' });
+      } catch (e: any) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not create project.' });
       }
     });
   };
@@ -222,15 +229,35 @@ const OrganizationPage = () => {
 
 
   const onOrgSubmit = (values: OrgFormValues) => {
-    if (!user) return;
+    if (!user || !firestore) return;
     startFormTransition(async () => {
-      const result = await createOrganization(values, user.uid);
-      if (result.success && result.orgId) {
-        toast({ title: 'Success!', description: 'Your organization has been created.' });
-        setOrganization({ id: result.orgId, ...values, bio: values.bio || '' });
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not create organization.' });
-      }
+        const batch = writeBatch(firestore);
+        try {
+            // 1. Create the new organization document reference
+            const orgRef = doc(collection(firestore, 'organizations'));
+            batch.set(orgRef, {
+                ...values,
+                createdBy: user.uid,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                isVerified: false,
+            });
+
+            // 2. Update the user's profile to add the new organization ID
+            const userRef = doc(firestore, 'users', user.uid);
+            batch.update(userRef, {
+                orgs: arrayUnion(orgRef.id)
+            });
+
+            // 3. Commit the batch
+            await batch.commit();
+
+            toast({ title: 'Success!', description: 'Your organization has been created.' });
+            setOrganization({ id: orgRef.id, ...values, bio: values.bio || '' });
+        } catch (e: any) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not create organization.' });
+        }
     });
   };
 
@@ -292,7 +319,7 @@ const OrganizationPage = () => {
                       <CardTitle className="font-headline text-2xl">Projects</CardTitle>
                       <CardDescription>The initiatives your organization is running.</CardDescription>
                     </div>
-                    <NewProjectDialog orgId={organization.id} userId={user.uid} onProjectCreated={handleProjectCreated} />
+                    {user && <NewProjectDialog orgId={organization.id} userId={user.uid} onProjectCreated={handleProjectCreated} />}
                   </CardHeader>
                   <CardContent>
                     {projects.length > 0 ? (
