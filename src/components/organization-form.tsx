@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 const orgFormSchema = z.object({
   name: z.string().min(3, 'Organization name must be at least 3 characters.'),
@@ -39,31 +41,40 @@ export function OrganizationForm({ userId, onOrgCreated }: OrganizationFormProps
 
   const onSubmit = (values: OrgFormValues) => {
     if (!firestore) return;
-    startTransition(async () => {
+    startTransition(() => {
         const batch = writeBatch(firestore);
-        try {
-            const orgRef = doc(collection(firestore, 'organizations'));
-            batch.set(orgRef, {
-                ...values,
-                createdBy: userId,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                isVerified: false,
-            });
+        
+        const orgRef = doc(collection(firestore, 'organizations'));
+        const orgData = {
+            ...values,
+            createdBy: userId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            isVerified: false,
+        };
+        batch.set(orgRef, orgData);
 
-            const userRef = doc(firestore, 'users', userId);
-            batch.update(userRef, {
-                orgs: arrayUnion(orgRef.id)
-            });
+        const userRef = doc(firestore, 'users', userId);
+        const userData = {
+            orgs: arrayUnion(orgRef.id)
+        };
+        batch.update(userRef, userData);
 
-            await batch.commit();
-
-            toast({ title: 'Success!', description: 'Your organization has been created.' });
-            onOrgCreated({ id: orgRef.id, ...values, bio: values.bio || '' });
-        } catch (e: any) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not create organization.' });
-        }
+        batch.commit()
+          .then(() => {
+              toast({ title: 'Success!', description: 'Your organization has been created.' });
+              onOrgCreated({ id: orgRef.id, ...values, bio: values.bio || '' });
+          })
+          .catch((error) => {
+              console.error("Batch write failed:", error);
+              // Creating a single, representative error for the batch operation.
+              const permissionError = new FirestorePermissionError({
+                  path: `batch write (org: ${orgRef.path}, user: ${userRef.path})`,
+                  operation: 'write',
+                  requestResourceData: { org: orgData, userUpdate: userData },
+              });
+              errorEmitter.emit('permission-error', permissionError);
+          });
     });
   };
 

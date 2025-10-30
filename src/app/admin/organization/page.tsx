@@ -26,6 +26,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { OrganizationForm } from '@/components/organization-form';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 const projectFormSchema = z.object({
   title: z.string().min(3, 'Project title must be at least 3 characters.'),
@@ -60,23 +62,31 @@ const NewProjectDialog = ({ orgId, userId, onProjectCreated }: { orgId: string, 
   });
 
   const onSubmit = (values: ProjectFormValues) => {
-    startTransition(async () => {
+    startTransition(() => {
       if (!firestore) return;
-      try {
-        const projectRef = await addDoc(collection(firestore, 'projects'), {
-          ...values,
-          orgId: orgId,
-          createdBy: userId,
-          createdAt: serverTimestamp(),
+      
+      const projectData = {
+        ...values,
+        orgId: orgId,
+        createdBy: userId,
+        createdAt: serverTimestamp(),
+      };
+      
+      addDoc(collection(firestore, 'projects'), projectData)
+        .then(projectRef => {
+            toast({ title: 'Success!', description: 'Your new project has been created.' });
+            onProjectCreated({ id: projectRef.id, ...values, impactCategory: values.impactCategory || '' });
+            form.reset();
+            setIsOpen(false);
+        })
+        .catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: 'projects',
+                operation: 'create',
+                requestResourceData: projectData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
         });
-        toast({ title: 'Success!', description: 'Your new project has been created.' });
-        onProjectCreated({ id: projectRef.id, ...values, impactCategory: values.impactCategory || '' });
-        form.reset();
-        setIsOpen(false);
-      } catch (e: any) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not create project.' });
-      }
     });
   };
 
