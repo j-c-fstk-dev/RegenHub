@@ -1,9 +1,12 @@
 'use server';
 
-import { getFirestore, doc, updateDoc, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
+import { initializeFirebase } from '@/firebase';
+
 
 // Helper to initialize Firebase Admin SDK only once
+// This is still needed for server-side actions that require admin privileges.
 function initializeAdminApp() {
   if (getApps().length === 0) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
@@ -48,7 +51,7 @@ export async function approveAction(
       status: 'verified',
       validationScore: impactScore, // Storing the human-assigned score
       validatorId: validatorId,
-      validatedAt: FieldValue.serverTimestamp(),
+      validatedAt: serverTimestamp(),
     });
 
     return { success: true };
@@ -62,6 +65,8 @@ export async function approveAction(
 
 /**
  * Updates the wallet address for a user's profile.
+ * This uses the admin SDK, which is fine for this specific purpose,
+ * but create operations should be handled client-side to obey security rules.
  * @param userId The ID of the user document.
  * @param walletAddress The new wallet address to save.
  */

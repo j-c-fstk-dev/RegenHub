@@ -25,13 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
-
-const orgFormSchema = z.object({
-  name: z.string().min(3, 'Organization name must be at least 3 characters.'),
-  slug: z.string().min(3, 'Slug must be at least 3 characters.').regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens.'),
-  bio: z.string().max(280, "Bio should not exceed 280 characters.").optional(),
-});
-type OrgFormValues = z.infer<typeof orgFormSchema>;
+import { OrganizationForm } from '@/components/organization-form';
 
 const projectFormSchema = z.object({
   title: z.string().min(3, 'Project title must be at least 3 characters.'),
@@ -177,89 +171,56 @@ const OrganizationPage = () => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
-  const [isFormPending, startFormTransition] = useTransition();
-  const { toast } = useToast();
-
+  
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const orgForm = useForm<OrgFormValues>({
-    resolver: zodResolver(orgFormSchema),
-    defaultValues: { name: '', slug: '', bio: '' },
-  });
-
   const orgsCollectionRef = useMemoFirebase(() => collection(firestore, 'organizations'), [firestore]);
   const projectsCollectionRef = useMemoFirebase(() => collection(firestore, 'projects'), [firestore]);
 
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user || !firestore || !orgsCollectionRef) return;
-      setIsLoading(true);
-      try {
-        const orgQuery = query(orgsCollectionRef, where('createdBy', '==', user.uid));
-        const orgSnapshot = await getDocs(orgQuery);
-        
-        if (!orgSnapshot.empty) {
-          const orgDoc = orgSnapshot.docs[0];
-          const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
-          setOrganization(orgData);
+  const fetchOrgData = async () => {
+    if (!user || !firestore || !orgsCollectionRef) return;
+    setIsLoading(true);
+    try {
+      const orgQuery = query(orgsCollectionRef, where('createdBy', '==', user.uid));
+      const orgSnapshot = await getDocs(orgQuery);
+      
+      if (!orgSnapshot.empty) {
+        const orgDoc = orgSnapshot.docs[0];
+        const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
+        setOrganization(orgData);
 
-          if (projectsCollectionRef) {
-            const projectsQuery = query(projectsCollectionRef, where('orgId', '==', orgData.id));
-            const projectsSnapshot = await getDocs(projectsQuery);
-            const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
-            setProjects(projectsData);
-          }
+        if (projectsCollectionRef) {
+          const projectsQuery = query(projectsCollectionRef, where('orgId', '==', orgData.id));
+          const projectsSnapshot = await getDocs(projectsQuery);
+          const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+          setProjects(projectsData);
         }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load your organization and project data.');
-      } finally {
-        setIsLoading(false);
+      } else {
+        setOrganization(null);
+        setProjects([]);
       }
-    };
-
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load your organization and project data.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
     if (!isUserLoading) {
-        fetchData();
+        fetchOrgData();
     }
   }, [user, firestore, isUserLoading, orgsCollectionRef, projectsCollectionRef]);
 
 
-  const onOrgSubmit = (values: OrgFormValues) => {
-    if (!user || !firestore) return;
-    startFormTransition(async () => {
-        const batch = writeBatch(firestore);
-        try {
-            // 1. Create the new organization document reference
-            const orgRef = doc(collection(firestore, 'organizations'));
-            batch.set(orgRef, {
-                ...values,
-                createdBy: user.uid,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                isVerified: false,
-            });
-
-            // 2. Update the user's profile to add the new organization ID
-            const userRef = doc(firestore, 'users', user.uid);
-            batch.update(userRef, {
-                orgs: arrayUnion(orgRef.id)
-            });
-
-            // 3. Commit the batch
-            await batch.commit();
-
-            toast({ title: 'Success!', description: 'Your organization has been created.' });
-            setOrganization({ id: orgRef.id, ...values, bio: values.bio || '' });
-        } catch (e: any) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not create organization.' });
-        }
-    });
-  };
+  const handleOrgCreated = (newOrg: Organization) => {
+    setOrganization(newOrg);
+  }
 
   const handleProjectCreated = (newProject: Project) => {
     setProjects(prevProjects => [...prevProjects, newProject]);
@@ -274,7 +235,7 @@ const OrganizationPage = () => {
   }
 
   if (!user) {
-    router.push('/login');
+    router.push('/login?redirect=/admin/organization');
     return null;
   }
 
@@ -354,48 +315,7 @@ const OrganizationPage = () => {
                         <CardDescription>This will be the main entity that your projects and actions are linked to.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Form {...orgForm}>
-                            <form onSubmit={orgForm.handleSubmit(onOrgSubmit)} className="space-y-6">
-                                <FormField
-                                    control={orgForm.control}
-                                    name="name"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Organization Name</FormLabel>
-                                            <FormControl><Input placeholder="e.g., RegenSampa Collective" {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={orgForm.control}
-                                    name="slug"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Unique Slug</FormLabel>
-                                            <FormControl><Input placeholder="e.g., regensampa" {...field} /></FormControl>
-                                            <FormDescription>This will be used in your public profile URL.</FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={orgForm.control}
-                                    name="bio"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Short Bio</FormLabel>
-                                            <FormControl><Textarea placeholder="Describe your organization's mission in a few words." {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <Button type="submit" disabled={isFormPending}>
-                                    {isFormPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Create Organization
-                                </Button>
-                            </form>
-                        </Form>
+                       {user && <OrganizationForm userId={user.uid} onOrgCreated={handleOrgCreated}/>}
                     </CardContent>
                 </Card>
             )}

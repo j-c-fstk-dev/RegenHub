@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import {
   Select,
@@ -27,12 +27,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { OrganizationForm } from './organization-form';
+import { ProjectForm } from './project-form';
 
-
-const formSchema = z.object({
+const actionFormSchema = z.object({
   projectId: z.string().nonempty({ message: "Please select a project." }),
   title: z.string().min(5, { message: 'Action name must be at least 5 characters.' }),
   description: z.string().min(20, { message: 'Description must be at least 20 characters.' }).max(500),
@@ -41,13 +42,13 @@ const formSchema = z.object({
   mediaUrls: z.string().url({ message: 'Please enter a valid URL for your proof.' }).optional().or(z.literal('')),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type ActionFormValues = z.infer<typeof actionFormSchema>;
 
 type Project = { id: string; title: string; };
-type Organization = { id: string; name: string; };
+type Organization = { id: string; name: string; slug: string; bio: string; };
 
 export function RegisterForm() {
-  const [isPending, startTransition] = useTransition();
+  const [isSubmitPending, startSubmitTransition] = useTransition();
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -56,57 +57,54 @@ export function RegisterForm() {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentStep, setCurrentStep] = useState('loading');
 
-  // Determine current step
-  const getStep = () => {
-    if (isUserLoading || isLoading) return 'loading';
-    if (!user) return 'login';
-    if (!organization) return 'no_org';
-    if (projects.length === 0) return 'no_project';
-    return 'form';
-  }
-  const currentStep = getStep();
+  const fetchOrgAndProjects = useCallback(async () => {
+    if (!user || !firestore) return;
+    setIsLoading(true);
+    try {
+      const orgQuery = query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
+      const orgSnapshot = await getDocs(orgQuery);
 
+      if (!orgSnapshot.empty) {
+        const orgDoc = orgSnapshot.docs[0];
+        const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
+        setOrganization(orgData);
 
-  const userOrgsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
-  }, [user, firestore]);
-  
-  useEffect(() => {
-    const fetchUserAndProjectData = async () => {
-      if (user && firestore && userOrgsQuery) {
-        setIsLoading(true);
-        try {
-            const orgSnapshot = await getDocs(userOrgsQuery);
-            if (!orgSnapshot.empty) {
-                const orgDoc = orgSnapshot.docs[0];
-                const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
-                setOrganization(orgData);
-
-                const projectsQuery = query(collection(firestore, 'projects'), where('orgId', '==', orgData.id));
-                const projectsSnapshot = await getDocs(projectsQuery);
-                const fetchedProjects = projectsSnapshot.docs.map(p => ({ id: p.id, title: p.data().title }));
-                setProjects(fetchedProjects);
-            } else {
-                setOrganization(null);
-                setProjects([]);
-            }
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not load your organization and project data.' });
-        } finally {
-            setIsLoading(false);
-        }
-      } else if (!isUserLoading) {
-        setIsLoading(false);
+        const projectsQuery = query(collection(firestore, 'projects'), where('orgId', '==', orgData.id));
+        const projectsSnapshot = await getDocs(projectsQuery);
+        const fetchedProjects = projectsSnapshot.docs.map(p => ({ id: p.id, title: p.data().title }));
+        setProjects(fetchedProjects);
+        setCurrentStep(fetchedProjects.length > 0 ? 'form' : 'no_project');
+      } else {
+        setOrganization(null);
+        setProjects([]);
+        setCurrentStep('no_org');
       }
-    };
-    fetchUserAndProjectData();
-  }, [user, firestore, toast, isUserLoading, userOrgsQuery]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not load your organization and project data.' });
+      setCurrentStep('error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, firestore, toast]);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  useEffect(() => {
+    if (isUserLoading) {
+      setCurrentStep('loading');
+      return;
+    }
+    if (!user) {
+      setCurrentStep('login');
+      setIsLoading(false);
+      return;
+    }
+    fetchOrgAndProjects();
+  }, [user, isUserLoading, fetchOrgAndProjects]);
+
+  const form = useForm<ActionFormValues>({
+    resolver: zodResolver(actionFormSchema),
     defaultValues: {
       projectId: '',
       title: '',
@@ -117,13 +115,13 @@ export function RegisterForm() {
     },
   });
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = (values: ActionFormValues) => {
     if (!user || !organization) {
         toast({ variant: 'destructive', title: 'Error', description: 'User or organization not found.' });
         return;
     }
 
-    startTransition(async () => {
+    startSubmitTransition(async () => {
       const payload = {
         orgId: organization.id,
         intentId: "mock-intent-id", // Still mocking intent for now
@@ -166,6 +164,16 @@ export function RegisterForm() {
     });
   }
 
+  const handleOrgCreated = (newOrg: Organization) => {
+    setOrganization(newOrg);
+    setCurrentStep('no_project');
+  };
+
+  const handleProjectCreated = (newProject: Project) => {
+    setProjects(prev => [...prev, newProject]);
+    setCurrentStep('form');
+  };
+
   const renderContent = () => {
     switch (currentStep) {
         case 'loading':
@@ -173,7 +181,7 @@ export function RegisterForm() {
                 <div className="flex h-64 items-center justify-center">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 </div>
-            )
+            );
         case 'login':
             return (
                  <Card>
@@ -188,47 +196,41 @@ export function RegisterForm() {
                         </Button>
                     </CardContent>
                 </Card>
-            )
+            );
         case 'no_org':
             return (
-                 <Card>
+                <Card>
                     <CardHeader>
                         <CardTitle>Step 2: Create an Organization</CardTitle>
                         <CardDescription>Actions are submitted on behalf of an organization or collective.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground mb-4">It looks like you're not part of an organization yet. Please create one from your admin panel.</p>
-                        <Button asChild className="w-full">
-                           <Link href="/admin/organization">Create Your Organization</Link>
-                        </Button>
+                        {user && <OrganizationForm userId={user.uid} onOrgCreated={handleOrgCreated} />}
                     </CardContent>
                 </Card>
-            )
+            );
         case 'no_project':
             return (
-                 <Card>
+                <Card>
                     <CardHeader>
                         <CardTitle>Step 3: Create a Project</CardTitle>
                         <CardDescription>Every action must be linked to a specific project.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <p className="text-muted-foreground mb-4">You need at least one project to submit an action. Let's create one now.</p>
-                        <Button asChild className="w-full">
-                           <Link href="/admin/organization">Create Your First Project</Link>
-                        </Button>
+                         {user && organization && <ProjectForm userId={user.uid} orgId={organization.id} onProjectCreated={handleProjectCreated} />}
                     </CardContent>
                 </Card>
-            )
+            );
         case 'form':
             return (
                 <Card>
-                  <CardContent className="p-6">
+                  <CardHeader>
+                    <CardTitle>Step 4: Describe your Action</CardTitle>
+                    <CardDescription>You're all set! Fill in the details of the regenerative action you performed.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                        
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-semibold font-headline">Register Your Action</h3>
-
                            <FormField
                               control={form.control}
                               name="projectId"
@@ -248,7 +250,7 @@ export function RegisterForm() {
                                     </SelectContent>
                                   </Select>
                                   <FormDescription>
-                                    You can create new projects in your <Link href="/admin/organization" className="underline">organization panel</Link>.
+                                    You can create more projects in your <Link href="/admin/organization" className="underline">organization panel</Link>.
                                   </FormDescription>
                                   <FormMessage />
                                 </FormItem>
@@ -319,7 +321,6 @@ export function RegisterForm() {
                               </FormItem>
                             )}
                           />
-                        </div>
                         
                          <div className="space-y-4">
                             <h3 className="text-lg font-semibold font-headline">Proof</h3>
@@ -339,15 +340,22 @@ export function RegisterForm() {
                           />
                          </div>
 
-                        <Button type="submit" className="w-full" disabled={isPending}>
-                          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button type="submit" className="w-full" disabled={isSubmitPending}>
+                          {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Submit Action
                         </Button>
                       </form>
                     </Form>
                   </CardContent>
                 </Card>
-            )
+            );
+        case 'error':
+             return (
+                 <Card>
+                    <CardHeader><CardTitle>Error</CardTitle></CardHeader>
+                    <CardContent><p>Something went wrong. Please refresh and try again.</p></CardContent>
+                </Card>
+             );
         default:
             return null;
     }
