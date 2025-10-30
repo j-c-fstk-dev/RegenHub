@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText, Wallet, Building } from 'lucide-react';
+import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText, Wallet, Building, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { approveAction, updateUserWallet } from './actions';
@@ -304,10 +304,15 @@ const AdminPage = () => {
                                 </TableCell>
                                 <TableCell className="text-right">
                                 {(submission.status === 'review_ready' || submission.status === 'review_failed') && (
-                                        <Button onClick={() => handleReviewClick(submission)}>
-                                            <Check className="mr-2 h-4 w-4" /> Review
-                                        </Button>
-                                    )}
+                                    <Button onClick={() => handleReviewClick(submission)}>
+                                        <Check className="mr-2 h-4 w-4" /> Review
+                                    </Button>
+                                )}
+                                {submission.status === 'verified' && (
+                                    <Button asChild variant="outline" size="sm">
+                                        <Link href={`/action/${submission.id}`} target="_blank"><Eye className="mr-2 h-4 w-4"/> View</Link>
+                                    </Button>
+                                )}
                                 </TableCell>
                             </TableRow>
                             ))
