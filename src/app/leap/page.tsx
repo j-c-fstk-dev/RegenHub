@@ -2,8 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BrainCircuit, Locate, Scale, CheckSquare, LineChart, FileText } from "lucide-react";
+import { BrainCircuit, Locate, Scale, CheckSquare, LineChart, FileText, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { startLeapAssessment } from "./actions";
+import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/firebase";
 
 const leapSteps = [
     {
@@ -26,9 +31,34 @@ const leapSteps = [
         title: "P - Prepare (Preparar)",
         description: "Prepare-se para agir, definindo um plano de ação priorizado com metas, prazos e responsáveis."
     }
-]
+];
 
 const LeapPage = () => {
+    const router = useRouter();
+    const { toast } = useToast();
+    const { user } = useUser();
+    const [isPending, startTransition] = useTransition();
+
+    const handleStartAssessment = () => {
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você precisa estar logado para iniciar uma avaliação.'});
+            router.push('/login');
+            return;
+        }
+
+        // For now, we assume the user's first org is the target
+        // A proper org selection mechanism would be needed for users with multiple orgs.
+        startTransition(async () => {
+            const result = await startLeapAssessment();
+            if (result.success && result.assessmentId) {
+                toast({ title: 'Avaliação Iniciada!', description: 'Você foi redirecionado para a primeira etapa.' });
+                router.push(`/leap/assessment/${result.assessmentId}/l`);
+            } else {
+                toast({ variant: 'destructive', title: 'Erro', description: result.error || 'Não foi possível iniciar a avaliação.' });
+            }
+        });
+    };
+
     return (
         <div className="container py-12">
             <header className="mb-12 text-center">
@@ -41,8 +71,8 @@ const LeapPage = () => {
                 <p className="mt-4 text-xl text-muted-foreground max-w-3xl mx-auto">
                     Uma ferramenta guiada para transformar a maneira como sua empresa entende e responde aos seus impactos e dependências da natureza.
                 </p>
-                 <Button asChild size="lg" className="mt-8">
-                    <Link href="#">Iniciar Avaliação LEAP</Link>
+                 <Button size="lg" className="mt-8" onClick={handleStartAssessment} disabled={isPending}>
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Iniciar Avaliação LEAP'}
                 </Button>
             </header>
 

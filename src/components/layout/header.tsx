@@ -38,17 +38,25 @@ const Header = () => {
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         const token = (window as any).__FIREBASE_AUTH_TOKEN__;
         
-        // Only attach the token to our own API routes
+        // Only attach the token to our own API routes or server actions
         const url = typeof input === 'string' ? input : input.url;
-        if (token && url.startsWith('/api/')) {
+
+        // Check if it's a server action call (no URL, but has a specific header)
+        const isServerAction = init?.headers && (init.headers as Headers).has('Next-Action');
+
+        if (token && (url.startsWith('/api/') || isServerAction)) {
             if (!init) {
                 init = {};
             }
             if (!init.headers) {
                 init.headers = {};
             }
-            (init.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+            // Use Headers object for correct manipulation
+            const headers = new Headers(init.headers);
+            headers.set('Authorization', `Bearer ${token}`);
+            init.headers = headers;
         }
+
 
         return originalFetch(input, init);
     };
@@ -66,7 +74,7 @@ const Header = () => {
 
   const navItems = [
     { name: 'Impact Wall', href: '/impact' },
-    { name: 'LEAP for PMEs', href: '/leap'},
+    { name: 'LEAP para PMEs', href: '/leap'},
     { name: 'About', href: '/about' },
     { name: 'Developers', href: '/developers' },
     ...(user ? [{ name: 'Admin', href: '/admin' }] : []),

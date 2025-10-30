@@ -1,0 +1,65 @@
+'use server';
+
+import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { headers } from 'next/headers';
+
+// Helper to initialize Firebase Admin SDK only once
+function initializeAdminApp() {
+  if (getApps().length === 0) {
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+       const serviceAccount: ServiceAccount = JSON.parse(
+        process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+      );
+      initializeApp({
+        credential: cert(serviceAccount),
+      });
+    } else {
+        console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Admin actions will fail.");
+    }
+  }
+  return getFirestore();
+}
+
+/**
+ * Creates a new LEAP assessment document in Firestore for the current user's organization.
+ */
+export async function startLeapAssessment(): Promise<{ success: boolean; error?: string; assessmentId?: string }> {
+  try {
+    const db = initializeAdminApp();
+    const headersList = headers();
+    const authorization = headersList.get('Authorization');
+    
+    if (!authorization) {
+      throw new Error("Unauthorized: No token provided.");
+    }
+    const token = authorization.split('Bearer ')[1];
+    const decodedToken = await getAuth().verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    // Find the user's organization. For now, we'll assume the user has one org.
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    const orgId = userData?.orgs?.[0];
+
+    if (!orgId) {
+      return { success: false, error: "Usuário não está associado a nenhuma organização." };
+    }
+
+    const assessmentRef = await db.collection('leapAssessments').add({
+      orgId: orgId,
+      stage: 'L',
+      locale: 'pt-BR', // Default locale
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    return { success: true, assessmentId: assessmentRef.id };
+
+  } catch (error) {
+    console.error('Error starting LEAP assessment:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return { success: false, error: `Failed to start assessment: ${errorMessage}` };
+  }
+}
