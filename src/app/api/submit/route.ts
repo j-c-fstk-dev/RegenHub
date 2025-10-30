@@ -60,6 +60,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Fetch user's profile to get their twitterHandle
+    const userDoc = await db.collection('users').doc(userId).get();
+    const twitterHandle = userDoc.exists ? userDoc.data()?.twitterHandle : undefined;
+
     // 2. Create the new Action document
     const actionRef = await db.collection('actions').add({
       intentId: intentId || null,
@@ -87,6 +91,9 @@ export async function POST(req: NextRequest) {
       category: category || "Other",
       description,
       evidences: (mediaUrls || []).map((url: string) => ({ type: 'link', url })),
+      submitter: {
+        twitterHandle,
+      },
       locale: 'pt-BR',
     };
 

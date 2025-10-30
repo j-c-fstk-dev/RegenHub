@@ -123,6 +123,7 @@
         "email": { "type": "string", "format": "email" },
         "walletAddress": { "type": "string" },
         "ens": { "type": "string" },
+        "twitterHandle": { "type": "string", "description": "The user's X (Twitter) screen name."},
         "role": {
           "type": "string",
           "enum": ["member", "validator", "admin"]
@@ -232,7 +233,8 @@
   "auth": {
     "providers": [
       "password",
-      "google.com"
+      "google.com",
+      "twitter.com"
     ]
   },
   "firestore": {

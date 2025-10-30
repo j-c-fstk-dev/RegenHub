@@ -55,6 +55,9 @@ export const AIAssistedIntentVerificationInputSchema = z.object({
   category: z.string(),
   description: z.string(),
   evidences: z.array(EvidenceSchema),
+  submitter: z.object({
+    twitterHandle: z.string().optional().describe("The submitter's X/Twitter handle, if available.")
+  }).optional(),
   locale: z.enum(['pt-BR','en']).default('pt-BR')
 });
 export type AIAssistedIntentVerificationInput = z.infer<typeof AIAssistedIntentVerificationInputSchema>;
@@ -97,14 +100,15 @@ const runPrecheck = (input: AIAssistedIntentVerificationInput) => {
 
 const SYSTEM_PROMPT = `You are the Regenerative Impact Validation Assistant working inside the Regen Hub platform.
 Your tasks:
-1) Adjust the four subscores in a conservative range (±2 points) based on the evidence and description.
+1) Adjust the four subscores in a conservative range (±2 points) based on the evidence and description. If the submitter has a verified X/Twitter handle, consider this a positive trust signal and slightly increase clarity and evidenceQuality scores (+0.5).
 2) Produce a short, neutral summary (<= 80 words).
 3) Set flags only if directly supported by the evidence.
 4) Recommend one of: approve | reject | needs_info.
 Strict rules:
 - Output MUST be valid JSON matching the IAOutputSchema (no markdown, no extra text).
 - Never invent data; rely only on input fields and extracted metadata.
-- Keep the finalScore consistent with subscores and weights.`;
+- Keep the finalScore consistent with subscores and weights.
+- If a twitterHandle is present, mention it in the notes as a positive trust indicator.`;
 
 const buildUserPrompt = (input: AIAssistedIntentVerificationInput, heuristics: Partial<AIAssistedIntentVerificationOutput> ) => `
 INPUT:
@@ -138,6 +142,12 @@ const aiAssistedIntentVerificationFlow = ai.defineFlow(
     if (flags.lowTextDensity) subscores.clarity -= 1;
     if (flags.missingLocation) subscores.evidenceQuality -= 1;
     if(input.evidences.length === 0) subscores.evidenceQuality -= 2;
+
+    // New trust signal from X/Twitter handle
+    if (input.submitter?.twitterHandle) {
+      subscores.clarity += 0.5;
+      subscores.evidenceQuality += 0.5;
+    }
 
     const weights = { impactDepth: 0.30, communityInvolvement: 0.25, clarity: 0.20, evidenceQuality: 0.25 };
     
