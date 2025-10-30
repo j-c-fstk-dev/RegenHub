@@ -46,15 +46,27 @@ const LeapPage = () => {
             return;
         }
 
-        // For now, we assume the user's first org is the target
-        // A proper org selection mechanism would be needed for users with multiple orgs.
         startTransition(async () => {
-            const result = await startLeapAssessment();
+            const token = (window as any).__FIREBASE_AUTH_TOKEN__;
+            if (!token) {
+                 toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Sessão inválida. Por favor, faça login novamente.' });
+                 router.push('/login');
+                 return;
+            }
+
+            const result = await fetch('/api/leap/start', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).then(res => res.json());
+            
             if (result.success && result.assessmentId) {
                 toast({ title: 'Avaliação Iniciada!', description: 'Você foi redirecionado para a primeira etapa.' });
                 router.push(`/leap/assessment/${result.assessmentId}/l`);
             } else {
                 toast({ variant: 'destructive', title: 'Erro', description: result.error || 'Não foi possível iniciar a avaliação.' });
+                if (result.error?.includes('expirou')) {
+                    router.push('/login');
+                }
             }
         });
     };

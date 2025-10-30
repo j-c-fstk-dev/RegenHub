@@ -120,7 +120,12 @@ export function RegisterForm() {
       };
 
       try {
-        const response = await fetch('/api/submit', {
+        const fetchWithAuth = (window as any).fetchWithAuth;
+        if (!fetchWithAuth) {
+          throw new Error("Authentication fetch function not available.");
+        }
+
+        const response = await fetchWithAuth('/api/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

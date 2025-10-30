@@ -26,14 +26,15 @@ function initializeAdminApp() {
  * Creates a new LEAP assessment document in Firestore for the current user's organization.
  */
 export async function startLeapAssessment(): Promise<{ success: boolean; error?: string; assessmentId?: string }> {
+  const db = initializeAdminApp();
+  const headersList = headers();
+  const authorization = headersList.get('Authorization');
+  
+  if (!authorization) {
+    return { success: false, error: "Unauthorized: No token provided." };
+  }
+  
   try {
-    const db = initializeAdminApp();
-    const headersList = headers();
-    const authorization = headersList.get('Authorization');
-    
-    if (!authorization) {
-      throw new Error("Unauthorized: No token provided.");
-    }
     const token = authorization.split('Bearer ')[1];
     const decodedToken = await getAuth().verifyIdToken(token);
     const userId = decodedToken.uid;
@@ -60,6 +61,9 @@ export async function startLeapAssessment(): Promise<{ success: boolean; error?:
   } catch (error) {
     console.error('Error starting LEAP assessment:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    if (error instanceof Error && error.message.includes('ID token has expired')) {
+        return { success: false, error: 'Sua sessão expirou. Por favor, faça login novamente.'}
+    }
     return { success: false, error: `Failed to start assessment: ${errorMessage}` };
   }
 }
