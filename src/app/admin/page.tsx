@@ -160,10 +160,28 @@ const AdminPage = () => {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user?.uid]);
 
-  const { data: userProfile } = useDoc(userDocRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+
+  // Authorization check
+  useEffect(() => {
+    const isDataLoading = isUserLoading || isProfileLoading;
+    if (!isDataLoading) {
+      if (!user) {
+        router.push('/login?redirect=/admin');
+      } else if (userProfile?.role !== 'admin') {
+        toast({
+          variant: 'destructive',
+          title: 'Access Denied',
+          description: 'You do not have permission to view this page.'
+        });
+        router.push('/register'); // Redirect non-admins to the register page
+      }
+    }
+  }, [user, userProfile, isUserLoading, isProfileLoading, router, toast]);
 
   useEffect(() => {
     const fetchSubmissions = async () => {
+       if (userProfile?.role !== 'admin') return; // Don't fetch if not an admin
        try {
         const response = await fetch('/api/wall?all=true'); 
         if(!response.ok) throw new Error("Failed to fetch submissions");
@@ -182,10 +200,11 @@ const AdminPage = () => {
         setIsLoading(false);
       }
     };
-    if(user) {
+    // Fetch submissions only if the user is confirmed to be an admin
+    if(!isUserLoading && user && !isProfileLoading && userProfile) {
         fetchSubmissions();
     }
-  }, [user]);
+  }, [user, userProfile, isUserLoading, isProfileLoading]);
   
   const handleReviewClick = (submission: Action) => {
     setSelectedSubmission(submission);
@@ -210,17 +229,12 @@ const AdminPage = () => {
     }
   };
   
-  if (isUserLoading || (user && isLoading)) {
+  if (isUserLoading || isProfileLoading || userProfile?.role !== 'admin') {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!user) {
-    router.push('/login');
-    return null;
   }
 
   const renderFlags = (flags?: AIAssistedIntentVerificationOutput['flags']) => {

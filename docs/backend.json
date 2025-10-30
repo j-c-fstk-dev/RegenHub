@@ -126,7 +126,8 @@
         "twitterHandle": { "type": "string", "description": "The user's X (Twitter) screen name."},
         "role": {
           "type": "string",
-          "enum": ["member", "validator", "admin"]
+          "enum": ["member", "admin"],
+          "description": "The user's role in the system. 'admin' has elevated privileges."
         },
         "orgs": { 
           "type": "array",
@@ -134,7 +135,7 @@
         },
         "isPublic": { "type": "boolean" }
       },
-      "required": ["name", "email"]
+      "required": ["name", "email", "role"]
     },
     "Certificate": {
       "title": "Certificate",

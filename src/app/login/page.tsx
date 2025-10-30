@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -25,10 +25,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, LogIn } from 'lucide-react';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, TwitterAuthProvider, getAdditionalUserInfo, UserCredential, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useAuth, useFirestore, useUser } from '@/firebase';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, TwitterAuthProvider, getAdditionalUserInfo, UserCredential, createUserWithEmailAndPassword, User } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
 
 const GoogleIcon = () => (
@@ -56,41 +55,68 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const LoginPage = () => {
+  const { user, isUserLoading } = useUser();
   const [isPending, startTransition] = useTransition();
   const [isSocialPending, startSocialTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const auth = useAuth();
   const firestore = useFirestore();
   const [isSignUp, setIsSignUp] = useState(false);
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user && !isUserLoading) {
+      router.push(searchParams.get('redirect') || '/admin');
+    }
+  }, [user, isUserLoading, router, searchParams]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { email: '', password: '', name: ''},
   });
 
-  const handleAuthSuccess = (userCredential: UserCredential) => {
+  const handleAuthSuccess = async (userCredential: UserCredential) => {
     const user = userCredential.user;
-    if (!user) return;
-    
+    if (!user || !firestore) return;
+
     const additionalInfo = getAdditionalUserInfo(userCredential);
     const isNewUser = additionalInfo?.isNewUser;
     
+    let userRole = 'member'; // Default role
+
     if (isNewUser) {
       const userRef = doc(firestore, 'users', user.uid);
-      setDoc(userRef, {
+      await setDoc(userRef, {
         name: user.displayName || form.getValues('name') || 'Anonymous User',
         email: user.email,
         createdAt: serverTimestamp(),
-        twitterHandle: additionalInfo?.profile?.screen_name || null
+        twitterHandle: additionalInfo?.profile?.screen_name || null,
+        role: 'member' // New users are always members
       }, { merge: true });
+    } else {
+        // If user already exists, fetch their role
+        const userRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
+        if(userDoc.exists() && userDoc.data().role === 'admin') {
+            userRole = 'admin';
+        }
     }
     
     toast({
       title: 'Login Successful',
       description: "You've been successfully logged in.",
     });
-    router.push('/admin');
+
+    const redirectUrl = searchParams.get('redirect');
+    if (redirectUrl) {
+      router.push(redirectUrl);
+    } else if (userRole === 'admin') {
+      router.push('/admin');
+    } else {
+      router.push('/register');
+    }
   }
   
   const handleAuthError = (error: any) => {
@@ -113,6 +139,7 @@ const LoginPage = () => {
   }
 
   const onEmailSubmit = (values: FormValues) => {
+    if (!auth) return;
     startTransition(async () => {
       try {
         if (isSignUp) {
@@ -121,10 +148,10 @@ const LoginPage = () => {
                 return;
             }
             const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-            handleAuthSuccess(userCredential);
+            await handleAuthSuccess(userCredential);
         } else {
             const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-            handleAuthSuccess(userCredential);
+            await handleAuthSuccess(userCredential);
         }
       } catch (error: any) {
         handleAuthError(error);
@@ -133,14 +160,23 @@ const LoginPage = () => {
   };
 
   const onSocialSubmit = (provider: GoogleAuthProvider | TwitterAuthProvider) => {
+    if (!auth) return;
     startSocialTransition(async () => {
        try {
         const userCredential = await signInWithPopup(auth, provider);
-        handleAuthSuccess(userCredential);
+        await handleAuthSuccess(userCredential);
       } catch (error: any) {
         handleAuthError(error);
       }
     })
+  }
+
+  if (isUserLoading || user) {
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    )
   }
 
   return (
@@ -151,9 +187,9 @@ const LoginPage = () => {
              <div className="mx-auto mb-4 inline-block rounded-full bg-primary/10 p-4">
                 <LogIn className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="font-headline text-3xl">{isSignUp ? 'Create an Account' : 'Admin Login'}</CardTitle>
+            <CardTitle className="font-headline text-3xl">{isSignUp ? 'Create an Account' : 'Welcome'}</CardTitle>
             <CardDescription>
-              {isSignUp ? 'Fill in your details to get started.' : 'Enter your credentials to access the admin panel.'}
+              {isSignUp ? 'Fill in your details to get started.' : 'Log in or sign up to continue.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -181,7 +217,7 @@ const LoginPage = () => {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="admin@example.com" {...field} />
+                        <Input type="email" placeholder="you@example.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -200,8 +236,8 @@ const LoginPage = () => {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isPending}>
-                  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" className="w-full" disabled={isPending || isSocialPending}>
+                  {(isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isSignUp ? 'Sign Up' : 'Log In'} with Email
                 </Button>
               </form>
@@ -212,11 +248,11 @@ const LoginPage = () => {
                 <Separator className="flex-1" />
               </div>
                <div className="flex flex-col gap-2">
-                 <Button onClick={() => onSocialSubmit(new GoogleAuthProvider())} variant="outline" className="w-full" disabled={isSocialPending}>
+                 <Button onClick={() => onSocialSubmit(new GoogleAuthProvider())} variant="outline" className="w-full" disabled={isPending || isSocialPending}>
                     {isSocialPending ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" /> ) : ( <GoogleIcon /> )}
                     Continue with Google
                 </Button>
-                 <Button onClick={() => onSocialSubmit(new TwitterAuthProvider())} variant="outline" className="w-full" disabled={isSocialPending}>
+                 <Button onClick={() => onSocialSubmit(new TwitterAuthProvider())} variant="outline" className="w-full" disabled={isPending || isSocialPending}>
                     {isSocialPending ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" /> ) : ( <XIcon /> )}
                     Continue with X
                 </Button>
