@@ -61,6 +61,8 @@ export function RegisterForm() {
   const fetchOrgAndProjects = useCallback(async () => {
     // This is the critical guard. Only proceed if user and firestore are ready.
     if (!user || !firestore) {
+      setCurrentStep('error');
+      console.error("Fetch aborted: User or Firestore not available.");
       return; 
     }
     
@@ -85,24 +87,30 @@ export function RegisterForm() {
         setCurrentStep('no_org');
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not load your organization and project data.' });
+      console.error("Error fetching user organization and project data:", error);
+      toast({ variant: 'destructive', title: 'Error Loading Data', description: 'Could not load your profile. Please try again.' });
       setCurrentStep('error');
     }
   }, [user, firestore, toast]);
 
   useEffect(() => {
+    // 1. Wait until the authentication state is fully resolved.
     if (isUserLoading) {
       setCurrentStep('loading');
       return;
     }
+
+    // 2. If authentication is resolved and there's no user, show login prompt.
     if (!user) {
       setCurrentStep('login');
       return;
     }
-    // At this point, user is loaded and exists. It's safe to fetch data.
-    fetchOrgAndProjects();
-  }, [user, isUserLoading, fetchOrgAndProjects]);
+
+    // 3. If user is logged in and firestore is available, fetch their data.
+    if (user && firestore) {
+      fetchOrgAndProjects();
+    }
+  }, [user, isUserLoading, firestore, fetchOrgAndProjects]);
 
   const form = useForm<ActionFormValues>({
     resolver: zodResolver(actionFormSchema),
@@ -353,8 +361,11 @@ export function RegisterForm() {
         case 'error':
              return (
                  <Card>
-                    <CardHeader><CardTitle>Error</CardTitle></CardHeader>
-                    <CardContent><p>Something went wrong. Please refresh and try again.</p></CardContent>
+                    <CardHeader>
+                        <CardTitle>Error</CardTitle>
+                        <CardDescription>We couldn't load your data.</CardDescription>
+                    </CardHeader>
+                    <CardContent><p>Something went wrong while trying to load your profile. Please refresh the page and try again.</p></CardContent>
                 </Card>
              );
         default:
