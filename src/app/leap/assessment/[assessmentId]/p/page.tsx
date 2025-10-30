@@ -31,15 +31,15 @@ import { saveLeapP } from '../../actions';
 import Link from 'next/link';
 
 const planItemSchema = z.object({
-  action: z.string().nonempty({ message: 'Ação é obrigatória.' }),
-  owner: z.string().nonempty({ message: 'Responsável é obrigatório.' }),
-  deadline: z.string().nonempty({ message: 'Prazo é obrigatório.' }),
+  action: z.string().nonempty({ message: 'Action is required.' }),
+  owner: z.string().nonempty({ message: 'Owner is required.' }),
+  deadline: z.string().nonempty({ message: 'Deadline is required.' }),
   cost: z.coerce.number().optional(),
   kpi: z.string().optional(),
 });
 
 const formSchema = z.object({
-  plan: z.array(planItemSchema).min(1, 'Adicione pelo menos uma ação ao plano.'),
+  plan: z.array(planItemSchema).min(1, 'Add at least one action to the plan.'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -65,10 +65,10 @@ const PreparePage = ({ params }: { params: { assessmentId: string } }) => {
         startTransition(async () => {
             const result = await saveLeapP(params.assessmentId, values);
             if (result.success) {
-                toast({ title: 'Avaliação Concluída!', description: 'Seu plano de ação foi salvo.' });
+                toast({ title: 'Assessment Complete!', description: 'Your action plan has been saved.' });
                 setIsDone(true);
             } else {
-                toast({ variant: 'destructive', title: 'Erro', description: result.error || 'Não foi possível salvar o plano.' });
+                toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not save the plan.' });
             }
         });
     };
@@ -81,17 +81,17 @@ const PreparePage = ({ params }: { params: { assessmentId: string } }) => {
                         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
                            <PartyPopper className="h-8 w-8" />
                         </div>
-                        <CardTitle className="font-headline text-3xl">Avaliação LEAP Concluída!</CardTitle>
+                        <CardTitle className="font-headline text-3xl">LEAP Assessment Complete!</CardTitle>
                         <CardDescription>
-                            Parabéns! Você finalizou todas as etapas. Seu Relatório de Inteligência da Natureza está sendo preparado e estará disponível em breve.
+                            Congratulations! You have finished all the steps. Your Nature Intelligence Report is being prepared and will be available soon.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground">Você pode acompanhar o status e acessar seus relatórios no seu painel principal.</p>
+                        <p className="text-muted-foreground">You can track the status and access your reports on your main dashboard.</p>
                     </CardContent>
                     <CardFooter className="flex justify-center">
                         <Button asChild>
-                            <Link href="/admin">Voltar para o Painel</Link>
+                            <Link href="/admin">Back to Dashboard</Link>
                         </Button>
                     </CardFooter>
                 </Card>
@@ -102,13 +102,13 @@ const PreparePage = ({ params }: { params: { assessmentId: string } }) => {
     return (
         <div className="container py-12">
             <header className="mb-8">
-                <p className="text-sm font-semibold text-primary">LEAP - Etapa 4 de 4</p>
+                <p className="text-sm font-semibold text-primary">LEAP - Step 4 of 4</p>
                 <h1 className="font-headline text-4xl font-bold flex items-center gap-3">
                     <CheckSquare className="h-8 w-8" />
-                    P - Preparar (Prepare)
+                    P - Prepare
                 </h1>
                 <p className="mt-2 text-lg text-muted-foreground max-w-3xl">
-                    Com base na análise de riscos e oportunidades, vamos criar um plano de ação concreto.
+                    Based on the risk and opportunity analysis, let's create a concrete action plan.
                 </p>
             </header>
 
@@ -116,9 +116,9 @@ const PreparePage = ({ params }: { params: { assessmentId: string } }) => {
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)}>
                         <CardHeader>
-                            <CardTitle>Plano de Ação</CardTitle>
+                            <CardTitle>Action Plan</CardTitle>
                             <CardDescription>
-                                Defina as próximas ações, responsáveis e prazos. Comece com 1 a 3 ações prioritárias.
+                                Define the next actions, owners, and deadlines. Start with 1 to 3 priority actions.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -126,25 +126,25 @@ const PreparePage = ({ params }: { params: { assessmentId: string } }) => {
                                 <div key={field.id} className="p-4 rounded-md bg-secondary/50 space-y-4 relative">
                                     <FormField control={form.control} name={`plan.${index}.action`} render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Ação</FormLabel>
-                                            <FormControl><Textarea placeholder="Ex: Instalar medidores de consumo de água" {...field} /></FormControl>
+                                            <FormLabel>Action</FormLabel>
+                                            <FormControl><Textarea placeholder="E.g., Install water consumption meters" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}/>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <FormField control={form.control} name={`plan.${index}.owner`} render={({ field }) => (
-                                            <FormItem><FormLabel>Responsável</FormLabel><FormControl><Input placeholder="Ex: João, Gerente" {...field} /></FormControl><FormMessage /></FormItem>
+                                            <FormItem><FormLabel>Owner</FormLabel><FormControl><Input placeholder="E.g., John, Manager" {...field} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                         <FormField control={form.control} name={`plan.${index}.deadline`} render={({ field }) => (
-                                             <FormItem><FormLabel>Prazo</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                                             <FormItem><FormLabel>Deadline</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                     </div>
                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <FormField control={form.control} name={`plan.${index}.cost`} render={({ field }) => (
-                                            <FormItem><FormLabel>Custo Estimado (R$)</FormLabel><FormControl><Input type="number" placeholder="5000" {...field} /></FormControl><FormMessage /></FormItem>
+                                            <FormItem><FormLabel>Estimated Cost ($)</FormLabel><FormControl><Input type="number" placeholder="5000" {...field} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                         <FormField control={form.control} name={`plan.${index}.kpi`} render={({ field }) => (
-                                             <FormItem><FormLabel>KPI / Indicador</FormLabel><FormControl><Input placeholder="Redução de 15% no consumo" {...field} /></FormControl><FormMessage /></FormItem>
+                                             <FormItem><FormLabel>KPI / Indicator</FormLabel><FormControl><Input placeholder="15% reduction in consumption" {...field} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                     </div>
                                     <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive" onClick={() => remove(index)}>
@@ -153,13 +153,13 @@ const PreparePage = ({ params }: { params: { assessmentId: string } }) => {
                                 </div>
                             ))}
                              <Button type="button" variant="outline" size="sm" onClick={() => append({ action: '', owner: '', deadline: '', cost: 0, kpi: '' })}>
-                                <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Ação ao Plano
+                                <PlusCircle className="mr-2 h-4 w-4"/> Add Action to Plan
                             </Button>
                         </CardContent>
                         <CardFooter>
                             <Button type="submit" size="lg" disabled={isPending}>
                                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Finalizar Avaliação e Salvar Plano
+                                Finish Assessment & Save Plan
                             </Button>
                         </CardFooter>
                     </form>

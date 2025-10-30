@@ -32,14 +32,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
 const riskSchema = z.object({
-  theme: z.string().nonempty({ message: 'Tema é obrigatório.' }),
+  theme: z.string().nonempty({ message: 'Theme is required.' }),
   probability: z.coerce.number().min(1).max(5),
   severity: z.coerce.number().min(1).max(5),
   notes: z.string().optional(),
 });
 
 const opportunitySchema = z.object({
-  theme: z.string().nonempty({ message: 'Tema é obrigatório.' }),
+  theme: z.string().nonempty({ message: 'Theme is required.' }),
   rationale: z.string().optional(),
   ease: z.coerce.number().min(1).max(3),
   payoff: z.coerce.number().min(1).max(3),
@@ -80,8 +80,8 @@ const AssessPage = ({ params }: { params: { assessmentId: string } }) => {
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            risks: [{ theme: 'Água', probability: 3, severity: 3, notes: '' }],
-            opportunities: [{ theme: 'Eficiência Energética', rationale: '', ease: 2, payoff: 2 }],
+            risks: [{ theme: 'Water Scarcity', probability: 3, severity: 3, notes: '' }],
+            opportunities: [{ theme: 'Energy Efficiency', rationale: '', ease: 2, payoff: 2 }],
         },
     });
 
@@ -99,10 +99,10 @@ const AssessPage = ({ params }: { params: { assessmentId: string } }) => {
                 opportunities: values.opportunities || [],
             });
             if (result.success) {
-                toast({ title: 'Etapa 3 Salva!', description: 'Análise de riscos e oportunidades salva.' });
+                toast({ title: 'Step 3 Saved!', description: 'Risk and opportunity analysis saved.' });
                 router.push(`/leap/assessment/${params.assessmentId}/p`);
             } else {
-                toast({ variant: 'destructive', title: 'Erro', description: result.error || 'Não foi possível salvar os dados.' });
+                toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not save data.' });
             }
         });
     };
@@ -110,13 +110,13 @@ const AssessPage = ({ params }: { params: { assessmentId: string } }) => {
     return (
         <div className="container py-12">
             <header className="mb-8">
-                <p className="text-sm font-semibold text-primary">LEAP - Etapa 3 de 4</p>
+                <p className="text-sm font-semibold text-primary">LEAP - Step 3 of 4</p>
                 <h1 className="font-headline text-4xl font-bold flex items-center gap-3">
                     <LineChart className="h-8 w-8" />
-                    A - Analisar (Assess)
+                    A - Assess
                 </h1>
                 <p className="mt-2 text-lg text-muted-foreground max-w-3xl">
-                    Com base nas suas dependências e impactos, vamos identificar os riscos e as oportunidades para o seu negócio.
+                    Based on your dependencies and impacts, let's identify the risks and opportunities for your business.
                 </p>
             </header>
 
@@ -124,45 +124,45 @@ const AssessPage = ({ params }: { params: { assessmentId: string } }) => {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)}>
                         <CardHeader>
-                            <CardTitle>Análise de Riscos e Oportunidades</CardTitle>
+                            <CardTitle>Risk and Opportunity Analysis</CardTitle>
                             <CardDescription>
-                                Adicione os principais riscos e oportunidades que você identifica para seu negócio relacionados à natureza.
+                                Add the main risks and opportunities you identify for your business related to nature.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-8">
 
                             {/* Risks Section */}
                             <fieldset className="space-y-4 rounded-lg border p-4">
-                                <legend className="flex items-center gap-2 -ml-1 px-1 text-lg font-medium font-headline"><ShieldAlert className="h-5 w-5 text-destructive" /> Riscos</legend>
+                                <legend className="flex items-center gap-2 -ml-1 px-1 text-lg font-medium font-headline"><ShieldAlert className="h-5 w-5 text-destructive" /> Risks</legend>
                                 {riskFields.map((field, index) => (
                                     <div key={field.id} className="p-4 rounded-md bg-secondary/50 space-y-4 relative">
                                         <FormField control={form.control} name={`risks.${index}.theme`} render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Tema do Risco</FormLabel>
-                                                <FormControl><Input placeholder="Ex: Escassez de água, Regulação ambiental" {...field} /></FormControl>
+                                                <FormLabel>Risk Theme</FormLabel>
+                                                <FormControl><Input placeholder="E.g., Water scarcity, Environmental regulation" {...field} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}/>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                              <FormField control={form.control} name={`risks.${index}.probability`} render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Probabilidade</FormLabel>
+                                                    <FormLabel>Probability</FormLabel>
                                                     <RadioGroupRating field={field} labels={['1', '2', '3', '4', '5']} />
-                                                    <FormDescription className="text-xs">1: Muito Baixa, 5: Muito Alta</FormDescription>
+                                                    <FormDescription className="text-xs">1: Very Low, 5: Very High</FormDescription>
                                                 </FormItem>
                                             )}/>
                                              <FormField control={form.control} name={`risks.${index}.severity`} render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Severidade do Impacto</FormLabel>
+                                                    <FormLabel>Impact Severity</FormLabel>
                                                     <RadioGroupRating field={field} labels={['1', '2', '3', '4', '5']} />
-                                                     <FormDescription className="text-xs">1: Muito Baixa, 5: Muito Alta</FormDescription>
+                                                     <FormDescription className="text-xs">1: Very Low, 5: Very High</FormDescription>
                                                 </FormItem>
                                             )}/>
                                         </div>
                                          <FormField control={form.control} name={`risks.${index}.notes`} render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Notas</FormLabel>
-                                                <FormControl><Textarea placeholder="Descreva o risco e por que ele é relevante." {...field} /></FormControl>
+                                                <FormLabel>Notes</FormLabel>
+                                                <FormControl><Textarea placeholder="Describe the risk and why it's relevant." {...field} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}/>
@@ -172,40 +172,40 @@ const AssessPage = ({ params }: { params: { assessmentId: string } }) => {
                                     </div>
                                 ))}
                                 <Button type="button" variant="outline" size="sm" onClick={() => appendRisk({ theme: '', probability: 3, severity: 3, notes: '' })}>
-                                    <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Risco
+                                    <PlusCircle className="mr-2 h-4 w-4"/> Add Risk
                                 </Button>
                             </fieldset>
 
                              {/* Opportunities Section */}
                             <fieldset className="space-y-4 rounded-lg border p-4">
-                                <legend className="flex items-center gap-2 -ml-1 px-1 text-lg font-medium font-headline"><BadgeInfo className="h-5 w-5 text-primary" /> Oportunidades</legend>
+                                <legend className="flex items-center gap-2 -ml-1 px-1 text-lg font-medium font-headline"><BadgeInfo className="h-5 w-5 text-primary" /> Opportunities</legend>
                                 {opportunityFields.map((field, index) => (
                                     <div key={field.id} className="p-4 rounded-md bg-secondary/50 space-y-4 relative">
                                         <FormField control={form.control} name={`opportunities.${index}.theme`} render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Tema da Oportunidade</FormLabel>
-                                                <FormControl><Input placeholder="Ex: Eficiência hídrica, Novo produto sustentável" {...field} /></FormControl>
+                                                <FormLabel>Opportunity Theme</FormLabel>
+                                                <FormControl><Input placeholder="E.g., Water efficiency, New sustainable product" {...field} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}/>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                              <FormField control={form.control} name={`opportunities.${index}.ease`} render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Facilidade de Implementação</FormLabel>
-                                                    <RadioGroupRating field={field} labels={['Fácil', 'Médio', 'Difícil']} />
+                                                    <FormLabel>Ease of Implementation</FormLabel>
+                                                    <RadioGroupRating field={field} labels={['Easy', 'Medium', 'Hard']} />
                                                 </FormItem>
                                             )}/>
                                              <FormField control={form.control} name={`opportunities.${index}.payoff`} render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Retorno Potencial</FormLabel>
-                                                    <RadioGroupRating field={field} labels={['Baixo', 'Médio', 'Alto']} />
+                                                    <FormLabel>Potential Payoff</FormLabel>
+                                                    <RadioGroupRating field={field} labels={['Low', 'Medium', 'High']} />
                                                 </FormItem>
                                             )}/>
                                         </div>
                                          <FormField control={form.control} name={`opportunities.${index}.rationale`} render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Justificativa</FormLabel>
-                                                <FormControl><Textarea placeholder="Descreva a oportunidade e o valor que ela pode gerar." {...field} /></FormControl>
+                                                <FormLabel>Rationale</FormLabel>
+                                                <FormControl><Textarea placeholder="Describe the opportunity and the value it could generate." {...field} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}/>
@@ -215,7 +215,7 @@ const AssessPage = ({ params }: { params: { assessmentId: string } }) => {
                                     </div>
                                 ))}
                                 <Button type="button" variant="outline" size="sm" onClick={() => appendOpportunity({ theme: '', rationale: '', ease: 2, payoff: 2 })}>
-                                    <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Oportunidade
+                                    <PlusCircle className="mr-2 h-4 w-4"/> Add Opportunity
                                 </Button>
                             </fieldset>
                         
@@ -223,7 +223,7 @@ const AssessPage = ({ params }: { params: { assessmentId: string } }) => {
                         <CardFooter>
                             <Button type="submit" disabled={isPending}>
                                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Salvar e Ir para a Próxima Etapa <ArrowRight className="ml-2 h-4 w-4" />
+                                Save and Go to Next Step <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </CardFooter>
                     </form>

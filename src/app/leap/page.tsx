@@ -12,23 +12,23 @@ import { useUser } from "@/firebase";
 const leapSteps = [
     {
         icon: Locate,
-        title: "L - Locate (Localizar)",
-        description: "Mapeie onde seu negócio interage com a natureza, desde suas operações até a cadeia de suprimentos."
+        title: "L - Locate",
+        description: "Map where your business interacts with nature, from its operations to the supply chain."
     },
     {
         icon: Scale,
-        title: "E - Evaluate (Avaliar)",
-        description: "Avalie suas dependências (o que a natureza fornece) e seus impactos (os efeitos do seu negócio)."
+        title: "E - Evaluate",
+        description: "Evaluate your dependencies (what nature provides) and your impacts (the effects of your business)."
     },
     {
         icon: LineChart,
-        title: "A - Assess (Analisar)",
-        description: "Identifique riscos materiais (operacionais, regulatórios) e oportunidades (eficiência, novos mercados)."
+        title: "A - Assess",
+        description: "Identify material risks (operational, regulatory) and opportunities (efficiency, new markets)."
     },
     {
         icon: CheckSquare,
-        title: "P - Prepare (Preparar)",
-        description: "Prepare-se para agir, definindo um plano de ação priorizado com metas, prazos e responsáveis."
+        title: "P - Prepare",
+        description: "Prepare to respond by setting a prioritized action plan with goals, deadlines, and owners."
     }
 ];
 
@@ -40,7 +40,7 @@ const LeapPage = () => {
 
     const handleStartAssessment = () => {
         if (!user) {
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você precisa estar logado para iniciar uma avaliação.'});
+            toast({ variant: 'destructive', title: 'Access Denied', description: 'You need to be logged in to start an assessment.'});
             router.push('/login');
             return;
         }
@@ -48,7 +48,7 @@ const LeapPage = () => {
         startTransition(async () => {
             const token = await user.getIdToken();
             if (!token) {
-                 toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Sessão inválida. Por favor, faça login novamente.' });
+                 toast({ variant: 'destructive', title: 'Access Denied', description: 'Invalid session. Please log in again.' });
                  router.push('/login');
                  return;
             }
@@ -63,16 +63,16 @@ const LeapPage = () => {
                 const result = await response.json();
 
                 if (result.success && result.assessmentId) {
-                    toast({ title: 'Avaliação Iniciada!', description: 'Você foi redirecionado para a primeira etapa.' });
+                    toast({ title: 'Assessment Started!', description: 'You have been redirected to the first step.' });
                     router.push(`/leap/assessment/${result.assessmentId}/l`);
                 } else {
-                    toast({ variant: 'destructive', title: 'Erro', description: result.error || 'Não foi possível iniciar a avaliação.' });
-                    if (result.error?.includes('expirou') || result.error?.includes('Unauthorized')) {
+                    toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not start the assessment.' });
+                    if (result.error?.includes('expired') || result.error?.includes('Unauthorized')) {
                         router.push('/login');
                     }
                 }
             } catch (error) {
-                 toast({ variant: 'destructive', title: 'Erro de Rede', description: 'Não foi possível conectar ao servidor. Tente novamente.' });
+                 toast({ variant: 'destructive', title: 'Network Error', description: 'Could not connect to the server. Please try again.' });
             }
         });
     };
@@ -84,22 +84,22 @@ const LeapPage = () => {
                     <BrainCircuit className="h-10 w-10 text-primary"/>
                 </div>
                 <h1 className="font-headline text-4xl font-bold text-primary md:text-5xl">
-                    Módulo LEAP para PMEs
+                    LEAP Module for SMEs
                 </h1>
                 <p className="mt-4 text-xl text-muted-foreground max-w-3xl mx-auto">
-                    Uma ferramenta guiada para transformar a maneira como sua empresa entende e responde aos seus impactos e dependências da natureza.
+                    A guided tool to transform how your company understands and responds to its impacts and dependencies on nature.
                 </p>
                  <Button size="lg" className="mt-8" onClick={handleStartAssessment} disabled={isPending}>
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Iniciar Avaliação LEAP'}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Start LEAP Assessment'}
                 </Button>
             </header>
 
             <div className="max-w-5xl mx-auto">
                  <Card>
                     <CardHeader>
-                        <CardTitle className="font-headline text-2xl">O que é o Método LEAP?</CardTitle>
+                        <CardTitle className="font-headline text-2xl">What is the LEAP Method?</CardTitle>
                         <CardDescription>
-                            Adaptado da Força-Tarefa para Divulgações Financeiras Relacionadas à Natureza (TNFD), o LEAP é um processo de avaliação que ajuda organizações a identificar e gerenciar seus riscos e oportunidades ambientais.
+                            Adapted from the Taskforce on Nature-related Financial Disclosures (TNFD), LEAP is an assessment process that helps organizations identify and manage their environmental risks and opportunities.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid md:grid-cols-2 gap-6">
@@ -118,10 +118,10 @@ const LeapPage = () => {
                 </Card>
 
                  <div className="mt-12 text-center">
-                    <h3 className="font-headline text-2xl font-bold text-primary">Pronto para o Próximo Passo?</h3>
-                    <p className="mt-2 text-muted-foreground">Em menos de 90 minutos, você pode gerar seu primeiro Relatório de Inteligência da Natureza.</p>
+                    <h3 className="font-headline text-2xl font-bold text-primary">Ready for the Next Step?</h3>
+                    <p className="mt-2 text-muted-foreground">In less than 90 minutes, you can generate your first Nature Intelligence Report.</p>
                      <Button asChild size="lg" variant="outline" className="mt-6">
-                        <Link href="#"><FileText className="mr-2 h-4 w-4"/> Ver Exemplo de Relatório</Link>
+                        <Link href="#"><FileText className="mr-2 h-4 w-4"/> View Sample Report</Link>
                     </Button>
                 </div>
             </div>

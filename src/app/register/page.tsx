@@ -12,7 +12,7 @@ const RegisterPage = () => {
                     Register Your Action
                 </h1>
                 <p className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto">
-                    Fill out the form below to add your regenerative action to the public impact wall for validation.
+                    Follow the steps to add your regenerative action to the public impact wall for validation.
                 </p>
             </header>
             <div className="mx-auto max-w-3xl">

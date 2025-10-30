@@ -96,22 +96,22 @@ const ActionDetailPage = ({ params }: { params: { actionId: string } }) => {
                     <CardHeader className="bg-secondary/50 p-6">
                         <Badge variant={isVerified ? "default" : "destructive"} className="w-fit">
                             {isVerified ? (
-                                <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Verificado</span>
+                                <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Verified</span>
                             ) : (
-                                <span>Não Verificado</span>
+                                <span>Not Verified</span>
                             )}
                         </Badge>
                         <CardTitle className="font-headline text-3xl mt-2">{action.title}</CardTitle>
-                        <CardDescription>Certificado de Impacto Regenerativo</CardDescription>
+                        <CardDescription>Regenerative Impact Certificate</CardDescription>
                     </CardHeader>
 
                     <CardContent className="p-6 space-y-6">
                         <div className="grid md:grid-cols-3 gap-6">
                             <div className="md:col-span-2 space-y-4">
-                               <h3 className="font-semibold text-lg border-b pb-2">Detalhes da Ação</h3>
+                               <h3 className="font-semibold text-lg border-b pb-2">Action Details</h3>
                                <p className="text-muted-foreground">{action.description}</p>
                                 <div className="pt-4">
-                                     <h4 className="font-semibold text-md flex items-center gap-2 text-primary"><Building className="h-5 w-5"/> Realizado por</h4>
+                                     <h4 className="font-semibold text-md flex items-center gap-2 text-primary"><Building className="h-5 w-5"/> Performed by</h4>
                                       <Button variant="link" asChild className="px-0 h-auto text-lg">
                                         <Link href={`/org/${action.org.slug}`}>{action.org.name}</Link>
                                       </Button>
@@ -120,11 +120,11 @@ const ActionDetailPage = ({ params }: { params: { actionId: string } }) => {
                             <div className="space-y-4">
                                 <Card className="bg-accent/10">
                                     <CardHeader className="pb-2">
-                                        <CardTitle className="text-lg flex items-center gap-2"><Award className="text-accent"/> Pontuação Final</CardTitle>
+                                        <CardTitle className="text-lg flex items-center gap-2"><Award className="text-accent"/> Final Score</CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         <p className="text-5xl font-bold text-primary">{action.validationScore}</p>
-                                        <p className="text-xs text-muted-foreground">Pontuação atribuída pelo validador humano.</p>
+                                        <p className="text-xs text-muted-foreground">Score assigned by human validator.</p>
                                     </CardContent>
                                 </Card>
                             </div>
@@ -132,18 +132,18 @@ const ActionDetailPage = ({ params }: { params: { actionId: string } }) => {
 
                          {action.aiVerification && (
                             <div>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-4 flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent"/> Análise da IA</h3>
+                                <h3 className="font-semibold text-lg border-b pb-2 mb-4 flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent"/> AI Analysis</h3>
                                 <div className="p-4 rounded-md bg-secondary space-y-3 text-sm">
                                     <div>
-                                        <strong className="text-muted-foreground">Sumário:</strong>
+                                        <strong className="text-muted-foreground">Summary:</strong>
                                         <p>{action.aiVerification.summary}</p>
                                     </div>
                                     <div>
-                                        <strong className="text-muted-foreground">Notas da Análise:</strong>
-                                        <p>{action.aiVerification.notes || 'Nenhuma nota adicional.'}</p>
+                                        <strong className="text-muted-foreground">Analysis Notes:</strong>
+                                        <p>{action.aiVerification.notes || 'No additional notes.'}</p>
                                     </div>
                                     <div>
-                                        <strong className="text-muted-foreground">Pontuação Sugerida pela IA:</strong>
+                                        <strong className="text-muted-foreground">AI Suggested Score:</strong>
                                         <p className="font-bold">{action.aiVerification.finalScore}</p>
                                     </div>
                                 </div>
@@ -151,7 +151,7 @@ const ActionDetailPage = ({ params }: { params: { actionId: string } }) => {
                         )}
                     </CardContent>
                     <CardFooter className="bg-secondary/50 p-4 flex justify-end">
-                        <Button variant="outline">Compartilhar Certificado</Button>
+                        <Button variant="outline">Share Certificate</Button>
                     </CardFooter>
                 </Card>
             </div>

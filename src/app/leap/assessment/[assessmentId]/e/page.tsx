@@ -32,12 +32,12 @@ import { saveLeapE } from '../../actions';
 const formSchema = z.object({
   inputs: z.object({
     water: z.object({
-      source: z.string().nonempty({ message: 'Selecione a fonte de água.' }),
-      volume: z.string().nonempty({ message: 'Estime o volume mensal.' }),
+      source: z.string().nonempty({ message: 'Please select a water source.' }),
+      volume: z.string().nonempty({ message: 'Please estimate the monthly volume.' }),
     }),
     energy: z.object({
-      source: z.string().nonempty({ message: 'Selecione a fonte de energia.' }),
-      consumption: z.string().nonempty({ message: 'Estime o consumo mensal.' }),
+      source: z.string().nonempty({ message: 'Please select an energy source.' }),
+      consumption: z.string().nonempty({ message: 'Please estimate the monthly consumption.' }),
     }),
   }),
   impacts: z.object({
@@ -69,10 +69,10 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
         startTransition(async () => {
             const result = await saveLeapE(params.assessmentId, values);
             if (result.success) {
-                toast({ title: 'Etapa 2 Salva!', description: 'Avaliação de dependências e impactos salva.' });
+                toast({ title: 'Step 2 Saved!', description: 'Dependencies and impacts evaluation saved.' });
                 router.push(`/leap/assessment/${params.assessmentId}/a`);
             } else {
-                toast({ variant: 'destructive', title: 'Erro', description: result.error || 'Não foi possível salvar os dados.' });
+                toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not save data.' });
             }
         });
     };
@@ -80,13 +80,13 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
     return (
         <div className="container py-12">
             <header className="mb-8">
-                <p className="text-sm font-semibold text-primary">LEAP - Etapa 2 de 4</p>
+                <p className="text-sm font-semibold text-primary">LEAP - Step 2 of 4</p>
                 <h1 className="font-headline text-4xl font-bold flex items-center gap-3">
                     <Scale className="h-8 w-8" />
-                    E - Avaliar (Evaluate)
+                    E - Evaluate
                 </h1>
                 <p className="mt-2 text-lg text-muted-foreground max-w-3xl">
-                    Agora, vamos qualificar e quantificar suas dependências e impactos. Estimativas são bem-vindas.
+                    Now, let's qualify and quantify your dependencies and impacts. Estimates are welcome.
                 </p>
             </header>
 
@@ -94,30 +94,30 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)}>
                         <CardHeader>
-                            <CardTitle>Dependências e Impactos</CardTitle>
+                            <CardTitle>Dependencies and Impacts</CardTitle>
                             <CardDescription>
-                                Responda sobre os principais insumos e práticas do seu negócio.
+                                Answer the questions about your business's main inputs and practices.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-8">
                             {/* Water Section */}
                             <fieldset className="space-y-4 rounded-lg border p-4">
-                                <legend className="-ml-1 px-1 text-lg font-medium font-headline">💧 Água</legend>
+                                <legend className="-ml-1 px-1 text-lg font-medium font-headline">💧 Water</legend>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField
                                         control={form.control}
                                         name="inputs.water.source"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Fonte Principal</FormLabel>
+                                                <FormLabel>Main Source</FormLabel>
                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
                                                     <SelectContent>
-                                                        <SelectItem value="Rede pública">Rede pública</SelectItem>
-                                                        <SelectItem value="Poço artesiano">Poço artesiano</SelectItem>
-                                                        <SelectItem value="Captação de chuva">Captação de chuva</SelectItem>
-                                                        <SelectItem value="Rio ou lago">Rio ou lago</SelectItem>
-                                                        <SelectItem value="Não se aplica">Não se aplica</SelectItem>
+                                                        <SelectItem value="Public Network">Public Network</SelectItem>
+                                                        <SelectItem value="Artesian Well">Artesian Well</SelectItem>
+                                                        <SelectItem value="Rainwater Harvesting">Rainwater Harvesting</SelectItem>
+                                                        <SelectItem value="River or Lake">River or Lake</SelectItem>
+                                                        <SelectItem value="Not Applicable">Not Applicable</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -129,14 +129,14 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
                                         name="inputs.water.volume"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Consumo Mensal Estimado</FormLabel>
+                                                <FormLabel>Estimated Monthly Consumption</FormLabel>
                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
                                                     <SelectContent>
-                                                        <SelectItem value="Até 1 m³">Até 1 m³ (caixa d'água)</SelectItem>
+                                                        <SelectItem value="Up to 1 m³">Up to 1 m³ (water tank)</SelectItem>
                                                         <SelectItem value="1-10 m³">1-10 m³</SelectItem>
                                                         <SelectItem value="10-50 m³">10-50 m³</SelectItem>
-                                                        <SelectItem value="50+ m³">Acima de 50 m³</SelectItem>
+                                                        <SelectItem value="50+ m³">Above 50 m³</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -148,21 +148,21 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
 
                             {/* Energy Section */}
                              <fieldset className="space-y-4 rounded-lg border p-4">
-                                <legend className="-ml-1 px-1 text-lg font-medium font-headline">⚡ Energia</legend>
+                                <legend className="-ml-1 px-1 text-lg font-medium font-headline">⚡ Energy</legend>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField
                                         control={form.control}
                                         name="inputs.energy.source"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Fonte Principal</FormLabel>
+                                                <FormLabel>Main Source</FormLabel>
                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
                                                     <SelectContent>
-                                                        <SelectItem value="Rede convencional">Rede convencional</SelectItem>
-                                                        <SelectItem value="Solar fotovoltaica">Solar fotovoltaica</SelectItem>
-                                                        <SelectItem value="Gerador a combustível">Gerador a combustível</SelectItem>
-                                                        <SelectItem value="Outra">Outra</SelectItem>
+                                                        <SelectItem value="Conventional Grid">Conventional Grid</SelectItem>
+                                                        <SelectItem value="Solar PV">Solar PV</SelectItem>
+                                                        <SelectItem value="Fuel Generator">Fuel Generator</SelectItem>
+                                                        <SelectItem value="Other">Other</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -174,14 +174,14 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
                                         name="inputs.energy.consumption"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Consumo Mensal Estimado</FormLabel>
+                                                <FormLabel>Estimated Monthly Consumption</FormLabel>
                                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
                                                     <SelectContent>
-                                                        <SelectItem value="Até 100 kWh">Até 100 kWh (residencial)</SelectItem>
+                                                        <SelectItem value="Up to 100 kWh">Up to 100 kWh (residential)</SelectItem>
                                                         <SelectItem value="100-500 kWh">100-500 kWh</SelectItem>
                                                         <SelectItem value="500-2000 kWh">500-2000 kWh</SelectItem>
-                                                        <SelectItem value="2000+ kWh">Acima de 2000 kWh</SelectItem>
+                                                        <SelectItem value="2000+ kWh">Above 2000 kWh</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -196,9 +196,9 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
                                 name="impacts.practices"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Práticas de Sustentabilidade</FormLabel>
+                                        <FormLabel>Sustainability Practices</FormLabel>
                                         <FormControl>
-                                            <Textarea placeholder="Descreva brevemente quaisquer práticas existentes para economizar água, energia, gerenciar resíduos, etc." {...field} />
+                                            <Textarea placeholder="Briefly describe any existing practices for saving water, energy, managing waste, etc." {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -209,7 +209,7 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
                         <CardFooter>
                             <Button type="submit" disabled={isPending}>
                                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Salvar e Ir para a Próxima Etapa <ArrowRight className="ml-2 h-4 w-4" />
+                                Save and Go to Next Step <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </CardFooter>
                     </form>

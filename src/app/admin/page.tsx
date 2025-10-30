@@ -354,7 +354,7 @@ const AdminPage = () => {
             <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="font-headline text-2xl">{selectedSubmission.title}</DialogTitle>
-                    <DialogDescription>Review the details of the submission and the AI's analysis before approving.</DialogDescription>
+                    <DialogDescription>Review the submission details and the AI's analysis before approving.</DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[60vh] overflow-y-auto pr-4">
                     <Card>

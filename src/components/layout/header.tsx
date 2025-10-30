@@ -8,7 +8,6 @@ import { Menu } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 const Header = () => {
   const { user } = useUser();
@@ -22,7 +21,7 @@ const Header = () => {
 
   const navItems = [
     { name: 'Impact Wall', href: '/impact' },
-    { name: 'LEAP para PMEs', href: '/leap'},
+    { name: 'LEAP for SMEs', href: '/leap'},
     { name: 'About', href: '/about' },
     { name: 'Developers', href: '/developers' },
     ...(user ? [{ name: 'Admin', href: '/admin' }] : []),

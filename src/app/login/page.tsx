@@ -26,11 +26,19 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, LogIn } from 'lucide-react';
 import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword, signInWithPopup, TwitterAuthProvider, getAdditionalUserInfo, UserCredential } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, TwitterAuthProvider, getAdditionalUserInfo, UserCredential, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Separator } from '@/components/ui/separator';
 
+const GoogleIcon = () => (
+    <svg className="h-5 w-5" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+        <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+        <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+        <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.012,35.245,44,30.028,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+    </svg>
+);
 
 const XIcon = () => (
   <svg className="h-5 w-5" viewBox="0 0 1200 1227" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -39,42 +47,42 @@ const XIcon = () => (
 );
 
 
-const loginSchema = z.object({
+const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }).optional(),
 });
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
 const LoginPage = () => {
   const [isPending, startTransition] = useTransition();
-  const [isTwitterPending, startTwitterTransition] = useTransition();
+  const [isSocialPending, startSocialTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { email: '', password: '', name: ''},
   });
 
   const handleAuthSuccess = (userCredential: UserCredential) => {
     const user = userCredential.user;
+    if (!user) return;
+    
     const additionalInfo = getAdditionalUserInfo(userCredential);
     const isNewUser = additionalInfo?.isNewUser;
     
-    // If it's a new user, create their profile in Firestore
     if (isNewUser) {
       const userRef = doc(firestore, 'users', user.uid);
       setDoc(userRef, {
-        name: user.displayName || 'Anonymous User',
+        name: user.displayName || form.getValues('name') || 'Anonymous User',
         email: user.email,
-        createdAt: new Date(),
-        twitterHandle: additionalInfo?.username || null
+        createdAt: serverTimestamp(),
+        twitterHandle: additionalInfo?.profile?.screen_name || null
       }, { merge: true });
     }
     
@@ -86,36 +94,47 @@ const LoginPage = () => {
   }
   
   const handleAuthError = (error: any) => {
-    console.error('Login failed:', error);
+    console.error('Auth failed:', error);
     let description = 'An unexpected error occurred. Please try again.';
-    // Handle specific Firebase error codes for better user feedback
-    if (error.code === 'auth/account-exists-with-different-credential') {
-      description = 'An account already exists with the same email address but different sign-in credentials. Try signing in with a different method.';
-    } else if (error.code) {
+    if (error.code === 'auth/email-already-in-use') {
+        description = 'This email is already in use. Try logging in instead.';
+    } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        description = 'Invalid email or password.';
+    } else if (error.code === 'auth/account-exists-with-different-credential') {
+      description = 'An account already exists with this email. Please sign in with the original method.';
+    } else if (error.message) {
       description = error.message;
     }
     toast({
       variant: 'destructive',
-      title: 'Login Failed',
+      title: isSignUp ? 'Sign Up Failed' : 'Login Failed',
       description,
     });
   }
 
-  const onEmailSubmit = (values: LoginFormValues) => {
+  const onEmailSubmit = (values: FormValues) => {
     startTransition(async () => {
       try {
-        const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-        handleAuthSuccess(userCredential);
+        if (isSignUp) {
+            if(!values.name) {
+                toast({ variant: 'destructive', title: 'Sign Up Failed', description: 'Please enter your name.' });
+                return;
+            }
+            const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+            handleAuthSuccess(userCredential);
+        } else {
+            const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+            handleAuthSuccess(userCredential);
+        }
       } catch (error: any) {
         handleAuthError(error);
       }
     });
   };
 
-  const onTwitterSubmit = () => {
-    startTwitterTransition(async () => {
+  const onSocialSubmit = (provider: GoogleAuthProvider | TwitterAuthProvider) => {
+    startSocialTransition(async () => {
        try {
-        const provider = new TwitterAuthProvider();
         const userCredential = await signInWithPopup(auth, provider);
         handleAuthSuccess(userCredential);
       } catch (error: any) {
@@ -132,14 +151,29 @@ const LoginPage = () => {
              <div className="mx-auto mb-4 inline-block rounded-full bg-primary/10 p-4">
                 <LogIn className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="font-headline text-3xl">Admin Login</CardTitle>
+            <CardTitle className="font-headline text-3xl">{isSignUp ? 'Create an Account' : 'Admin Login'}</CardTitle>
             <CardDescription>
-              Enter your credentials to access the admin panel.
+              {isSignUp ? 'Fill in your details to get started.' : 'Enter your credentials to access the admin panel.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onEmailSubmit)} className="space-y-6">
+                {isSignUp && (
+                     <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Your Name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
                 <FormField
                   control={form.control}
                   name="email"
@@ -168,25 +202,30 @@ const LoginPage = () => {
                 />
                 <Button type="submit" className="w-full" disabled={isPending}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Log In with Email
+                  {isSignUp ? 'Sign Up' : 'Log In'} with Email
                 </Button>
               </form>
             </Form>
-          </CardContent>
-          <CardFooter className="flex-col gap-4">
-              <div className="relative flex w-full items-center">
+             <div className="relative flex w-full items-center py-6">
                 <Separator className="flex-1" />
                 <span className="mx-2 flex-shrink-0 text-xs text-muted-foreground">OR</span>
                 <Separator className="flex-1" />
               </div>
-              <Button onClick={onTwitterSubmit} variant="outline" className="w-full" disabled={isTwitterPending}>
-                {isTwitterPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <XIcon />
-                )}
-                Continue with X
-              </Button>
+               <div className="flex flex-col gap-2">
+                 <Button onClick={() => onSocialSubmit(new GoogleAuthProvider())} variant="outline" className="w-full" disabled={isSocialPending}>
+                    {isSocialPending ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" /> ) : ( <GoogleIcon /> )}
+                    Continue with Google
+                </Button>
+                 <Button onClick={() => onSocialSubmit(new TwitterAuthProvider())} variant="outline" className="w-full" disabled={isSocialPending}>
+                    {isSocialPending ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" /> ) : ( <XIcon /> )}
+                    Continue with X
+                </Button>
+              </div>
+          </CardContent>
+          <CardFooter className="justify-center">
+             <Button variant="link" onClick={() => setIsSignUp(!isSignUp)}>
+                {isSignUp ? 'Already have an account? Log In' : "Don't have an account? Sign Up"}
+             </Button>
           </CardFooter>
         </Card>
       </div>

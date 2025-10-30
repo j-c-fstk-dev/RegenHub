@@ -362,7 +362,7 @@ const OrganizationPage = () => {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Organization Name</FormLabel>
-                                            <FormControl><Input placeholder="e.g., Coletivo RegenSampa" {...field} /></FormControl>
+                                            <FormControl><Input placeholder="e.g., RegenSampa Collective" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}

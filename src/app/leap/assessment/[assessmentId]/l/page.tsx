@@ -31,9 +31,9 @@ import { saveLeapL } from '../../actions';
 
 const formSchema = z.object({
   company: z.object({
-    sector: z.string().nonempty({ message: 'Setor é obrigatório.' }),
-    size: z.string().nonempty({ message: 'Porte é obrigatório.' }),
-    sites: z.array(z.object({ value: z.string().nonempty({ message: 'Localização não pode ser vazia.' }) })).min(1, 'Adicione pelo menos uma localização.'),
+    sector: z.string().nonempty({ message: 'Sector is required.' }),
+    size: z.string().nonempty({ message: 'Company size is required.' }),
+    sites: z.array(z.object({ value: z.string().nonempty({ message: 'Location cannot be empty.' }) })).min(1, 'Add at least one location.'),
   }),
 });
 
@@ -64,10 +64,10 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
     startTransition(async () => {
       const result = await saveLeapL(params.assessmentId, values.company);
       if (result.success) {
-        toast({ title: 'Etapa 1 Salva!', description: 'Seus dados foram salvos com sucesso.' });
+        toast({ title: 'Step 1 Saved!', description: 'Your data has been saved successfully.' });
         router.push(`/leap/assessment/${params.assessmentId}/e`);
       } else {
-        toast({ variant: 'destructive', title: 'Erro', description: result.error || 'Não foi possível salvar os dados.' });
+        toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not save data.' });
       }
     });
   };
@@ -75,13 +75,13 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
   return (
     <div className="container py-12">
       <header className="mb-8">
-        <p className="text-sm font-semibold text-primary">LEAP - Etapa 1 de 4</p>
+        <p className="text-sm font-semibold text-primary">LEAP - Step 1 of 4</p>
         <h1 className="font-headline text-4xl font-bold flex items-center gap-3">
           <Locate className="h-8 w-8" />
-          L - Localizar (Locate)
+          L - Locate
         </h1>
         <p className="mt-2 text-lg text-muted-foreground max-w-3xl">
-          Vamos começar mapeando onde seu negócio interage com a natureza.
+          Let's start by mapping where your business interacts with nature.
         </p>
       </header>
 
@@ -89,9 +89,9 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardHeader>
-              <CardTitle>Dados da Empresa</CardTitle>
+              <CardTitle>Company Data</CardTitle>
               <CardDescription>
-                Informações básicas para contextualizar sua avaliação.
+                Basic information to contextualize your assessment.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
@@ -100,17 +100,17 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
                 name="company.sector"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Setor Principal</FormLabel>
+                    <FormLabel>Main Sector</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger><SelectValue placeholder="Selecione o setor do seu negócio" /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Select your business sector" /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Agropecuária">Agropecuária</SelectItem>
-                          <SelectItem value="Indústria Leve">Indústria Leve</SelectItem>
-                          <SelectItem value="Serviços">Serviços</SelectItem>
-                          <SelectItem value="Varejo">Varejo</SelectItem>
-                          <SelectItem value="Outro">Outro</SelectItem>
+                          <SelectItem value="Agriculture">Agriculture</SelectItem>
+                          <SelectItem value="Light Industry">Light Industry</SelectItem>
+                          <SelectItem value="Services">Services</SelectItem>
+                          <SelectItem value="Retail">Retail</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     <FormMessage />
@@ -123,16 +123,16 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
                 name="company.size"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Porte da Empresa</FormLabel>
+                    <FormLabel>Company Size</FormLabel>
                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger><SelectValue placeholder="Selecione o número de funcionários" /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Select the number of employees" /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="1-9">1-9 funcionários (Micro)</SelectItem>
-                          <SelectItem value="10-49">10-49 funcionários (Pequena)</SelectItem>
-                          <SelectItem value="50-249">50-249 funcionários (Média)</SelectItem>
-                          <SelectItem value="250+">250+ funcionários (Grande)</SelectItem>
+                          <SelectItem value="1-9">1-9 employees (Micro)</SelectItem>
+                          <SelectItem value="10-49">10-49 employees (Small)</SelectItem>
+                          <SelectItem value="50-249">50-249 employees (Medium)</SelectItem>
+                          <SelectItem value="250+">250+ employees (Large)</SelectItem>
                         </SelectContent>
                       </Select>
                     <FormMessage />
@@ -141,8 +141,8 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
               />
 
               <div>
-                <FormLabel>Localizações (sites)</FormLabel>
-                <FormDescription className="mb-2">Adicione os endereços das suas principais unidades de operação (fábricas, escritórios, fazendas).</FormDescription>
+                <FormLabel>Locations (sites)</FormLabel>
+                <FormDescription className="mb-2">Add the addresses of your main operating units (factories, offices, farms).</FormDescription>
                 <div className="space-y-2">
                     {fields.map((field, index) => (
                          <FormField
@@ -153,7 +153,7 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
                                 <FormItem>
                                     <div className="flex items-center gap-2">
                                         <FormControl>
-                                            <Input placeholder="Ex: Rua das Flores, 123, São Paulo, SP" {...field}/>
+                                            <Input placeholder="E.g., 123 Flower St, São Paulo, SP" {...field}/>
                                         </FormControl>
                                         {fields.length > 1 && (
                                             <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
@@ -175,7 +175,7 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
                     onClick={() => append({ value: "" })}
                   >
                     <PlusCircle className="mr-2 h-4 w-4"/>
-                    Adicionar outra localização
+                    Add another location
                   </Button>
               </div>
 
@@ -183,7 +183,7 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
             <CardFooter>
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar e Ir para a Próxima Etapa <ArrowRight className="ml-2 h-4 w-4" />
+                Save and Go to Next Step <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardFooter>
           </form>

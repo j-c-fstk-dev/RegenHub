@@ -29,7 +29,7 @@ import {
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import LoginPage from '@/app/login/page';
+import { useRouter } from 'next/navigation';
 
 
 const formSchema = z.object({
@@ -51,6 +51,7 @@ export function RegisterForm() {
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const router = useRouter();
   
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -152,6 +153,7 @@ export function RegisterForm() {
           description: 'Your action is now pending verification. Thank you!',
         });
         form.reset();
+        router.push('/admin');
 
       } catch (error) {
         console.error("Submission error:", error);
@@ -173,9 +175,6 @@ export function RegisterForm() {
                 </div>
             )
         case 'login':
-            // Instead of duplicating the login page, we can show a message and a link,
-            // or embed the login component directly if we refactor it.
-            // For simplicity, showing a clear message is better.
             return (
                  <Card>
                     <CardHeader>

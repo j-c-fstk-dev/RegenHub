@@ -45,13 +45,13 @@ export async function startLeapAssessment(): Promise<{ success: boolean; error?:
     const orgId = userData?.orgs?.[0];
 
     if (!orgId) {
-      return { success: false, error: "Usuário não está associado a nenhuma organização." };
+      return { success: false, error: "User is not associated with any organization." };
     }
 
     const assessmentRef = await db.collection('leapAssessments').add({
       orgId: orgId,
       stage: 'L',
-      locale: 'pt-BR', // Default locale
+      locale: 'en', // Default locale
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -62,7 +62,7 @@ export async function startLeapAssessment(): Promise<{ success: boolean; error?:
     console.error('Error starting LEAP assessment:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
     if (error instanceof Error && (error.message.includes('ID token has expired') || error.message.includes('could not be verified'))) {
-        return { success: false, error: 'Sua sessão expirou. Por favor, faça login novamente.'}
+        return { success: false, error: 'Your session has expired. Please log in again.'}
     }
     return { success: false, error: `Failed to start assessment: ${errorMessage}` };
   }
@@ -78,7 +78,7 @@ export async function saveLeapL(
   companyData: { sector: string; size: string; sites: { value: string }[] }
 ): Promise<{ success: boolean; error?: string }> {
   if (!assessmentId) {
-    return { success: false, error: "ID da avaliação é obrigatório." };
+    return { success: false, error: "Assessment ID is required." };
   }
 
   try {
@@ -119,7 +119,7 @@ export async function saveLeapE(
   }
 ): Promise<{ success: boolean; error?: string }> {
   if (!assessmentId) {
-    return { success: false, error: "ID da avaliação é obrigatório." };
+    return { success: false, error: "Assessment ID is required." };
   }
 
   try {
@@ -156,7 +156,7 @@ export async function saveLeapA(
   }
 ): Promise<{ success: boolean; error?: string }> {
   if (!assessmentId) {
-    return { success: false, error: "ID da avaliação é obrigatório." };
+    return { success: false, error: "Assessment ID is required." };
   }
 
   try {
@@ -191,7 +191,7 @@ export async function saveLeapP(
   }
 ): Promise<{ success: boolean; error?: string }> {
   if (!assessmentId) {
-    return { success: false, error: "ID da avaliação é obrigatório." };
+    return { success: false, error: "Assessment ID is required." };
   }
 
   try {
