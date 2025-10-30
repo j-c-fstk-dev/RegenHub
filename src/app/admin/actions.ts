@@ -108,13 +108,15 @@ export async function createOrganization(
 
   try {
     // 1. Create the new organization
-    const orgRef = await addDoc(collection(db, 'organizations'), {
+    const orgRef = doc(collection(db, 'organizations'));
+    batch.set(orgRef, {
       ...orgData,
       createdBy: userId,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
       isVerified: false, // Orgs start as unverified
     });
+    
 
     // 2. Update the user's profile to add the new organization ID
     const userRef = doc(db, 'users', userId);
@@ -129,5 +131,37 @@ export async function createOrganization(
     console.error('Error creating organization:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
     return { success: false, error: `Failed to create organization: ${errorMessage}` };
+  }
+}
+
+
+/**
+ * Creates a new project for an organization.
+ * @param projectData The data for the new project.
+ * @param orgId The ID of the parent organization.
+ * @param userId The ID of the user creating the project.
+ */
+export async function createProject(
+  projectData: { title: string; description: string; impactCategory: string; location: string },
+  orgId: string,
+  userId: string
+): Promise<{ success: boolean; error?: string; projectId?: string }> {
+  if (!orgId || !userId || !projectData.title) {
+    return { success: false, error: 'Organization ID, user ID, and project title are required.' };
+  }
+
+  try {
+    const db = initializeAdminApp();
+    const projectRef = await addDoc(collection(db, 'projects'), {
+      ...projectData,
+      orgId: orgId,
+      createdBy: userId,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { success: true, projectId: projectRef.id };
+  } catch (error) {
+    console.error('Error creating project:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return { success: false, error: `Failed to create project: ${errorMessage}` };
   }
 }
