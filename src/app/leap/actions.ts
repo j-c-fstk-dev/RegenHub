@@ -61,7 +61,7 @@ export async function startLeapAssessment(): Promise<{ success: boolean; error?:
   } catch (error) {
     console.error('Error starting LEAP assessment:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
-    if (error instanceof Error && error.message.includes('ID token has expired')) {
+    if (error instanceof Error && (error.message.includes('ID token has expired') || error.message.includes('could not be verified'))) {
         return { success: false, error: 'Sua sessão expirou. Por favor, faça login novamente.'}
     }
     return { success: false, error: `Failed to start assessment: ${errorMessage}` };

@@ -15,53 +15,6 @@ const Header = () => {
   const auth = useAuth();
   const router = useRouter();
 
-  // This effect will run when the user state changes. We store the token
-  // in a global variable for convenience, but a more robust solution might use
-  // a state management library or context.
-  useEffect(() => {
-    const setAuthToken = async () => {
-      if (user) {
-        try {
-          const token = await user.getIdToken();
-          // This is a simplified way to make the token available for API requests.
-          (window as any).__FIREBASE_AUTH_TOKEN__ = token;
-        } catch (error) {
-          // It's possible for this to fail on network issues, we'll log it.
-          console.error("Error getting auth token:", error);
-        }
-      } else {
-        (window as any).__FIREBASE_AUTH_TOKEN__ = null;
-      }
-    };
-    setAuthToken();
-  }, [user]);
-
-  // A custom fetch function that automatically adds the auth token.
-  // We are NOT overriding the global fetch anymore.
-  const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const token = (window as any).__FIREBASE_AUTH_TOKEN__;
-    
-    const headers = new Headers(init?.headers);
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    if (init) {
-        init.headers = headers;
-    } else {
-        init = { headers };
-    }
-
-    return fetch(input, init);
-  };
-  
-  // Expose the custom fetch function globally if needed by other client components
-  // that don't want to import it.
-  useEffect(() => {
-    (window as any).fetchWithAuth = fetchWithAuth;
-  }, []);
-
-
   const handleSignOut = async () => {
     await signOut(auth);
     router.push('/');

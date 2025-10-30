@@ -6,7 +6,6 @@ import { BrainCircuit, Locate, Scale, CheckSquare, LineChart, FileText, Loader2 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { startLeapAssessment } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/firebase";
 
@@ -47,26 +46,33 @@ const LeapPage = () => {
         }
 
         startTransition(async () => {
-            const token = (window as any).__FIREBASE_AUTH_TOKEN__;
+            const token = await user.getIdToken();
             if (!token) {
                  toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Sessão inválida. Por favor, faça login novamente.' });
                  router.push('/login');
                  return;
             }
 
-            const result = await fetch('/api/leap/start', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            }).then(res => res.json());
-            
-            if (result.success && result.assessmentId) {
-                toast({ title: 'Avaliação Iniciada!', description: 'Você foi redirecionado para a primeira etapa.' });
-                router.push(`/leap/assessment/${result.assessmentId}/l`);
-            } else {
-                toast({ variant: 'destructive', title: 'Erro', description: result.error || 'Não foi possível iniciar a avaliação.' });
-                if (result.error?.includes('expirou')) {
-                    router.push('/login');
+            try {
+                const response = await fetch('/api/leap/start', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const result = await response.json();
+
+                if (result.success && result.assessmentId) {
+                    toast({ title: 'Avaliação Iniciada!', description: 'Você foi redirecionado para a primeira etapa.' });
+                    router.push(`/leap/assessment/${result.assessmentId}/l`);
+                } else {
+                    toast({ variant: 'destructive', title: 'Erro', description: result.error || 'Não foi possível iniciar a avaliação.' });
+                    if (result.error?.includes('expirou') || result.error?.includes('Unauthorized')) {
+                        router.push('/login');
+                    }
                 }
+            } catch (error) {
+                 toast({ variant: 'destructive', title: 'Erro de Rede', description: 'Não foi possível conectar ao servidor. Tente novamente.' });
             }
         });
     };
