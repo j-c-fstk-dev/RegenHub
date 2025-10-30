@@ -194,31 +194,47 @@ const OrganizationDashboardPage = () => {
   const fetchOrgData = useCallback(async () => {
       if (!user || !firestore || !orgsCollectionRef) return;
       setIsLoading(true);
-      try {
-          const orgQuery = query(orgsCollectionRef, where('createdBy', '==', user.uid));
-          const orgSnapshot = await getDocs(orgQuery);
 
-          if (!orgSnapshot.empty) {
-              const orgDoc = orgSnapshot.docs[0];
-              const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
-              setOrganization(orgData);
+      const orgQuery = query(orgsCollectionRef, where('createdBy', '==', user.uid));
+      
+      getDocs(orgQuery).then(async (orgSnapshot) => {
+        if (!orgSnapshot.empty) {
+            const orgDoc = orgSnapshot.docs[0];
+            const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
+            setOrganization(orgData);
 
-              if (projectsCollectionRef) {
-                  const projectsQuery = query(projectsCollectionRef, where('orgId', '==', orgData.id));
-                  const projectsSnapshot = await getDocs(projectsQuery);
-                  const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
-                  setProjects(projectsData);
-              }
-          } else {
-              setOrganization(null);
-              setProjects([]);
-          }
-      } catch (err) {
-          console.error('Error fetching data:', err);
-          setError('Failed to load your organization and project data.');
-      } finally {
-          setIsLoading(false);
-      }
+            if (projectsCollectionRef) {
+                const projectsQuery = query(projectsCollectionRef, where('orgId', '==', orgData.id));
+                getDocs(projectsQuery).then(projectsSnapshot => {
+                    const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+                    setProjects(projectsData);
+                    setIsLoading(false);
+                }).catch(projectError => {
+                    const permissionError = new FirestorePermissionError({
+                        path: projectsCollectionRef.path,
+                        operation: 'list',
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                    setError('Failed to load your project data.');
+                    setIsLoading(false);
+                });
+            } else {
+                 setIsLoading(false);
+            }
+        } else {
+            setOrganization(null);
+            setProjects([]);
+            setIsLoading(false);
+        }
+      }).catch(orgError => {
+            const permissionError = new FirestorePermissionError({
+                path: orgsCollectionRef.path,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            setError('Failed to load your organization data.');
+            setIsLoading(false);
+      });
   }, [user, firestore, orgsCollectionRef, projectsCollectionRef]);
 
   useEffect(() => {
