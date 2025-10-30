@@ -65,12 +65,26 @@ const LoginPage = () => {
   const firestore = useFirestore();
   const [isSignUp, setIsSignUp] = useState(false);
 
-  // Redirect if user is already logged in
+  // This effect handles redirection after login, based on user role.
   useEffect(() => {
-    if (user && !isUserLoading) {
-      router.push(searchParams.get('redirect') || '/admin');
-    }
-  }, [user, isUserLoading, router, searchParams]);
+    const checkUserAndRedirect = async () => {
+      if (user && !isUserLoading && firestore) {
+        const userRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
+        const userRole = userDoc.exists() ? userDoc.data().role : 'member';
+        
+        const redirectUrl = searchParams.get('redirect');
+        if (redirectUrl) {
+          router.push(redirectUrl);
+        } else if (userRole === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/register');
+        }
+      }
+    };
+    checkUserAndRedirect();
+  }, [user, isUserLoading, router, searchParams, firestore]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -84,10 +98,11 @@ const LoginPage = () => {
     const additionalInfo = getAdditionalUserInfo(userCredential);
     const isNewUser = additionalInfo?.isNewUser;
     
-    let userRole = 'member'; // Default role
+    // Check for user document only if it's a new user or a login
+    const userRef = doc(firestore, 'users', user.uid);
+    const userDoc = await getDoc(userRef);
 
-    if (isNewUser) {
-      const userRef = doc(firestore, 'users', user.uid);
+    if (isNewUser || !userDoc.exists()) {
       await setDoc(userRef, {
         name: user.displayName || form.getValues('name') || 'Anonymous User',
         email: user.email,
@@ -95,13 +110,6 @@ const LoginPage = () => {
         twitterHandle: additionalInfo?.profile?.screen_name || null,
         role: 'member' // New users are always members
       }, { merge: true });
-    } else {
-        // If user already exists, fetch their role
-        const userRef = doc(firestore, 'users', user.uid);
-        const userDoc = await getDoc(userRef);
-        if(userDoc.exists() && userDoc.data().role === 'admin') {
-            userRole = 'admin';
-        }
     }
     
     toast({
@@ -109,14 +117,7 @@ const LoginPage = () => {
       description: "You've been successfully logged in.",
     });
 
-    const redirectUrl = searchParams.get('redirect');
-    if (redirectUrl) {
-      router.push(redirectUrl);
-    } else if (userRole === 'admin') {
-      router.push('/admin');
-    } else {
-      router.push('/register');
-    }
+    // Redirection is now handled by the useEffect hook
   }
   
   const handleAuthError = (error: any) => {
@@ -124,8 +125,10 @@ const LoginPage = () => {
     let description = 'An unexpected error occurred. Please try again.';
     if (error.code === 'auth/email-already-in-use') {
         description = 'This email is already in use. Try logging in instead.';
-    } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+    } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         description = 'Invalid email or password.';
+    } else if (error.code === 'auth/operation-not-allowed') {
+        description = 'Login with this method is not enabled. Please contact support.';
     } else if (error.code === 'auth/account-exists-with-different-credential') {
       description = 'An account already exists with this email. Please sign in with the original method.';
     } else if (error.message) {
@@ -171,7 +174,7 @@ const LoginPage = () => {
     })
   }
 
-  if (isUserLoading || user) {
+  if (isUserLoading) {
     return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />

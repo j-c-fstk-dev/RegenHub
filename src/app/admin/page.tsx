@@ -165,23 +165,25 @@ const AdminPage = () => {
   // Authorization check
   useEffect(() => {
     const isDataLoading = isUserLoading || isProfileLoading;
-    if (!isDataLoading) {
-      if (!user) {
-        router.push('/login?redirect=/admin');
-      } else if (userProfile?.role !== 'admin') {
-        toast({
-          variant: 'destructive',
-          title: 'Access Denied',
-          description: 'You do not have permission to view this page.'
-        });
-        router.push('/register'); // Redirect non-admins to the register page
-      }
-    }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router, toast]);
+    if (isDataLoading) return; // Wait until all auth data is loaded
 
-  useEffect(() => {
+    if (!user) {
+      router.push('/login?redirect=/admin');
+      return;
+    }
+    
+    if (userProfile?.role !== 'admin') {
+      toast({
+        variant: 'destructive',
+        title: 'Access Denied',
+        description: 'You do not have permission to view this page.'
+      });
+      router.push('/register'); // Redirect non-admins
+      return;
+    }
+    
+    // If user is an admin, proceed to fetch data
     const fetchSubmissions = async () => {
-       if (userProfile?.role !== 'admin') return; // Don't fetch if not an admin
        try {
         const response = await fetch('/api/wall?all=true'); 
         if(!response.ok) throw new Error("Failed to fetch submissions");
@@ -200,11 +202,10 @@ const AdminPage = () => {
         setIsLoading(false);
       }
     };
-    // Fetch submissions only if the user is confirmed to be an admin
-    if(!isUserLoading && user && !isProfileLoading && userProfile) {
-        fetchSubmissions();
-    }
-  }, [user, userProfile, isUserLoading, isProfileLoading]);
+    
+    fetchSubmissions();
+
+  }, [user, userProfile, isUserLoading, isProfileLoading, router, toast]);
   
   const handleReviewClick = (submission: Action) => {
     setSelectedSubmission(submission);
