@@ -60,21 +60,28 @@ export function RegisterForm() {
 
   const fetchUserOrgsAndProjects = useCallback(async () => {
     if (!user || !firestore) {
+      setCurrentStep('login'); // Should not happen if logic is right, but as a fallback
       return;
     }
     
     setCurrentStep('loading');
 
-    const orgQuery = query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
+    const orgsCollectionRef = collection(firestore, 'organizations');
+    const orgQuery = query(orgsCollectionRef, where('createdBy', '==', user.uid));
     
-    getDocs(orgQuery).then(async (orgSnapshot) => {
+    try {
+        const orgSnapshot = await getDocs(orgQuery);
+
         if (!orgSnapshot.empty) {
             const orgDoc = orgSnapshot.docs[0];
             const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
             setOrganization(orgData);
 
-            const projectsQuery = query(collection(firestore, 'projects'), where('orgId', '==', orgData.id));
-            getDocs(projectsQuery).then(projectsSnapshot => {
+            const projectsCollectionRef = collection(firestore, 'projects');
+            const projectsQuery = query(projectsCollectionRef, where('orgId', '==', orgData.id));
+            
+            try {
+                const projectsSnapshot = await getDocs(projectsQuery);
                 const fetchedProjects = projectsSnapshot.docs.map(p => ({ id: p.id, title: p.data().title as string }));
                 setProjects(fetchedProjects);
 
@@ -83,26 +90,26 @@ export function RegisterForm() {
                 } else {
                     setCurrentStep('form');
                 }
-            }).catch(projectError => {
-                const permissionError = new FirestorePermissionError({
+            } catch (projectError) {
+                 const permissionError = new FirestorePermissionError({
                     path: `projects where orgId == ${orgData.id}`,
                     operation: 'list',
                 });
                 errorEmitter.emit('permission-error', permissionError);
-            });
-
+            }
         } else {
+            // This is the correct path for a new user with no organization
             setOrganization(null);
             setProjects([]);
             setCurrentStep('create_org');
         }
-    }).catch(orgError => {
+    } catch (orgError) {
         const permissionError = new FirestorePermissionError({
           path: `organizations where createdBy == ${user.uid}`,
           operation: 'list',
         });
         errorEmitter.emit('permission-error', permissionError);
-    });
+    }
   }, [user, firestore]);
 
   useEffect(() => {
@@ -131,11 +138,16 @@ export function RegisterForm() {
     }
 
     startSubmitTransition(async () => {
+      const selectedProject = projects.find(p => p.id === values.projectId);
+      const projectTitle = selectedProject?.title || 'Unknown Project';
+
       const payload = {
         orgId: organization.id,
-        intentId: "mock-intent-id", //This should be handled properly later
         ...values,
         mediaUrls: values.mediaUrls ? [values.mediaUrls] : [],
+        project: {
+          title: projectTitle
+        }
       };
 
       try {
