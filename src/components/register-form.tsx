@@ -32,7 +32,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { OrganizationForm } from './organization-form';
 import { ProjectForm } from './project-form';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const actionFormSchema = z.object({
   projectId: z.string().nonempty({ message: "Please select a project." }),
@@ -57,10 +56,11 @@ export function RegisterForm() {
   
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [currentStep, setCurrentStep] = useState('loading'); // loading, login, decide, create_org, create_project, form, error
+  const [currentStep, setCurrentStep] = useState('loading'); // loading, login, create_org, create_project, form
 
   const fetchUserOrgsAndProjects = useCallback(async () => {
     if (!user || !firestore) {
+      setCurrentStep('login');
       return; 
     }
     
@@ -77,14 +77,22 @@ export function RegisterForm() {
         const projectsSnapshot = await getDocs(projectsQuery);
         const fetchedProjects = projectsSnapshot.docs.map(p => ({ id: p.id, title: p.data().title as string }));
         setProjects(fetchedProjects);
+
+        if (fetchedProjects.length === 0) {
+            setCurrentStep('create_project');
+        } else {
+            setCurrentStep('form');
+        }
+
       } else {
         setOrganization(null);
         setProjects([]);
+        setCurrentStep('create_org');
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
       toast({ variant: 'destructive', title: 'Error Loading Data', description: 'Could not load your profile. Please try again.' });
-      setCurrentStep('error');
+      setCurrentStep('form'); // Fallback to form to avoid getting stuck
     }
   }, [user, firestore, toast]);
 
@@ -98,9 +106,7 @@ export function RegisterForm() {
       return;
     }
     if (user && firestore) {
-      fetchUserOrgsAndProjects().then(() => {
-         setCurrentStep('decide');
-      });
+      fetchUserOrgsAndProjects();
     }
   }, [user, isUserLoading, firestore, fetchUserOrgsAndProjects]);
 
@@ -147,12 +153,12 @@ export function RegisterForm() {
 
   const handleOrgCreated = (newOrg: Organization) => {
     setOrganization(newOrg);
-    setCurrentStep('create_project');
+    setCurrentStep('create_project'); // Move to next step
   };
 
   const handleProjectCreated = (newProject: Project) => {
     setProjects(prev => [...prev, newProject]);
-    setCurrentStep('form');
+    setCurrentStep('form'); // Move to final step
   };
 
   const renderContent = () => {
@@ -169,34 +175,23 @@ export function RegisterForm() {
                     </CardContent>
                 </Card>
             );
-        case 'decide':
-            return (
-                 <Card>
-                    <CardHeader><CardTitle>Step 2: Choose Your Path</CardTitle><CardDescription>Are you submitting for an existing project or starting something new?</CardDescription></CardHeader>
-                    <CardContent className="space-y-4">
-                        <Button className="w-full" onClick={() => setCurrentStep('form')} disabled={!organization || projects.length === 0}>
-                            <FolderPlus className="mr-2" /> Submit to an Existing Project
-                        </Button>
-                        <Button className="w-full" variant="outline" onClick={() => setCurrentStep('create_org')}>
-                            <Building className="mr-2" /> Create a New Organization
-                        </Button>
-                        {!organization && <p className="text-xs text-center text-muted-foreground">You must create an organization first.</p>}
-                        {organization && projects.length === 0 && <p className="text-xs text-center text-muted-foreground">You have an organization but no projects. Create a project first.</p>}
-                    </CardContent>
-                </Card>
-            );
-
         case 'create_org':
             return (
                 <Card>
-                    <CardHeader><CardTitle>Create a New Organization</CardTitle><CardDescription>Actions are submitted on behalf of an organization or collective.</CardDescription></CardHeader>
+                    <CardHeader>
+                        <CardTitle>Step 1: Create an Organization</CardTitle>
+                        <CardDescription>First, you need an organization. Actions are submitted on behalf of a collective, group, or company.</CardDescription>
+                    </CardHeader>
                     <CardContent>{user && <OrganizationForm userId={user.uid} onOrgCreated={handleOrgCreated} />}</CardContent>
                 </Card>
             );
         case 'create_project':
             return (
                 <Card>
-                    <CardHeader><CardTitle>Create a New Project</CardTitle><CardDescription>Now, let's create the first project for {organization?.name}.</CardDescription></CardHeader>
+                    <CardHeader>
+                        <CardTitle>Step 2: Create a Project</CardTitle>
+                        <CardDescription>Great! Now, let's create the first project for {organization?.name}. Actions belong to projects.</CardDescription>
+                    </CardHeader>
                     <CardContent>{user && organization && <ProjectForm userId={user.uid} orgId={organization.id} onProjectCreated={handleProjectCreated} />}</CardContent>
                 </Card>
             );
@@ -204,10 +199,9 @@ export function RegisterForm() {
              if (!organization || projects.length === 0) {
                  return (
                     <Card>
-                        <CardHeader><CardTitle>Missing Setup</CardTitle><CardDescription>You need an organization and a project to submit an action.</CardDescription></CardHeader>
+                        <CardHeader><CardTitle>Loading Your Data...</CardTitle></CardHeader>
                         <CardContent>
-                            <p className="text-destructive mb-4">You can't submit an action yet because you haven't created a project.</p>
-                             <Button onClick={() => setCurrentStep('decide')}>Go Back</Button>
+                             <div className="flex h-64 items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
                         </CardContent>
                     </Card>
                  )
@@ -277,9 +271,12 @@ export function RegisterForm() {
                   </CardContent>
                 </Card>
             );
-        case 'error':
-             return (<Card><CardHeader><CardTitle>Error</CardTitle><CardDescription>We couldn't load your data.</CardDescription></CardHeader><CardContent><p>Something went wrong. Please refresh the page and try again.</p></CardContent></Card>);
-        default: return null;
+        default: 
+            return (
+                <div className="flex h-64 items-center justify-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </div>
+            );
     }
   }
 

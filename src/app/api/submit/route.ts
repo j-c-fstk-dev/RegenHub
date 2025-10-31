@@ -1,3 +1,5 @@
+'use server';
+
 import { NextResponse, type NextRequest } from 'next/server';
 import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
@@ -22,13 +24,12 @@ function initializeAdminApp() {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    if (getApps().length === 0) {
-        throw new Error('Firebase Admin not initialized. Check server logs.');
-    }
-    
-    const db = getFirestore();
+  const db = initializeAdminApp();
+  if (getApps().length === 0) {
+      return NextResponse.json({ success: false, error: 'Firebase Admin not initialized. Check server logs.' }, { status: 500 });
+  }
 
+  try {
     // 1. Check for authentication
     const authToken = req.headers.get('authorization')?.split('Bearer ')[1];
     if (!authToken) {
@@ -41,8 +42,8 @@ export async function POST(req: NextRequest) {
     } catch (error) {
       return NextResponse.json({ success: false, error: 'Unauthorized: Invalid token' }, { status: 401 });
     }
-
     const userId = decodedToken.uid;
+
     const {
       intentId,
       projectId,
@@ -57,12 +58,19 @@ export async function POST(req: NextRequest) {
     if (!title || !description || !orgId || !projectId) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
-
-    // Fetch user's profile to get their twitterHandle
+    
+    // 2. Fetch Dependent Data from Server-Side to ensure integrity
     const userDoc = await db.collection('users').doc(userId).get();
     const twitterHandle = userDoc.exists ? userDoc.data()?.twitterHandle : undefined;
 
-    // 2. Create the new Action document
+    const projectDoc = await db.collection('projects').doc(projectId).get();
+    if (!projectDoc.exists) {
+        return NextResponse.json({ success: false, error: 'Project not found.' }, { status: 404 });
+    }
+    const projectData = projectDoc.data();
+
+
+    // 3. Create the new Action document
     const actionRef = await db.collection('actions').add({
       intentId: intentId || null,
       projectId,
@@ -82,10 +90,13 @@ export async function POST(req: NextRequest) {
       certificateUrl: null,
     });
 
-    // 3. Trigger the AI precheck/verification flow asynchronously (don't block the response)
+    // 4. Trigger the AI precheck/verification flow asynchronously (don't block the response)
     const aiInput: AIAssistedIntentVerificationInput = {
       actionId: actionRef.id,
-      project: { title: "Mock Project Title", location: location || "" }, // Mocking some data for now
+      project: { 
+        title: projectData?.title || 'Untitled Project', 
+        location: projectData?.location || location || "" 
+      },
       category: category || "Other",
       description,
       evidences: (mediaUrls || []).map((url: string) => ({ type: 'link', url })),
@@ -97,13 +108,11 @@ export async function POST(req: NextRequest) {
 
     // Don't await this promise. Let it run in the background.
     aiAssistedIntentVerification(aiInput).then(aiResult => {
-      // On success, update the action with AI results and change status
       actionRef.update({ 
         aiVerification: aiResult,
         status: 'review_ready' 
       });
     }).catch(aiError => {
-        // Log the error and update the action status to 'review_failed'
         console.error(`AI verification failed for action ${actionRef.id}:`, aiError);
         actionRef.update({ 
             status: 'review_failed', 
@@ -115,8 +124,7 @@ export async function POST(req: NextRequest) {
         });
     });
 
-
-    // 4. Respond to the user immediately
+    // 5. Respond to the user immediately
     return NextResponse.json({ success: true, actionId: actionRef.id }, { status: 200 });
 
   } catch (error) {
