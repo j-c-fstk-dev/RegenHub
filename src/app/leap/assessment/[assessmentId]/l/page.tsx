@@ -27,7 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Locate, Loader2, PlusCircle, Trash2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveLeapL } from '../../actions';
+import { saveLeapL } from '@/app/leap/actions';
 
 const formSchema = z.object({
   company: z.object({

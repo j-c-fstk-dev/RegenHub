@@ -27,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Scale, Loader2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveLeapE } from '../../actions';
+import { saveLeapE } from '@/app/leap/actions';
 
 const formSchema = z.object({
   inputs: z.object({

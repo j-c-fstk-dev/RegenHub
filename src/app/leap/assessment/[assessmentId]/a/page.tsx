@@ -27,7 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { LineChart, Loader2, ArrowRight, PlusCircle, Trash2, ShieldAlert, BadgeInfo } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveLeapA } from '../../actions';
+import { saveLeapA } from '@/app/leap/actions';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
