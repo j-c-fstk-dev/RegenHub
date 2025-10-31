@@ -5,15 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useFirestore } from '@/firebase';
-import { doc, setDoc, writeBatch, serverTimestamp, arrayUnion, collection } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp, arrayUnion, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, errorEmitter } from '@/firebase';
 
 const orgFormSchema = z.object({
   name: z.string().min(3, 'Organization name must be at least 3 characters.'),
@@ -67,7 +66,6 @@ export function OrganizationForm({ userId, onOrgCreated }: OrganizationFormProps
           })
           .catch((error) => {
               console.error("Batch write failed:", error);
-              // Creating a single, representative error for the batch operation.
               const permissionError = new FirestorePermissionError({
                   path: `batch write (org: ${orgRef.path}, user: ${userRef.path})`,
                   operation: 'write',
