@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -59,11 +59,10 @@ export function RegisterForm() {
   const [currentStep, setCurrentStep] = useState('loading'); // loading, login, create_org, create_project, form
 
   const fetchUserOrgsAndProjects = useCallback(async () => {
-    if (!user || !firestore) {
-      setCurrentStep('login');
-      return; 
-    }
+    if (!user || !firestore) return;
     
+    setCurrentStep('loading');
+
     try {
       const orgQuery = query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
       const orgSnapshot = await getDocs(orgQuery);
@@ -91,10 +90,14 @@ export function RegisterForm() {
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
-      toast({ variant: 'destructive', title: 'Error Loading Data', description: 'Could not load your profile. Please try again.' });
+      const permissionError = new FirestorePermissionError({
+        path: `collections/organizations and/or collections/projects`,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
       setCurrentStep('form'); // Fallback to form to avoid getting stuck
     }
-  }, [user, firestore, toast]);
+  }, [user, firestore]);
 
   useEffect(() => {
     if (isUserLoading) {
