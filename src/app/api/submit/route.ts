@@ -1,4 +1,3 @@
-'use server';
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
