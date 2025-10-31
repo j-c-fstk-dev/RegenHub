@@ -59,44 +59,50 @@ export function RegisterForm() {
   const [currentStep, setCurrentStep] = useState('loading'); // loading, login, create_org, create_project, form
 
   const fetchUserOrgsAndProjects = useCallback(async () => {
-    if (!user || !firestore) return;
+    if (!user || !firestore) {
+      return;
+    }
     
     setCurrentStep('loading');
 
-    try {
-      const orgQuery = query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
-      const orgSnapshot = await getDocs(orgQuery);
+    const orgQuery = query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
+    
+    getDocs(orgQuery).then(async (orgSnapshot) => {
+        if (!orgSnapshot.empty) {
+            const orgDoc = orgSnapshot.docs[0];
+            const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
+            setOrganization(orgData);
 
-      if (!orgSnapshot.empty) {
-        const orgDoc = orgSnapshot.docs[0];
-        const orgData = { id: orgDoc.id, ...orgDoc.data() } as Organization;
-        setOrganization(orgData);
+            const projectsQuery = query(collection(firestore, 'projects'), where('orgId', '==', orgData.id));
+            getDocs(projectsQuery).then(projectsSnapshot => {
+                const fetchedProjects = projectsSnapshot.docs.map(p => ({ id: p.id, title: p.data().title as string }));
+                setProjects(fetchedProjects);
 
-        const projectsQuery = query(collection(firestore, 'projects'), where('orgId', '==', orgData.id));
-        const projectsSnapshot = await getDocs(projectsQuery);
-        const fetchedProjects = projectsSnapshot.docs.map(p => ({ id: p.id, title: p.data().title as string }));
-        setProjects(fetchedProjects);
+                if (fetchedProjects.length === 0) {
+                    setCurrentStep('create_project');
+                } else {
+                    setCurrentStep('form');
+                }
+            }).catch(projectError => {
+                const permissionError = new FirestorePermissionError({
+                    path: `projects where orgId == ${orgData.id}`,
+                    operation: 'list',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
 
-        if (fetchedProjects.length === 0) {
-            setCurrentStep('create_project');
         } else {
-            setCurrentStep('form');
+            setOrganization(null);
+            setProjects([]);
+            setCurrentStep('create_org');
         }
-
-      } else {
-        setOrganization(null);
-        setProjects([]);
-        setCurrentStep('create_org');
-      }
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-      const permissionError = new FirestorePermissionError({
-        path: `collections/organizations and/or collections/projects`,
-        operation: 'list',
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      setCurrentStep('form'); // Fallback to form to avoid getting stuck
-    }
+    }).catch(orgError => {
+        const permissionError = new FirestorePermissionError({
+          path: `organizations where createdBy == ${user.uid}`,
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
   }, [user, firestore]);
 
   useEffect(() => {
@@ -127,7 +133,7 @@ export function RegisterForm() {
     startSubmitTransition(async () => {
       const payload = {
         orgId: organization.id,
-        intentId: "mock-intent-id",
+        intentId: "mock-intent-id", //This should be handled properly later
         ...values,
         mediaUrls: values.mediaUrls ? [values.mediaUrls] : [],
       };
@@ -182,7 +188,7 @@ export function RegisterForm() {
             return (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Step 1: Create an Organization</CardTitle>
+                        <CardTitle className="font-headline text-2xl flex items-center gap-2"><Building /> Step 1: Create an Organization</CardTitle>
                         <CardDescription>First, you need an organization. Actions are submitted on behalf of a collective, group, or company.</CardDescription>
                     </CardHeader>
                     <CardContent>{user && <OrganizationForm userId={user.uid} onOrgCreated={handleOrgCreated} />}</CardContent>
@@ -192,7 +198,7 @@ export function RegisterForm() {
             return (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Step 2: Create a Project</CardTitle>
+                         <CardTitle className="font-headline text-2xl flex items-center gap-2"><FolderPlus /> Step 2: Create a Project</CardTitle>
                         <CardDescription>Great! Now, let's create the first project for {organization?.name}. Actions belong to projects.</CardDescription>
                     </CardHeader>
                     <CardContent>{user && organization && <ProjectForm userId={user.uid} orgId={organization.id} onProjectCreated={handleProjectCreated} />}</CardContent>
