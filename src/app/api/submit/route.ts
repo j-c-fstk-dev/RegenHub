@@ -4,9 +4,9 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { aiAssistedIntentVerification, AIAssistedIntentVerificationInput } from '@/ai/flows/ai-assisted-intent-verification';
 
-// Initialize Firebase Admin SDK
-try {
-  if (!getApps().length) {
+// Helper to initialize Firebase Admin SDK only once
+function initializeAdminApp() {
+  if (getApps().length === 0) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       const serviceAccount: ServiceAccount = JSON.parse(
         process.env.FIREBASE_SERVICE_ACCOUNT_KEY
@@ -15,51 +15,49 @@ try {
         credential: cert(serviceAccount),
       });
     } else {
-      // This is for local development where the key might not be set.
-      console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Skipping Admin SDK initialization for local dev. API will fail if called.");
+      console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Skipping Admin SDK initialization. API will fail if called.");
     }
   }
-} catch (error) {
-  console.error('Firebase Admin SDK initialization error:', error);
+  return getFirestore();
 }
 
-const db = getFirestore();
-
 export async function POST(req: NextRequest) {
-  if (getApps().length === 0) {
-      return NextResponse.json({ success: false, error: 'Firebase Admin not initialized. Check server logs.' }, { status: 500 });
-  }
-
-  // 1. Check for authentication
-  const authToken = req.headers.get('authorization')?.split('Bearer ')[1];
-  if (!authToken) {
-    return NextResponse.json({ success: false, error: 'Unauthorized: No token provided' }, { status: 401 });
-  }
-
-  let decodedToken;
   try {
-    decodedToken = await getAuth().verifyIdToken(authToken);
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Unauthorized: Invalid token' }, { status: 401 });
-  }
+    if (getApps().length === 0) {
+        throw new Error('Firebase Admin not initialized. Check server logs.');
+    }
+    
+    const db = getFirestore();
 
-  const userId = decodedToken.uid;
-  const {
-    intentId,
-    projectId,
-    orgId,
-    description,
-    title,
-    category,
-    location,
-    mediaUrls,
-  } = await req.json();
+    // 1. Check for authentication
+    const authToken = req.headers.get('authorization')?.split('Bearer ')[1];
+    if (!authToken) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: No token provided' }, { status: 401 });
+    }
 
-  if (!title || !description || !orgId || !projectId) {
-    return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
-  }
+    let decodedToken;
+    try {
+      decodedToken = await getAuth().verifyIdToken(authToken);
+    } catch (error) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Invalid token' }, { status: 401 });
+    }
 
-  try {
+    const userId = decodedToken.uid;
+    const {
+      intentId,
+      projectId,
+      orgId,
+      description,
+      title,
+      category,
+      location,
+      mediaUrls,
+    } = await req.json();
+
+    if (!title || !description || !orgId || !projectId) {
+      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+    }
+
     // Fetch user's profile to get their twitterHandle
     const userDoc = await db.collection('users').doc(userId).get();
     const twitterHandle = userDoc.exists ? userDoc.data()?.twitterHandle : undefined;
@@ -97,6 +95,7 @@ export async function POST(req: NextRequest) {
       locale: 'pt-BR',
     };
 
+    // Don't await this promise. Let it run in the background.
     aiAssistedIntentVerification(aiInput).then(aiResult => {
       // On success, update the action with AI results and change status
       actionRef.update({ 
