@@ -61,4 +61,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: `Failed to start assessment: ${errorMessage}` }, { status: 500 });
   }
 }
-
