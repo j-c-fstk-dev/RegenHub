@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AIAssistedIntentVerificationOutput } from '@/ai/flows/ai-assisted-intent-verification';
+import { AIAssistedIntentVerificationOutput } from '@/ai/schemas/ai-assisted-intent-verification';
 import { BrowserProvider, Eip1193Provider } from 'ethers';
 import { doc } from 'firebase/firestore';
 import Link from 'next/link';

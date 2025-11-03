@@ -1,9 +1,9 @@
-
 import { NextResponse, type NextRequest } from 'next/server';
 import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
-import { aiAssistedIntentVerification, AIAssistedIntentVerificationInput } from '@/ai/flows/ai-assisted-intent-verification';
+import { aiAssistedIntentVerification } from '@/ai/flows/ai-assisted-intent-verification';
+import type { AIAssistedIntentVerificationInput } from '@/ai/schemas/ai-assisted-intent-verification';
 
 // Helper to initialize Firebase Admin SDK only once
 function initializeAdminApp() {
