@@ -75,7 +75,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
     if (!auth) { // If no Auth service instance, cannot determine user state
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
+      setUserAuthState({ user: null, isUserLoading: false, userError: null });
       return;
     }
 
@@ -140,39 +140,27 @@ export const useFirebase = (): FirebaseServicesAndUser => {
   };
 };
 
-/** Hook to access Firebase Auth instance. Throws if not available. */
-export const useAuth = (): Auth => {
+/** Hook to access Firebase Auth instance. Returns null if not available. */
+export const useAuth = (): Auth | null => {
   const { auth } = useFirebase();
-  if (!auth) {
-    throw new Error('Firebase Auth service is not available. Ensure FirebaseProvider is set up correctly.');
-  }
   return auth;
 };
 
-/** Hook to access Firestore instance. Throws if not available. */
-export const useFirestore = (): Firestore => {
+/** Hook to access Firestore instance. Returns null if not available. */
+export const useFirestore = (): Firestore | null => {
   const { firestore } = useFirebase();
-  if (!firestore) {
-    throw new Error('Firebase Firestore service is not available. Ensure FirebaseProvider is set up correctly.');
-  }
   return firestore;
 };
 
-/** Hook to access Firebase Storage instance. Throws if not available. */
-export const useStorage = (): FirebaseStorage => {
+/** Hook to access Firebase Storage instance. Returns null if not available. */
+export const useStorage = (): FirebaseStorage | null => {
     const { storage } = useFirebase();
-    if (!storage) {
-        throw new Error('Firebase Storage service is not available. Ensure FirebaseProvider is set up correctly.');
-    }
     return storage;
 }
 
-/** Hook to access Firebase App instance. Throws if not available. */
-export const useFirebaseApp = (): FirebaseApp => {
+/** Hook to access Firebase App instance. Returns null if not available. */
+export const useFirebaseApp = (): FirebaseApp | null => {
   const { firebaseApp } = useFirebase();
-  if (!firebaseApp) {
-    throw new Error('Firebase App instance is not available. Ensure FirebaseProvider is set up correctly.');
-  }
   return firebaseApp;
 };
 
