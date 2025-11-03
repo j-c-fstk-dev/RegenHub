@@ -3,6 +3,10 @@
 import React, { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
+import { FirebaseApp } from 'firebase/app';
+import { Auth } from 'firebase/auth';
+import { Firestore } from 'firebase/firestore';
+import { FirebaseStorage } from 'firebase/storage';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -10,16 +14,23 @@ interface FirebaseClientProviderProps {
 
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   const firebaseServices = useMemo(() => {
-    // Initialize Firebase on the client side, once per component mount.
-    return initializeFirebase();
-  }, []); // Empty dependency array ensures this runs only once on mount
+    if (typeof window !== 'undefined') {
+      return initializeFirebase();
+    }
+    return {
+      firebaseApp: null,
+      auth: null,
+      firestore: null,
+      storage: null,
+    };
+  }, []);
 
   return (
     <FirebaseProvider
-      firebaseApp={firebaseServices.firebaseApp}
-      auth={firebaseServices.auth}
-      firestore={firebaseServices.firestore}
-      storage={firebaseServices.storage}
+      firebaseApp={firebaseServices.firebaseApp as FirebaseApp | null}
+      auth={firebaseServices.auth as Auth | null}
+      firestore={firebaseServices.firestore as Firestore | null}
+      storage={firebaseServices.storage as FirebaseStorage | null}
     >
       {children}
     </FirebaseProvider>

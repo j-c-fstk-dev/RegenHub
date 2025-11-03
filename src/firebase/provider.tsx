@@ -9,10 +9,10 @@ import { FirebaseStorage } from 'firebase/storage';
 
 interface FirebaseProviderProps {
   children: ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-  storage: FirebaseStorage;
+  firebaseApp: FirebaseApp | null; // Allow null
+  firestore: Firestore | null;   // Allow null
+  auth: Auth | null;             // Allow null
+  storage: FirebaseStorage | null; // Allow null
 }
 
 // Internal state for user authentication
@@ -37,10 +37,10 @@ export interface FirebaseContextState {
 
 // Return type for useFirebase()
 export interface FirebaseServicesAndUser {
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-  storage: FirebaseStorage;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
+  storage: FirebaseStorage | null;
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
@@ -119,7 +119,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
 /**
  * Hook to access core Firebase services and user authentication state.
- * Throws error if core services are not available or used outside provider.
+ * Throws error if used outside provider, but returns nulls if services not ready.
  */
 export const useFirebase = (): FirebaseServicesAndUser => {
   const context = useContext(FirebaseContext);
@@ -128,10 +128,7 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
 
-  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth || !context.storage) {
-    throw new Error('Firebase core services not available. Check FirebaseProvider props.');
-  }
-
+  // Return the context as is. Components should handle null services.
   return {
     firebaseApp: context.firebaseApp,
     firestore: context.firestore,
@@ -143,27 +140,39 @@ export const useFirebase = (): FirebaseServicesAndUser => {
   };
 };
 
-/** Hook to access Firebase Auth instance. */
+/** Hook to access Firebase Auth instance. Throws if not available. */
 export const useAuth = (): Auth => {
   const { auth } = useFirebase();
+  if (!auth) {
+    throw new Error('Firebase Auth service is not available. Ensure FirebaseProvider is set up correctly.');
+  }
   return auth;
 };
 
-/** Hook to access Firestore instance. */
+/** Hook to access Firestore instance. Throws if not available. */
 export const useFirestore = (): Firestore => {
   const { firestore } = useFirebase();
+  if (!firestore) {
+    throw new Error('Firebase Firestore service is not available. Ensure FirebaseProvider is set up correctly.');
+  }
   return firestore;
 };
 
-/** Hook to access Firebase Storage instance. */
+/** Hook to access Firebase Storage instance. Throws if not available. */
 export const useStorage = (): FirebaseStorage => {
     const { storage } = useFirebase();
+    if (!storage) {
+        throw new Error('Firebase Storage service is not available. Ensure FirebaseProvider is set up correctly.');
+    }
     return storage;
 }
 
-/** Hook to access Firebase App instance. */
+/** Hook to access Firebase App instance. Throws if not available. */
 export const useFirebaseApp = (): FirebaseApp => {
   const { firebaseApp } = useFirebase();
+  if (!firebaseApp) {
+    throw new Error('Firebase App instance is not available. Ensure FirebaseProvider is set up correctly.');
+  }
   return firebaseApp;
 };
 

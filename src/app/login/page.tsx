@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -54,7 +54,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const LoginPage = () => {
+const LoginPageContent = () => {
   const { user, isUserLoading } = useUser();
   const [isPending, startTransition] = useTransition();
   const [isSocialPending, startSocialTransition] = useTransition();
@@ -271,5 +271,13 @@ const LoginPage = () => {
     </div>
   );
 };
+
+const LoginPage = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
 
 export default LoginPage;
