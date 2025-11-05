@@ -32,12 +32,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { OrganizationForm } from './organization-form';
 import { ProjectForm } from './project-form';
+import { ActionTypeSelector } from './wizard/ActionTypeSelector';
 
 const actionFormSchema = z.object({
   projectId: z.string().nonempty({ message: "Please select a project." }),
   title: z.string().min(5, { message: 'Action name must be at least 5 characters.' }),
   description: z.string().min(20, { message: 'Description must be at least 20 characters.' }).max(500),
-  category: z.string().nonempty({ message: "Please select a category."}),
+  // The actionTypeId will be handled by the custom selector now.
+  // We'll add it to the payload manually later.
   location: z.string().optional(),
   mediaUrls: z.string().url({ message: 'Please enter a valid URL for your proof.' }).optional().or(z.literal('')),
 });
@@ -58,9 +60,12 @@ export function RegisterForm() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentStep, setCurrentStep] = useState('loading'); // loading, login, create_org, create_project, form
 
+  // State to hold the selected action type from our new component
+  const [selectedActionType, setSelectedActionType] = useState<{ id: string; name: string; baseScore: number; domain: string; } | null>(null);
+
   const fetchUserOrgsAndProjects = useCallback(async () => {
     if (!user || !firestore) {
-      setCurrentStep('login'); // Should not happen if logic is right, but as a fallback
+      setCurrentStep('login'); 
       return;
     }
     
@@ -98,17 +103,25 @@ export function RegisterForm() {
                 errorEmitter.emit('permission-error', permissionError);
             }
         } else {
-            // This is the correct path for a new user with no organization
             setOrganization(null);
             setProjects([]);
             setCurrentStep('create_org');
         }
     } catch (orgError) {
-        const permissionError = new FirestorePermissionError({
-          path: `organizations where createdBy == ${user.uid}`,
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        // This is a special case. If the query fails, it might be a permission error,
+        // but if it's just empty, it's a valid state for a new user.
+        if (orgError instanceof Error && orgError.message.includes('permission-denied')) {
+             const permissionError = new FirestorePermissionError({
+                path: `organizations where createdBy == ${user.uid}`,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+             // This is the expected path for a new user with no organization
+            setOrganization(null);
+            setProjects([]);
+            setCurrentStep('create_org');
+        }
     }
   }, [user, firestore]);
 
@@ -128,12 +141,12 @@ export function RegisterForm() {
 
   const form = useForm<ActionFormValues>({
     resolver: zodResolver(actionFormSchema),
-    defaultValues: { projectId: '', title: '', description: '', category: '', location: '', mediaUrls: ''},
+    defaultValues: { projectId: '', title: '', description: '', location: '', mediaUrls: ''},
   });
 
   const onSubmit = (values: ActionFormValues) => {
-    if (!user || !organization) {
-        toast({ variant: 'destructive', title: 'Error', description: 'User or organization not found.' });
+    if (!user || !organization || !selectedActionType) {
+        toast({ variant: 'destructive', title: 'Error', description: 'User, organization, or action type not found.' });
         return;
     }
 
@@ -147,7 +160,12 @@ export function RegisterForm() {
         mediaUrls: values.mediaUrls ? [values.mediaUrls] : [],
         project: {
           title: projectTitle
-        }
+        },
+        // Adding data from our new selector
+        actionTypeId: selectedActionType.id,
+        actionTypeName: selectedActionType.name,
+        baseScore: selectedActionType.baseScore,
+        category: selectedActionType.domain, // Use domain as the category
       };
 
       try {
@@ -174,13 +192,17 @@ export function RegisterForm() {
 
   const handleOrgCreated = (newOrg: Organization) => {
     setOrganization(newOrg);
-    setCurrentStep('create_project'); // Move to next step
+    setCurrentStep('create_project');
   };
 
   const handleProjectCreated = (newProject: Project) => {
     setProjects(prev => [...prev, newProject]);
-    setCurrentStep('form'); // Move to final step
+    setCurrentStep('form');
   };
+
+  // A dummy actionId for the draft functionality. In a real multi-step wizard,
+  // this would be created once and passed through all steps.
+  const DRAFT_ACTION_ID = user ? `draft_${user.uid}` : 'draft_anonymous';
 
   const renderContent = () => {
     switch (currentStep) {
@@ -249,28 +271,17 @@ export function RegisterForm() {
                               )}
                             />
 
+                           <ActionTypeSelector
+                              actionId={DRAFT_ACTION_ID}
+                              onSelect={(v) => setSelectedActionType(v)}
+                            />
+
                            <FormField control={form.control} name="title" render={({ field }) => (
                               <FormItem><FormLabel>Name of the action</FormLabel><FormControl><Input placeholder="e.g., Community Tree Planting Day" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                           <FormField control={form.control} name="description" render={({ field }) => (
                               <FormItem><FormLabel>Brief description</FormLabel><FormControl><Textarea placeholder="Describe what you did and the outcome." {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
-                          <FormField control={form.control} name="category" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Category</FormLabel>
-                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="Ecological">Ecological</SelectItem>
-                                      <SelectItem value="Social">Social</SelectItem>
-                                      <SelectItem value="Educational">Educational</SelectItem>
-                                       <SelectItem value="Cultural">Cultural</SelectItem>
-                                      <SelectItem value="Other">Other</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}/>
                             <FormField control={form.control} name="location" render={({ field }) => (
                               <FormItem><FormLabel>Location (City, Country)</FormLabel><FormControl><Input placeholder="e.g., Recife, Brazil" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
@@ -284,7 +295,7 @@ export function RegisterForm() {
                               </FormItem>
                             )}/>
                          </div>
-                        <Button type="submit" className="w-full" disabled={isSubmitPending}>
+                        <Button type="submit" className="w-full" disabled={isSubmitPending || !selectedActionType}>
                           {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Action
                         </Button>
                       </form>
