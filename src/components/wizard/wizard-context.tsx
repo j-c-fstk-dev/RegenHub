@@ -4,7 +4,7 @@ import { useUser } from "@/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { Loader2 }m "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export interface ActionDraft {
   id: string;
@@ -89,8 +89,9 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     if (!draftId || !user || !firestore) return;
     const draftRef = doc(firestore, `users/${user.uid}/actions/${draftId}`);
     try {
+      const currentDraft = draft ? { ...draft, ...data } : { ...data };
+      setDraft(currentDraft as ActionDraft); // Optimistic update
       await setDoc(draftRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
-      setDraft(prev => prev ? { ...prev, ...data } : null);
     } catch (error) {
       console.error("Error updating draft:", error);
     }
