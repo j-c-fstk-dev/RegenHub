@@ -32,8 +32,8 @@ service cloud.firestore {
     }
 
     // ORGANIZATIONS
-    // Publicly readable for profile pages.
-    // Listable only by signed-in users (queries must be constrained on the client).
+    // Publicly readable for profile pages (get).
+    // Listable only by the user who created them (list).
     // Writable only by the user who created it.
     match /organizations/{orgId} {
       allow get: if true;
