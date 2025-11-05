@@ -34,10 +34,10 @@ service cloud.firestore {
     // ORGANIZATIONS
     // Organizations can be created by any signed-in user.
     // They are publicly readable for profile pages.
-    // Only the creator can update or delete their organization or query for it.
+    // Only the creator can update, delete, or query for their own organizations.
     match /organizations/{orgId} {
       allow get: if true;
-      allow list: if isSignedIn() and request.query.createdBy == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.createdBy == request.auth.uid;
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isSignedIn() && isOrgOwner(orgId);
     }
@@ -46,7 +46,7 @@ service cloud.firestore {
     // Projects can only be created by the owner of the parent organization.
     // They can only be read, updated, or deleted by the organization owner.
     match /projects/{projectId} {
-        allow get, list: if isSignedIn() && isOrgOwner(request.resource.data.orgId);
+        allow get, list: if isSignedIn() && isOrgOwner(resource.data.orgId);
         allow create: if isSignedIn() && isOrgOwner(request.resource.data.orgId) && request.resource.data.createdBy == request.auth.uid;
         allow update, delete: if isSignedIn() && isOrgOwner(resource.data.orgId);
     }
@@ -67,6 +67,14 @@ service cloud.firestore {
     match /leapAssessments/{assessmentId} {
        allow get, list, update, delete: if isSignedIn() && (isOrgOwner(resource.data.orgId) || isAdmin());
        allow create: if isSignedIn() && isOrgOwner(request.resource.data.orgId);
+    }
+
+    // ACTION TYPES
+    // Action types are public but can only be created by admins.
+    match /actionTypes/{typeId} {
+      allow read;
+      allow list;
+      allow create: if isAdmin();
     }
 
   }
