@@ -5,19 +5,13 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
   Form,
-  FormControl,
   FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
 import { Switch } from "@/components/ui/switch";
-import { useEffect } from "react";
 import { Label } from "@/components/ui/label";
+import { LocationInput } from "@/components/location-input";
 
 const step3Schema = z.object({
   location: z.string().optional(),
@@ -34,7 +28,7 @@ const Step3 = () => {
             location: draft?.location && draft.location !== 'Digital/Online' ? draft.location : '',
         },
     });
-
+    
     const isDigital = form.watch('location') === 'Digital/Online';
 
     const handleSwitchChange = (checked: boolean) => {
@@ -43,6 +37,10 @@ const Step3 = () => {
         } else {
             form.setValue('location', '');
         }
+    };
+    
+    const handleLocationSelect = (locationName: string) => {
+        form.setValue('location', locationName, { shouldValidate: true });
     };
 
     const onSubmit = (values: Step3FormValues) => {
@@ -78,25 +76,18 @@ const Step3 = () => {
                     </div>
 
                     {!isDigital && (
-                        <FormField
-                            control={form.control}
-                            name="location"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Location Description</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            placeholder="e.g., Recife, PE, Brazil"
-                                            {...field}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>
-                                       You can provide a city, state, or a more specific address.
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <div>
+                           <LocationInput 
+                                onSelectLocation={handleLocationSelect} 
+                                initialValue={draft?.location}
+                           />
+                           <FormDescription className="mt-2">
+                                Start typing to search for a city, state, or address.
+                           </FormDescription>
+                           {form.formState.errors.location && (
+                                <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.location.message}</p>
+                           )}
+                        </div>
                     )}
                 </form>
             </Form>
