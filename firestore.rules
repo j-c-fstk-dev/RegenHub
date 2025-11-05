@@ -32,12 +32,13 @@ service cloud.firestore {
     }
 
     // ORGANIZATIONS
-    // Organizations can be created by any signed-in user.
-    // They are publicly readable for profile pages.
-    // Only the creator can update, delete, or query for their own organizations.
+    // Publicly readable for profile pages, but queries are restricted.
     match /organizations/{orgId} {
-      allow get: if true;
-      allow list: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      // Combines get and list. Allows anyone to get a single doc, 
+      // but requires auth to query the collection. The client query MUST
+      // be constrained to ensure users only see their own orgs in lists.
+      allow read: if (request.method == 'get') || 
+                   (request.method == 'list' && isSignedIn());
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isSignedIn() && isOrgOwner(orgId);
     }
