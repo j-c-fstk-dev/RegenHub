@@ -1,0 +1,101 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useWizard } from "../wizard-context";
+import { WizardLayout } from "../WizardLayout";
+import { Switch } from "@/components/ui/switch";
+import { useState } from "react";
+
+const step3Schema = z.object({
+  location: z.string().optional(),
+});
+
+type Step3FormValues = z.infer<typeof step3Schema>;
+
+const Step3 = () => {
+    const { setStep, updateDraft, draft } = useWizard();
+    const [isDigital, setIsDigital] = useState(!draft?.location);
+
+    const form = useForm<Step3FormValues>({
+        resolver: zodResolver(step3Schema),
+        defaultValues: {
+            location: draft?.location || '',
+        },
+    });
+
+    const onSubmit = (values: Step3FormValues) => {
+        if (isDigital) {
+            updateDraft({ location: 'Digital/Online' });
+        } else {
+            if (!values.location) {
+                form.setError('location', { message: 'Location is required for physical actions.' });
+                return;
+            }
+            updateDraft(values);
+        }
+        setStep(4);
+    }
+
+    const handleBack = () => {
+        updateDraft(form.getValues());
+        setStep(2);
+    }
+
+    return (
+        <WizardLayout
+            title="Step 3: Location"
+            description="Where did your action take place? If it was online, just let us know."
+            onNext={form.handleSubmit(onSubmit)}
+            onBack={handleBack}
+        >
+            <Form {...form}>
+                <form className="space-y-8">
+                     <div className="flex items-center space-x-2">
+                        <Switch
+                            id="digital-action"
+                            checked={isDigital}
+                            onCheckedChange={setIsDigital}
+                        />
+                        <Label htmlFor="digital-action">This is a digital/online action (no physical location)</Label>
+                    </div>
+
+                    {!isDigital && (
+                        <FormField
+                            control={form.control}
+                            name="location"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Location Description</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            placeholder="e.g., Recife, PE, Brazil"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                       You can provide a city, state, or a more specific address.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+                </form>
+            </Form>
+        </WizardLayout>
+    );
+};
+
+export default Step3;

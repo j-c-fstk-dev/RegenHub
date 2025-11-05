@@ -20,7 +20,7 @@ export interface ActionDraft {
   actionTypeName?: string;
   baseScore?: number;
   domain?: string;
-  location?: any;
+  location?: string;
   mediaUrls?: string[];
 }
 
