@@ -36,7 +36,8 @@ service cloud.firestore {
     // They are publicly readable for profile pages.
     // Only the creator can update or delete their organization.
     match /organizations/{orgId} {
-      allow get, list: if true;
+      allow get: if true;
+      allow list: if isSignedIn() && request.query.createdBy == request.auth.uid;
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isSignedIn() && isOrgOwner(orgId);
     }
