@@ -1,24 +1,27 @@
-import { RegisterForm } from "@/components/register-form";
 import { FilePenLine } from "lucide-react";
+import { WizardProvider } from "@/components/wizard/wizard-context";
+import { Wizard } from "@/components/wizard/wizard";
 
 const RegisterPage = () => {
     return (
-        <div className="container py-12">
-            <header className="mb-12 text-center">
-                <div className="inline-block rounded-full bg-primary/10 p-4 mb-4">
-                    <FilePenLine className="h-8 w-8 text-primary"/>
+        <WizardProvider>
+            <div className="container py-12">
+                <header className="mb-12 text-center">
+                    <div className="inline-block rounded-full bg-primary/10 p-4 mb-4">
+                        <FilePenLine className="h-8 w-8 text-primary"/>
+                    </div>
+                    <h1 className="font-headline text-4xl font-bold text-primary md:text-5xl">
+                        Register Your Action
+                    </h1>
+                    <p className="mt-4 text-xl text-muted-foreground max-w-3xl mx-auto">
+                       This wizard will guide you through the process of submitting a new regenerative action. Let's get started!
+                    </p>
+                </header>
+                <div className="mx-auto max-w-3xl">
+                   <Wizard />
                 </div>
-                <h1 className="font-headline text-4xl font-bold text-primary md:text-5xl">
-                    Register Your Action
-                </h1>
-                <p className="mt-4 text-xl text-muted-foreground max-w-3xl mx-auto">
-                   This wizard will guide you through the process of submitting a new regenerative action. Let's get started!
-                </p>
-            </header>
-            <div className="mx-auto max-w-3xl">
-                <RegisterForm />
             </div>
-        </div>
+        </WizardProvider>
     );
 }
 
