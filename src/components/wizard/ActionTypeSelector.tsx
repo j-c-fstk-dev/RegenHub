@@ -11,10 +11,12 @@ import { useFirestore } from '@/firebase';
 import { collection, getDocs } from "firebase/firestore";
 import { ACTION_TYPES_SEED, type ActionType, type ImpactDomain } from "@/lib/action-types";
 import { NewActionTypeDialog } from "./NewActionTypeDialog";
+import { ActionDraft } from "./wizard-context";
+import { Loader2 } from "lucide-react";
 
 type Props = {
   actionId: string; // /actions/{actionId} para autosave
-  initialValue?: { id: string; name: string; baseScore: number; domain: ImpactDomain } | null;
+  initialValue?: ActionDraft | null;
   onSelect?: (v: { id: string; name: string; baseScore: number; domain: ImpactDomain }) => void;
   className?: string;
 };
@@ -30,10 +32,15 @@ export function ActionTypeSelector({ actionId, initialValue, onSelect, className
   const firestore = useFirestore();
   const [allTypes, setAllTypes] = React.useState<ActionType[]>(ACTION_TYPES_SEED);
   const [query, setQuery] = React.useState("");
-  const [activeDomain, setActiveDomain] = React.useState<ImpactDomain>((initialValue?.domain ?? "ecological"));
+  const [activeDomain, setActiveDomain] = React.useState<ImpactDomain>((initialValue?.domain as ImpactDomain | undefined) ?? "ecological");
   const [openNew, setOpenNew] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const [selected, setSelected] = React.useState(initialValue ?? null);
+  const [selected, setSelected] = React.useState(initialValue?.actionTypeId ? {
+    id: initialValue.actionTypeId,
+    name: initialValue.actionTypeName,
+    baseScore: initialValue.baseScore,
+    domain: initialValue.domain
+  } : null);
 
   // fetch remoto (uma única vez)
   React.useEffect(() => {
@@ -74,7 +81,7 @@ export function ActionTypeSelector({ actionId, initialValue, onSelect, className
     try {
       if(!firestore) return;
       const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
-      const ref = doc(firestore, "actions", actionId);
+      const ref = doc(firestore, `users/${actionId.split('/')[1]}/actions/draft`); // HACK: assumes actionId is full path
       const payload = {
         actionTypeId: v.id,
         actionTypeName: v.name,
@@ -92,7 +99,7 @@ export function ActionTypeSelector({ actionId, initialValue, onSelect, className
 
   const handleSelect = (t: ActionType) => {
     const v = { id: t.id, name: t.name, baseScore: t.baseScore, domain: t.domain };
-    setSelected(v);
+    setSelected(v as any);
     onSelect?.(v);
     // saveSelection(v); // Autosave is disabled for now.
   };
@@ -110,8 +117,8 @@ export function ActionTypeSelector({ actionId, initialValue, onSelect, className
           onFocus={(e) => e.currentTarget.select()}
           className="pr-28"
         />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-500">
-          {saving ? "Salvando..." : ""}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         </div>
 
         <div className="mt-2 rounded-lg border bg-background shadow-lg">

@@ -33,6 +33,7 @@ import { ActionTypeSelector } from '@/components/wizard/ActionTypeSelector';
 import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ActionDraft } from "../wizard-context";
 
 const actionFormSchema = z.object({
   projectId: z.string().nonempty({ message: "Please select a project." }),
@@ -50,12 +51,12 @@ const Step1 = () => {
     const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
-    const { setStep, updateDraft, draft } = useWizard();
+    const { setStep, updateDraft, draft, draftId } = useWizard();
 
     const [organization, setOrganization] = useState<Organization | null>(null);
     const [projects, setProjects] = useState<Project[]>([]);
     const [currentSubStep, setCurrentSubStep] = useState('loading'); // loading, create_org, create_project, form
-    const [selectedActionType, setSelectedActionType] = useState<{ id: string; name: string; baseScore: number; domain: string; } | null>(null);
+    const [selectedActionType, setSelectedActionType] = useState<Partial<ActionDraft> | null>(null);
 
     const form = useForm<ActionFormValues>({
         resolver: zodResolver(actionFormSchema),
@@ -116,8 +117,8 @@ const Step1 = () => {
             form.setValue('title', draft.title || '');
             if(draft.actionTypeId && draft.actionTypeName && draft.baseScore && draft.domain) {
                 setSelectedActionType({
-                    id: draft.actionTypeId,
-                    name: draft.actionTypeName,
+                    actionTypeId: draft.actionTypeId,
+                    actionTypeName: draft.actionTypeName,
                     baseScore: draft.baseScore,
                     domain: draft.domain,
                 });
@@ -143,10 +144,7 @@ const Step1 = () => {
         }
         updateDraft({
             ...values,
-            actionTypeId: selectedActionType.id,
-            actionTypeName: selectedActionType.name,
-            baseScore: selectedActionType.baseScore,
-            domain: selectedActionType.domain,
+            ...selectedActionType
         });
         setStep(2);
     }
@@ -221,8 +219,13 @@ const Step1 = () => {
                     {draftId && (
                       <ActionTypeSelector
                         actionId={draftId}
-                        onSelect={(v) => setSelectedActionType(v)}
-                        initialValue={selectedActionType}
+                        onSelect={(v) => setSelectedActionType({
+                            actionTypeId: v.id,
+                            actionTypeName: v.name,
+                            baseScore: v.baseScore,
+                            domain: v.domain
+                        })}
+                        initialValue={draft}
                       />
                     )}
 
