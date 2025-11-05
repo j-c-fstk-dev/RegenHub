@@ -34,11 +34,8 @@ service cloud.firestore {
     // ORGANIZATIONS
     // Publicly readable for profile pages, but queries are restricted.
     match /organizations/{orgId} {
-      // Combines get and list. Allows anyone to get a single doc, 
-      // but requires auth to query the collection. The client query MUST
-      // be constrained to ensure users only see their own orgs in lists.
-      allow read: if (request.method == 'get') || 
-                   (request.method == 'list' && isSignedIn());
+      allow get: if true; // Anyone can get a single org for public profiles
+      allow list: if isSignedIn(); // Allow signed-in users to query, but rely on client-side constraints
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isSignedIn() && isOrgOwner(orgId);
     }
