@@ -14,7 +14,6 @@ service cloud.firestore {
     }
     
     function isOrgOwner(orgId) {
-        // Anyone can get, but only the owner can write to their own org documents.
         let isOwner = get(/databases/$(database)/documents/organizations/$(orgId)).data.createdBy == request.auth.uid;
         return isOwner;
     }
