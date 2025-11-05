@@ -21,7 +21,7 @@ export interface ActionDraft {
   baseScore?: number;
   domain?: string;
   location?: string;
-  mediaUrls?: string[];
+  mediaUrls?: { url: string }[];
 }
 
 

@@ -10,6 +10,7 @@ import Link from "next/link";
 import Step1 from "./steps/step-1";
 import Step2 from "./steps/step-2";
 import Step3 from "./steps/step-3";
+import Step4 from "./steps/step-4";
 // etc.
 
 export function Wizard() {
@@ -54,6 +55,8 @@ export function Wizard() {
         return <Step2 />;
       case 3:
         return <Step3 />;
+      case 4:
+        return <Step4 />;
       default:
         return <Step1 />;
     }
