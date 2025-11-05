@@ -11,10 +11,12 @@ import Step1 from "./steps/step-1";
 import Step2 from "./steps/step-2";
 import Step3 from "./steps/step-3";
 import Step4 from "./steps/step-4";
-// etc.
+import Step5 from "./steps/step-5";
+import StepFinal from "./steps/step-final";
+
 
 export function Wizard() {
-  const { step, isLoading: isWizardLoading } = useWizard();
+  const { step, isLoading: isWizardLoading, isSubmitted } = useWizard();
   const { user, isUserLoading } = useUser();
 
   if (isWizardLoading || isUserLoading) {
@@ -46,6 +48,11 @@ export function Wizard() {
       </Card>
     );
   }
+  
+  if (isSubmitted) {
+    return <StepFinal />;
+  }
+
 
   const renderStep = () => {
     switch (step) {
@@ -57,6 +64,8 @@ export function Wizard() {
         return <Step3 />;
       case 4:
         return <Step4 />;
+      case 5:
+        return <Step5 />;
       default:
         return <Step1 />;
     }
