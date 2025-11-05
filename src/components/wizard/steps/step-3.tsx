@@ -16,7 +16,8 @@ import { Input } from "@/components/ui/input";
 import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useEffect } from "react";
+import { Label } from "@/components/ui/label";
 
 const step3Schema = z.object({
   location: z.string().optional(),
@@ -26,25 +27,30 @@ type Step3FormValues = z.infer<typeof step3Schema>;
 
 const Step3 = () => {
     const { setStep, updateDraft, draft } = useWizard();
-    const [isDigital, setIsDigital] = useState(!draft?.location);
-
+    
     const form = useForm<Step3FormValues>({
         resolver: zodResolver(step3Schema),
         defaultValues: {
-            location: draft?.location || '',
+            location: draft?.location && draft.location !== 'Digital/Online' ? draft.location : '',
         },
     });
 
-    const onSubmit = (values: Step3FormValues) => {
-        if (isDigital) {
-            updateDraft({ location: 'Digital/Online' });
+    const isDigital = form.watch('location') === 'Digital/Online';
+
+    const handleSwitchChange = (checked: boolean) => {
+        if (checked) {
+            form.setValue('location', 'Digital/Online');
         } else {
-            if (!values.location) {
-                form.setError('location', { message: 'Location is required for physical actions.' });
-                return;
-            }
-            updateDraft(values);
+            form.setValue('location', '');
         }
+    };
+
+    const onSubmit = (values: Step3FormValues) => {
+        if (!isDigital && !values.location) {
+             form.setError('location', { message: 'Location is required for physical actions.' });
+             return;
+        }
+        updateDraft(values);
         setStep(4);
     }
 
@@ -66,7 +72,7 @@ const Step3 = () => {
                         <Switch
                             id="digital-action"
                             checked={isDigital}
-                            onCheckedChange={setIsDigital}
+                            onCheckedChange={handleSwitchChange}
                         />
                         <Label htmlFor="digital-action">This is a digital/online action (no physical location)</Label>
                     </div>
