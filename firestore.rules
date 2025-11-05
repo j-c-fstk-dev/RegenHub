@@ -14,7 +14,9 @@ service cloud.firestore {
     }
     
     function isOrgOwner(orgId) {
-        return get(/databases/$(database)/documents/organizations/$(orgId)).data.createdBy == request.auth.uid;
+        // Anyone can get, but only the owner can write to their own org documents.
+        let isOwner = get(/databases/$(database)/documents/organizations/$(orgId)).data.createdBy == request.auth.uid;
+        return isOwner;
     }
     
     function isAdmin() {
@@ -25,17 +27,17 @@ service cloud.firestore {
     // Users can be created by anyone signing up.
     // Users can only read and update their own profile. Admins can also update.
     match /users/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn();
-      allow update: if (isSignedIn() && isOwner(userId)) || isAdmin();
-      allow delete: if (isSignedIn() && isOwner(userId)) || isAdmin();
+      allow read, write: if isSignedIn() && isOwner(userId);
+      allow update, delete: if isAdmin();
     }
 
     // ORGANIZATIONS
-    // Publicly readable for profile pages, but queries are restricted.
+    // Publicly readable for profile pages.
+    // Listable only by signed-in users (queries must be constrained on the client).
+    // Writable only by the user who created it.
     match /organizations/{orgId} {
-      allow get: if true; // Anyone can get a single org for public profiles
-      allow list: if isSignedIn(); // Allow signed-in users to query, but rely on client-side constraints
+      allow get: if true;
+      allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isSignedIn() && isOrgOwner(orgId);
     }
@@ -44,7 +46,7 @@ service cloud.firestore {
     // Projects can only be created by the owner of the parent organization.
     // They can only be read, updated, or deleted by the organization owner.
     match /projects/{projectId} {
-        allow get, list: if isSignedIn() && isOrgOwner(resource.data.orgId);
+        allow read, list: if isSignedIn() && isOrgOwner(resource.data.orgId);
         allow create: if isSignedIn() && isOrgOwner(request.resource.data.orgId) && request.resource.data.createdBy == request.auth.uid;
         allow update, delete: if isSignedIn() && isOrgOwner(resource.data.orgId);
     }
