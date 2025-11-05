@@ -34,10 +34,10 @@ service cloud.firestore {
     // ORGANIZATIONS
     // Organizations can be created by any signed-in user.
     // They are publicly readable for profile pages.
-    // Only the creator can update or delete their organization.
+    // Only the creator can update or delete their organization or query for it.
     match /organizations/{orgId} {
       allow get: if true;
-      allow list: if isSignedIn() && request.query.createdBy == request.auth.uid;
+      allow list: if isSignedIn() and request.query.createdBy == request.auth.uid;
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isSignedIn() && isOrgOwner(orgId);
     }
