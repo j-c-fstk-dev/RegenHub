@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import {
   Form,
@@ -12,6 +12,7 @@ import { WizardLayout } from "../WizardLayout";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { LocationInput } from "@/components/location-input";
+import { useEffect } from "react";
 
 const step4Schema = z.object({
   location: z.string().optional(),
@@ -28,21 +29,27 @@ const Step4 = () => {
             location: draft?.location && draft.location !== 'Digital/Online' ? draft.location : '',
         },
     });
+
+    const isDigital = useWatch({
+        control: form.control,
+        name: 'location',
+    }) === 'Digital/Online';
     
-    // This effect ensures the form is initialized correctly if the draft contains 'Digital/Online'
     useEffect(() => {
         if (draft?.location === 'Digital/Online') {
             form.setValue('location', 'Digital/Online');
+        } else if (draft?.location) {
+             form.setValue('location', draft.location);
         }
     }, [draft, form]);
     
-    const isDigital = form.watch('location') === 'Digital/Online';
 
     const handleSwitchChange = (checked: boolean) => {
         if (checked) {
-            form.setValue('location', 'Digital/Online');
+            form.setValue('location', 'Digital/Online', { shouldValidate: true });
         } else {
-            form.setValue('location', ''); // Clear location when unchecked
+            // Clear location when unchecked, allowing user to type a new one
+            form.setValue('location', '', { shouldValidate: true });
         }
     };
     
@@ -51,7 +58,7 @@ const Step4 = () => {
     };
 
     const onSubmit = (values: Step4FormValues) => {
-        if (!isDigital && !values.location) {
+        if (!isDigital && (!values.location || values.location.trim() === '')) {
              form.setError('location', { message: 'Location is required for physical actions.' });
              return;
         }
@@ -70,6 +77,7 @@ const Step4 = () => {
             description="Where did your action take place? If it was online, just let us know."
             onNext={form.handleSubmit(onSubmit)}
             onBack={handleBack}
+            isNextDisabled={!isDigital && !form.getValues('location')}
         >
             <Form {...form}>
                 <form className="space-y-8">
@@ -86,7 +94,7 @@ const Step4 = () => {
                         <div>
                            <LocationInput 
                                 onSelectLocation={handleLocationSelect} 
-                                initialValue={draft?.location === 'Digital/Online' ? '' : draft?.location}
+                                initialValue={(draft?.location && draft.location !== 'Digital/Online') ? draft.location : ''}
                            />
                            <FormDescription className="mt-2">
                                 Start typing to search for a city, state, or address.

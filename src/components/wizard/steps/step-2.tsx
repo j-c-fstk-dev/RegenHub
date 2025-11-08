@@ -6,7 +6,6 @@ import { z } from "zod";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -14,7 +13,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { ActionTypeSelector } from '@/components/wizard/ActionTypeSelector';
 import { useWizard, ActionDraft } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
@@ -53,7 +52,7 @@ const Step2 = () => {
 
 
     const onSubmit = (values: ActionFormValues) => {
-        if (!selectedActionType) {
+        if (!selectedActionType?.actionTypeId) {
             toast({ variant: 'destructive', title: 'Error', description: 'Please select an action type.' });
             return;
         }
@@ -64,8 +63,9 @@ const Step2 = () => {
         setStep(3);
     }
     
-    // Determine the previous step based on whether an orgId was set
+    // Determine the previous step based on whether an orgId was set for an individual or a real org
     const handleBack = () => {
+        updateDraft(form.getValues());
         if (draft?.orgId?.startsWith('user-org-')) {
             setStep(0); // Go back to welcome screen if it's an individual action
         } else {
@@ -79,7 +79,7 @@ const Step2 = () => {
             description="Tell us about the action you performed. Start by selecting the most relevant category and giving it a title."
             onNext={form.handleSubmit(onSubmit)}
             onBack={handleBack}
-            isNextDisabled={!form.formState.isValid || !selectedActionType}
+            isNextDisabled={!form.formState.isValid || !selectedActionType?.actionTypeId}
         >
             <Form {...form}>
                 <form className="space-y-8">

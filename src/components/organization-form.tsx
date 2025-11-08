@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useFirestore } from '@/firebase';
-import { doc, writeBatch, serverTimestamp, arrayUnion, collection } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp, arrayUnion, collection, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,7 @@ export function OrganizationForm({ userId, onOrgCreated }: OrganizationFormProps
             orgs: arrayUnion(orgRef.id)
         };
         // Use set with merge:true to create or update the user document
+        // This fixes the "No document to update" error for new users.
         batch.set(userRef, userData, { merge: true });
 
         batch.commit()

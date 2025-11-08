@@ -2,9 +2,9 @@
 
 import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, Edit, Building, FolderKanban, Type, FileText, MapPin, Link as LinkIcon, User } from "lucide-react";
+import { Loader2, Edit, Building, Type, FileText, MapPin, Link as LinkIcon, User } from "lucide-react";
 
 const Step6 = () => {
     const { setStep, draft, submitAction, isSubmitting } = useWizard();

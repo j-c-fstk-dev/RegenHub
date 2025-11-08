@@ -13,6 +13,7 @@ import Step2 from "./steps/step-2";
 import Step3 from "./steps/step-3";
 import Step4 from "./steps/step-4";
 import Step5 from "./steps/step-5";
+import Step6 from "./steps/step-6";
 import StepFinal from "./steps/step-final";
 
 
@@ -32,7 +33,7 @@ export function Wizard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Step 1: Log In</CardTitle>
+          <CardTitle>Log In to Continue</CardTitle>
           <CardDescription>
             To register an action, you first need an account.
           </CardDescription>
@@ -69,6 +70,8 @@ export function Wizard() {
         return <Step4 />;
       case 5:
         return <Step5 />;
+      case 6:
+        return <Step6 />;
       default:
         return <Step0 />;
     }

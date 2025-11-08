@@ -16,15 +16,15 @@ const Step0 = () => {
         setStep(1); 
     } else {
         // User chose to register as an individual. 
-        // We'll need to figure out a default org/project or adjust the data model.
-        // For now, let's just skip to step 2. A proper implementation would handle this.
+        // We'll assign a placeholder orgId/projectId to satisfy data model,
+        // which can be interpreted downstream as a personal action.
         if (draft?.createdBy) {
             updateDraft({ 
                 orgId: `user-org-${draft.createdBy}`, 
                 projectId: `user-project-${draft.createdBy}` 
             });
         }
-        setStep(2);
+        setStep(2); // Skip org/project creation and go directly to action details
     }
   };
 
@@ -44,7 +44,7 @@ const Step0 = () => {
             <Users className="h-10 w-10 text-primary mb-4"/>
             <h3 className="font-semibold text-lg">As a Group or Organization</h3>
             <p className="text-sm text-muted-foreground mt-2">
-                Register an action on behalf of a collective, company, or any formal/informal group. You will create an organization and a project first.
+                Register an action on behalf of a collective, company, or any formal/informal group. You will create or select your organization and project first.
             </p>
         </div>
 
@@ -55,7 +55,7 @@ const Step0 = () => {
             <User className="h-10 w-10 text-primary mb-4"/>
             <h3 className="font-semibold text-lg">As an Individual</h3>
             <p className="text-sm text-muted-foreground mt-2">
-                Register a personal action. Your action will be associated with your individual profile. (Coming soon!)
+                Register a personal action. Your action will be associated directly with your individual profile.
             </p>
         </div>
       </CardContent>
