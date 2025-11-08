@@ -1,48 +1,61 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
   Form,
-  FormControl,
   FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
-import { Button } from "@/components/ui/button";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { LocationInput } from "@/components/location-input";
 
 const step4Schema = z.object({
-  mediaUrls: z.array(z.object({
-    url: z.string().url({ message: "Please enter a valid URL." }).min(1),
-  })).optional(),
+  location: z.string().optional(),
 });
 
 type Step4FormValues = z.infer<typeof step4Schema>;
 
 const Step4 = () => {
     const { setStep, updateDraft, draft } = useWizard();
-
+    
     const form = useForm<Step4FormValues>({
         resolver: zodResolver(step4Schema),
         defaultValues: {
-            mediaUrls: draft?.mediaUrls || [{ url: '' }],
+            location: draft?.location && draft.location !== 'Digital/Online' ? draft.location : '',
         },
     });
+    
+    // This effect ensures the form is initialized correctly if the draft contains 'Digital/Online'
+    useEffect(() => {
+        if (draft?.location === 'Digital/Online') {
+            form.setValue('location', 'Digital/Online');
+        }
+    }, [draft, form]);
+    
+    const isDigital = form.watch('location') === 'Digital/Online';
 
-    const { fields, append, remove } = useFieldArray({
-        control: form.control,
-        name: "mediaUrls",
-    });
+    const handleSwitchChange = (checked: boolean) => {
+        if (checked) {
+            form.setValue('location', 'Digital/Online');
+        } else {
+            form.setValue('location', ''); // Clear location when unchecked
+        }
+    };
+    
+    const handleLocationSelect = (locationName: string) => {
+        form.setValue('location', locationName, { shouldValidate: true });
+    };
 
     const onSubmit = (values: Step4FormValues) => {
-        updateDraft(values);
+        if (!isDigital && !values.location) {
+             form.setError('location', { message: 'Location is required for physical actions.' });
+             return;
+        }
+        updateDraft({ location: values.location || '' });
         setStep(5);
     }
 
@@ -53,50 +66,36 @@ const Step4 = () => {
 
     return (
         <WizardLayout
-            title="Step 4: Evidence"
-            description="Add links to photos, videos, articles, or any other proof of your action. More evidence helps in verification."
+            title="Step 4: Location"
+            description="Where did your action take place? If it was online, just let us know."
             onNext={form.handleSubmit(onSubmit)}
             onBack={handleBack}
-            isNextDisabled={!form.formState.isValid}
         >
             <Form {...form}>
-                <form className="space-y-6">
-                    <div>
-                        {fields.map((field, index) => (
-                           <FormField
-                                key={field.id}
-                                control={form.control}
-                                name={`mediaUrls.${index}.url`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className={index !== 0 ? "sr-only" : ""}>Evidence URL</FormLabel>
-                                        <div className="flex items-center gap-2">
-                                            <FormControl>
-                                                <Input {...field} placeholder="https://example.com/photo.jpg" />
-                                            </FormControl>
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                            </Button>
-                                        </div>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        ))}
+                <form className="space-y-8">
+                     <div className="flex items-center space-x-2">
+                        <Switch
+                            id="digital-action"
+                            checked={isDigital}
+                            onCheckedChange={handleSwitchChange}
+                        />
+                        <Label htmlFor="digital-action">This is a digital/online action (no physical location)</Label>
                     </div>
 
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => append({ url: "" })}
-                    >
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add another link
-                    </Button>
-                     <FormDescription>
-                        For now, only public URLs are supported. You can use services like Imgur, Google Drive, or a blog post.
-                    </FormDescription>
+                    {!isDigital && (
+                        <div>
+                           <LocationInput 
+                                onSelectLocation={handleLocationSelect} 
+                                initialValue={draft?.location === 'Digital/Online' ? '' : draft?.location}
+                           />
+                           <FormDescription className="mt-2">
+                                Start typing to search for a city, state, or address.
+                           </FormDescription>
+                           {form.formState.errors.location && (
+                                <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.location.message}</p>
+                           )}
+                        </div>
+                    )}
                 </form>
             </Form>
         </WizardLayout>

@@ -47,7 +47,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
   
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // Start at step 0 for welcome screen
   const [draftId, setDraftId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ActionDraft | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,6 +114,12 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
 
   const submitAction = async () => {
     if (!draft) return;
+    
+    if (!draft.orgId || !draft.projectId) {
+        toast({ variant: "destructive", title: "Missing Information", description: "Organization and Project must be set before submitting." });
+        return;
+    }
+
     setIsSubmitting(true);
     
     try {
@@ -156,7 +162,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
 
   const resetWizard = () => {
     setDraft(null);
-    setStep(1);
+    setStep(0);
     setIsSubmitted(false);
     loadOrCreateDraft();
   };

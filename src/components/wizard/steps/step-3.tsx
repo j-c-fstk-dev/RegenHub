@@ -5,90 +5,74 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
   Form,
+  FormControl,
   FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
 import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { LocationInput } from "@/components/location-input";
 
 const step3Schema = z.object({
-  location: z.string().optional(),
+  description: z.string().min(20, { message: 'Please provide a more detailed description (at least 20 characters).' }).max(2000, { message: 'Description cannot exceed 2000 characters.'}),
 });
 
 type Step3FormValues = z.infer<typeof step3Schema>;
 
 const Step3 = () => {
     const { setStep, updateDraft, draft } = useWizard();
-    
+
     const form = useForm<Step3FormValues>({
         resolver: zodResolver(step3Schema),
         defaultValues: {
-            location: draft?.location && draft.location !== 'Digital/Online' ? draft.location : '',
+            description: draft?.description || '',
         },
     });
-    
-    const isDigital = form.watch('location') === 'Digital/Online';
-
-    const handleSwitchChange = (checked: boolean) => {
-        if (checked) {
-            form.setValue('location', 'Digital/Online');
-        } else {
-            form.setValue('location', '');
-        }
-    };
-    
-    const handleLocationSelect = (locationName: string) => {
-        form.setValue('location', locationName, { shouldValidate: true });
-    };
 
     const onSubmit = (values: Step3FormValues) => {
-        if (!isDigital && !values.location) {
-             form.setError('location', { message: 'Location is required for physical actions.' });
-             return;
-        }
         updateDraft(values);
-        setStep(4);
+        setStep(4); // Go to next step
     }
 
     const handleBack = () => {
+        // Save current values before going back
         updateDraft(form.getValues());
         setStep(2);
     }
 
     return (
         <WizardLayout
-            title="Step 3: Location"
-            description="Where did your action take place? If it was online, just let us know."
+            title="Step 3: Description"
+            description="Describe the action in detail. What did you do? What was the context? What were the results?"
             onNext={form.handleSubmit(onSubmit)}
             onBack={handleBack}
+            isNextDisabled={!form.formState.isValid}
         >
             <Form {...form}>
                 <form className="space-y-8">
-                     <div className="flex items-center space-x-2">
-                        <Switch
-                            id="digital-action"
-                            checked={isDigital}
-                            onCheckedChange={handleSwitchChange}
+                     <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Detailed Description</FormLabel>
+                                <FormControl>
+                                    <Textarea
+                                        placeholder="Tell us the story of your action. For example: 'We organized a community effort to plant 50 native saplings in the degraded area of Park...'"
+                                        className="min-h-[200px]"
+                                        {...field}
+                                    />
+                                </FormControl>
+                                <FormDescription>
+                                   The more details you provide, the easier it is for validators to understand your impact.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
                         />
-                        <Label htmlFor="digital-action">This is a digital/online action (no physical location)</Label>
-                    </div>
-
-                    {!isDigital && (
-                        <div>
-                           <LocationInput 
-                                onSelectLocation={handleLocationSelect} 
-                                initialValue={draft?.location}
-                           />
-                           <FormDescription className="mt-2">
-                                Start typing to search for a city, state, or address.
-                           </FormDescription>
-                           {form.formState.errors.location && (
-                                <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.location.message}</p>
-                           )}
-                        </div>
-                    )}
                 </form>
             </Form>
         </WizardLayout>

@@ -13,7 +13,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, FolderPlus, Building } from "lucide-react";
 import {
@@ -29,19 +28,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { OrganizationForm } from '@/components/organization-form';
 import { ProjectForm } from '@/components/project-form';
-import { ActionTypeSelector } from '@/components/wizard/ActionTypeSelector';
 import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActionDraft } from "../wizard-context";
-
-const actionFormSchema = z.object({
-  projectId: z.string().nonempty({ message: "Please select a project." }),
-  title: z.string().min(5, { message: 'Action name must be at least 5 characters.' }),
-  // The actionTypeId will be handled by the custom selector now.
-});
-
-type ActionFormValues = z.infer<typeof actionFormSchema>;
 
 type Project = { id: string; title: string; };
 type Organization = { id: string; name: string; slug: string; bio: string; };
@@ -50,17 +40,17 @@ const Step1 = () => {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
     const router = useRouter();
-    const { toast } = useToast();
-    const { setStep, updateDraft, draft, draftId } = useWizard();
+    const { setStep, updateDraft, draft } = useWizard();
 
     const [organization, setOrganization] = useState<Organization | null>(null);
     const [projects, setProjects] = useState<Project[]>([]);
-    const [currentSubStep, setCurrentSubStep] = useState('loading'); // loading, create_org, create_project, form
-    const [selectedActionType, setSelectedActionType] = useState<Partial<ActionDraft> | null>(null);
+    const [currentSubStep, setCurrentSubStep] = useState('loading'); // loading, create_org, create_project
 
-    const form = useForm<ActionFormValues>({
-        resolver: zodResolver(actionFormSchema),
-        defaultValues: { projectId: draft?.projectId || '', title: draft?.title || '' },
+    const form = useForm<{projectId: string}>({
+        resolver: zodResolver(z.object({
+            projectId: z.string().nonempty({ message: "Please select a project." }),
+        })),
+        defaultValues: { projectId: draft?.projectId || '' },
     });
 
     const fetchUserOrgsAndProjects = useCallback(async () => {
@@ -97,7 +87,7 @@ const Step1 = () => {
           }
       } catch (error: any) {
           const permissionError = new FirestorePermissionError({
-              path: `organizations where createdBy == ${user.uid}`,
+              path: `organizations`,
               operation: 'list',
           });
           errorEmitter.emit('permission-error', permissionError);
@@ -114,15 +104,6 @@ const Step1 = () => {
      useEffect(() => {
         if (draft) {
             form.setValue('projectId', draft.projectId || '');
-            form.setValue('title', draft.title || '');
-            if(draft.actionTypeId && draft.actionTypeName && draft.baseScore && draft.domain) {
-                setSelectedActionType({
-                    actionTypeId: draft.actionTypeId,
-                    actionTypeName: draft.actionTypeName,
-                    baseScore: draft.baseScore,
-                    domain: draft.domain,
-                });
-            }
         }
     }, [draft, form]);
 
@@ -134,17 +115,13 @@ const Step1 = () => {
 
     const handleProjectCreated = (newProject: Project) => {
         setProjects(prev => [...prev, newProject]);
+        form.setValue('projectId', newProject.id); // auto-select the new project
         setCurrentSubStep('form');
     };
 
-    const onSubmit = (values: ActionFormValues) => {
-        if (!selectedActionType) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Please select an action type.' });
-            return;
-        }
+    const onSubmit = (values: {projectId: string}) => {
         updateDraft({
             ...values,
-            ...selectedActionType
         });
         setStep(2);
     }
@@ -193,10 +170,11 @@ const Step1 = () => {
     // Main form
     return (
         <WizardLayout
-            title="Step 1: Identification"
-            description="Tell us about the action you performed. Start by selecting the most relevant category."
+            title="Step 1: Select Project"
+            description="Choose the project this action belongs to. You can manage projects in your dashboard."
             onNext={form.handleSubmit(onSubmit)}
-            isNextDisabled={!form.formState.isValid || !selectedActionType}
+            onBack={() => setStep(0)}
+            isNextDisabled={!form.formState.isValid}
         >
             <Form {...form}>
                 <form className="space-y-8">
@@ -215,23 +193,6 @@ const Step1 = () => {
                         </FormItem>
                       )}
                     />
-
-                    {draftId && (
-                      <ActionTypeSelector
-                        actionId={draftId}
-                        onSelect={(v) => setSelectedActionType({
-                            actionTypeId: v.id,
-                            actionTypeName: v.name,
-                            baseScore: v.baseScore,
-                            domain: v.domain
-                        })}
-                        initialValue={draft}
-                      />
-                    )}
-
-                    <FormField control={form.control} name="title" render={({ field }) => (
-                      <FormItem><FormLabel>Name of the action</FormLabel><FormControl><Input placeholder="e.g., Community Tree Planting Day" {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
                 </form>
             </Form>
         </WizardLayout>

@@ -1,88 +1,104 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, useFieldArray } from "react-hook-form";
+import { z } from "zod";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, Edit, Building, FolderKanban, Type, FileText, MapPin, Link as LinkIcon } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
+
+const step5Schema = z.object({
+  mediaUrls: z.array(z.object({
+    url: z.string().url({ message: "Please enter a valid URL." }).or(z.literal('')),
+  })).optional(),
+});
+
+type Step5FormValues = z.infer<typeof step5Schema>;
 
 const Step5 = () => {
-    const { setStep, draft, submitAction, isSubmitting } = useWizard();
+    const { setStep, updateDraft, draft } = useWizard();
 
-    if (!draft) {
-        return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="ml-4">Loading your draft...</p>
-            </div>
-        );
+    const form = useForm<Step5FormValues>({
+        resolver: zodResolver(step5Schema),
+        defaultValues: {
+            mediaUrls: draft?.mediaUrls && draft.mediaUrls.length > 0 ? draft.mediaUrls : [{ url: '' }],
+        },
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "mediaUrls",
+    });
+
+    const onSubmit = (values: Step5FormValues) => {
+        const filteredUrls = values.mediaUrls?.filter(item => item.url.trim() !== '');
+        updateDraft({ mediaUrls: filteredUrls });
+        setStep(6);
     }
-    
-    const handleEdit = (step: number) => {
-        setStep(step);
-    };
+
+    const handleBack = () => {
+        updateDraft(form.getValues());
+        setStep(4);
+    }
 
     return (
         <WizardLayout
-            title="Step 5: Review & Submit"
-            description="Please review all the information before submitting. This action will be sent for validation."
-            onNext={submitAction}
-            onBack={() => setStep(4)}
-            isNextDisabled={isSubmitting}
+            title="Step 5: Evidence"
+            description="Add links to photos, videos, articles, or any other proof of your action. More evidence helps in verification."
+            onNext={form.handleSubmit(onSubmit)}
+            onBack={handleBack}
         >
-            <div className="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex justify-between items-center text-lg">
-                           <span className="flex items-center gap-2"><Type />Action</span> 
-                           <Button variant="ghost" size="sm" onClick={() => handleEdit(1)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                       <div><strong className="text-muted-foreground w-24 inline-block">Title:</strong> {draft.title || 'Not set'}</div>
-                       <div><strong className="text-muted-foreground w-24 inline-block">Type:</strong> {draft.actionTypeName || 'Not set'}</div>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex justify-between items-center text-lg">
-                             <span className="flex items-center gap-2"><FileText />Description</span> 
-                           <Button variant="ghost" size="sm" onClick={() => handleEdit(2)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground">
-                       {draft.description || 'Not set'}
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex justify-between items-center text-lg">
-                            <span className="flex items-center gap-2"><MapPin />Location</span> 
-                           <Button variant="ghost" size="sm" onClick={() => handleEdit(3)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
-                        </CardTitle>
-                    </CardHeader>
-                     <CardContent className="text-sm">
-                       {draft.location || 'Not set'}
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex justify-between items-center text-lg">
-                            <span className="flex items-center gap-2"><LinkIcon />Evidence</span> 
-                           <Button variant="ghost" size="sm" onClick={() => handleEdit(4)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
-                        </CardTitle>
-                    </CardHeader>
-                     <CardContent className="text-sm">
-                       {draft.mediaUrls && draft.mediaUrls.length > 0 && draft.mediaUrls[0].url ? (
-                           <ul className="list-disc pl-5 space-y-1">
-                               {draft.mediaUrls.map((media, index) => media.url && <li key={index}><a href={media.url} target="_blank" rel="noopener noreferrer" className="underline break-all">{media.url}</a></li>)}
-                           </ul>
-                       ) : (
-                           <p className="text-muted-foreground">No evidence provided.</p>
-                       )}
-                    </CardContent>
-                </Card>
-            </div>
+            <Form {...form}>
+                <form className="space-y-6">
+                    <div>
+                        {fields.map((field, index) => (
+                           <FormField
+                                key={field.id}
+                                control={form.control}
+                                name={`mediaUrls.${index}.url`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={index !== 0 ? "sr-only" : ""}>Evidence URL</FormLabel>
+                                        <div className="flex items-center gap-2">
+                                            <FormControl>
+                                                <Input {...field} placeholder="https://example.com/photo.jpg" />
+                                            </FormControl>
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length < 1}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        ))}
+                    </div>
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => append({ url: "" })}
+                    >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add another link
+                    </Button>
+                     <FormDescription>
+                        For now, only public URLs are supported. You can use services like Imgur, Google Drive, or a blog post.
+                    </FormDescription>
+                </form>
+            </Form>
         </WizardLayout>
     );
 };

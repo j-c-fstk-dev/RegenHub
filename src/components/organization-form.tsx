@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
@@ -57,7 +57,8 @@ export function OrganizationForm({ userId, onOrgCreated }: OrganizationFormProps
         const userData = {
             orgs: arrayUnion(orgRef.id)
         };
-        batch.update(userRef, userData);
+        // Use set with merge:true to create or update the user document
+        batch.set(userRef, userData, { merge: true });
 
         batch.commit()
           .then(() => {

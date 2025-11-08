@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import Step0 from "./steps/step-0";
 import Step1 from "./steps/step-1";
 import Step2 from "./steps/step-2";
 import Step3 from "./steps/step-3";
@@ -56,6 +57,8 @@ export function Wizard() {
 
   const renderStep = () => {
     switch (step) {
+      case 0:
+        return <Step0 />;
       case 1:
         return <Step1 />;
       case 2:
@@ -67,7 +70,7 @@ export function Wizard() {
       case 5:
         return <Step5 />;
       default:
-        return <Step1 />;
+        return <Step0 />;
     }
   };
 
