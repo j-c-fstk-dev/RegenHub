@@ -1,3 +1,5 @@
+'use server';
+
 import { NextResponse, type NextRequest } from 'next/server';
 import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
@@ -27,6 +29,8 @@ export async function POST(req: NextRequest) {
   if (getApps().length === 0) {
       return NextResponse.json({ success: false, error: 'Firebase Admin not initialized. Check server logs.' }, { status: 500 });
   }
+
+  let actionRefId: string | null = null;
 
   try {
     // 1. Check for authentication
@@ -88,6 +92,8 @@ export async function POST(req: NextRequest) {
       validationScore: null,
       certificateUrl: null,
     });
+    
+    actionRefId = actionRef.id;
 
     // 4. Trigger the AI precheck/verification flow asynchronously (don't block the response)
     const aiInput: AIAssistedIntentVerificationInput = {
@@ -105,30 +111,41 @@ export async function POST(req: NextRequest) {
       locale: 'pt-BR',
     };
 
-    // Don't await this promise. Let it run in the background.
+    // Don't await this promise. Let it run in the background, but handle errors.
     aiAssistedIntentVerification(aiInput).then(aiResult => {
-      actionRef.update({ 
+      // Use the firestore instance from the initialized app
+      const firestore = getFirestore();
+      const docToUpdate = firestore.collection('actions').doc(actionRef.id);
+      docToUpdate.update({ 
         aiVerification: aiResult,
         status: 'review_ready' 
+      }).catch(aiUpdateError => {
+         console.error(`CRITICAL: AI verification for action ${actionRef.id} succeeded, but FAILED to update the document:`, aiUpdateError);
       });
     }).catch(aiError => {
         console.error(`AI verification failed for action ${actionRef.id}:`, aiError);
-        actionRef.update({ 
+        // Use the firestore instance from the initialized app
+        const firestore = getFirestore();
+        const docToUpdate = firestore.collection('actions').doc(actionRef.id);
+        docToUpdate.update({ 
             status: 'review_failed', 
             aiVerification: { 
                 summary: "AI process failed.",
                 notes: `AI process failed: ${aiError.message}`,
                 flags: { lowTextDensity: true } // Assume failure might be due to bad input
             }
+        }).catch(aiUpdateError => {
+            console.error(`CRITICAL: AI verification for action ${actionRef.id} failed, AND FAILED to update status to 'review_failed':`, aiUpdateError);
         });
     });
 
-    // 5. Respond to the user immediately
+    // 5. Respond to the user immediately, confirming submission was received
     return NextResponse.json({ success: true, actionId: actionRef.id }, { status: 200 });
 
   } catch (error) {
-    console.error('Error creating action:', error);
+    console.error(`Error creating action (ID: ${actionRefId ?? 'N/A'}):`, error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred';
+    // Ensure we still send a valid JSON response even on catastrophic failure
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }

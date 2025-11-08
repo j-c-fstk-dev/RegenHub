@@ -14,12 +14,14 @@ service cloud.firestore {
     }
     
     function isOrgOwner(orgId) {
-        let isOwner = get(/databases/$(database)/documents/organizations/$(orgId)).data.createdBy == request.auth.uid;
-        return isOwner;
+        let orgDoc = get(/databases/$(database)/documents/organizations/$(orgId));
+        return orgDoc.data.createdBy == request.auth.uid;
     }
     
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Ensure the user document exists before trying to access its data
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // USERS
@@ -40,10 +42,10 @@ service cloud.firestore {
     // Listable only by authenticated users (who should query by their own UID).
     // Writable only by the user who created it.
     match /organizations/{orgId} {
-      allow get: if true;
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if isSignedIn() && isOrgOwner(orgId);
+        allow get: if true;
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if isSignedIn() && isOrgOwner(orgId);
     }
     
     // PROJECTS
@@ -62,7 +64,7 @@ service cloud.firestore {
     match /actions/{actionId} {
         allow get, list: if resource.data.status == 'verified' || (isSignedIn() && isOwner(resource.data.createdBy)) || isAdmin();
         allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-        allow update: if isAdmin() || (isSignedIn() && isOwner(resource.data.createdBy));
+        allow update: if isAdmin() || (isSignedIn() && isOwner(resource.data.createdBy) && resource.data.status != 'verified');
         allow delete: if isSignedIn() && isOwner(resource.data.createdBy);
     }
 
