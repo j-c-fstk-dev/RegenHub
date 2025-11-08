@@ -29,6 +29,11 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && isOwner(userId);
       allow update, delete: if isAdmin();
     }
+    
+    // Allow users to manage their own action drafts
+    match /users/{userId}/actions/{draftId} {
+      allow read, write: if isSignedIn() && isOwner(userId);
+    }
 
     // ORGANIZATIONS
     // Publicly readable for single document reads (get for profile pages).
