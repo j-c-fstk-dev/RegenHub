@@ -7,7 +7,7 @@ import { collection, query, where, doc, DocumentData } from 'firebase/firestore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Loader2, Building, Activity, Edit, ExternalLink, Wallet } from 'lucide-react';
+import { Loader2, Building, Activity, Edit, ExternalLink, Wallet, BrainCircuit, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
@@ -24,9 +24,26 @@ const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destr
   rejected: { variant: 'destructive', text: 'Rejected' },
 };
 
+const leapStageLabels: { [key: string]: string } = {
+    L: 'Step 1: Locate',
+    E: 'Step 2: Evaluate',
+    A: 'Step 3: Assess',
+    P: 'Step 4: Prepare',
+    done: 'Completed'
+}
+const leapStageSlugs: { [key: string]: string } = {
+    L: 'l', E: 'e', A: 'a', P: 'p',
+}
+
 // Define a type for the Ethereum window object
 interface WindowWithEthereum extends Window {
     ethereum?: Eip1193Provider;
+}
+
+type LeapAssessment = {
+    id: string;
+    stage: string;
+    createdAt: { toDate: () => Date };
 }
 
 const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: string }) => {
@@ -143,11 +160,19 @@ const DashboardPage = () => {
     if (!user || !firestore) return null;
     return query(collection(firestore, 'actions'), where('createdBy', '==', user.uid));
   }, [user, firestore]);
+  
+  // Memoized query for user's LEAP assessments
+  const leapQuery = useMemoFirebase(() => {
+      if (!user || !firestore) return null;
+      return query(collection(firestore, 'leapAssessments'), where('createdBy', '==', user.uid), where('stage', '!=', 'done'));
+  }, [user, firestore]);
 
   const { data: organizations, isLoading: isLoadingOrgs } = useCollection(orgsQuery);
   const { data: actions, isLoading: isLoadingActions } = useCollection(actionsQuery);
+  const { data: leapAssessments, isLoading: isLoadingLeap } = useCollection<LeapAssessment>(leapQuery);
 
-  if (isUserLoading || isLoadingOrgs || isLoadingActions || isProfileLoading || !user) {
+
+  if (isUserLoading || isLoadingOrgs || isLoadingActions || isProfileLoading || isLoadingLeap || !user) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -190,7 +215,40 @@ const DashboardPage = () => {
             </CardContent>
           </Card>
           
-          {user && userProfile && <WalletConnector userProfile={userProfile} userId={user.uid} />}
+           {user && userProfile && <WalletConnector userProfile={userProfile} userId={user.uid} />}
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><BrainCircuit />LEAP Assessments</CardTitle>
+                    <CardDescription>Your active nature-related assessments.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                {leapAssessments && leapAssessments.length > 0 ? (
+                    <ul className="space-y-3">
+                    {leapAssessments.map(assessment => (
+                        <li key={assessment.id} className="text-sm font-medium flex items-center justify-between p-2 rounded-md hover:bg-secondary">
+                          <div>
+                            <span className="font-semibold">Assessment from {assessment.createdAt.toDate().toLocaleDateString()}</span>
+                            <p className="text-xs text-muted-foreground">
+                                Status: <Badge variant="outline">{leapStageLabels[assessment.stage] || 'In Progress'}</Badge>
+                            </p>
+                          </div>
+                           <Button asChild variant="ghost" size="icon">
+                               <Link href={`/leap/assessment/${assessment.id}/${leapStageSlugs[assessment.stage]}`}><ChevronRight className="h-4 w-4"/></Link>
+                           </Button>
+                        </li>
+                    ))}
+                    </ul>
+                ) : (
+                   <div className="text-center py-4 px-2 border-2 border-dashed rounded-lg">
+                      <p className="text-sm text-muted-foreground">No active assessments.</p>
+                       <Button asChild size="sm" variant="link" className="mt-1">
+                         <Link href="/leap">Start a new LEAP Assessment</Link>
+                       </Button>
+                    </div>
+                )}
+                </CardContent>
+            </Card>
 
           <Card>
             <CardHeader>
