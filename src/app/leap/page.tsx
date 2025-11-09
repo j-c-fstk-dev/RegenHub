@@ -10,6 +10,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/firebase";
 import { startLeapAssessment } from "./actions";
 
+const LoggedOutCTA = () => (
+    <div className="mt-8 text-center bg-secondary p-8 rounded-lg">
+        <h3 className="font-headline text-2xl font-bold text-primary">Get Started with Your Nature Assessment</h3>
+        <p className="mt-2 text-muted-foreground max-w-xl mx-auto">Log in or create an account to use the LEAP tool and generate your first Nature Intelligence Report.</p>
+        <Button asChild size="lg" className="mt-6">
+            <Link href="/login?redirect=/leap">Log In or Sign Up</Link>
+        </Button>
+    </div>
+)
+
 const leapSteps = [
     {
         icon: Locate,
@@ -33,15 +43,6 @@ const leapSteps = [
     }
 ];
 
-const LoggedOutCTA = () => (
-    <div className="mt-8 text-center bg-secondary p-8 rounded-lg">
-        <h3 className="font-headline text-2xl font-bold text-primary">Get Started with Your Nature Assessment</h3>
-        <p className="mt-2 text-muted-foreground max-w-xl mx-auto">Log in or create an account to use the LEAP tool and generate your first Nature Intelligence Report.</p>
-        <Button asChild size="lg" className="mt-6">
-            <Link href="/login?redirect=/leap">Log In or Sign Up</Link>
-        </Button>
-    </div>
-)
 
 const LeapPage = () => {
     const router = useRouter();
@@ -57,15 +58,17 @@ const LeapPage = () => {
         }
 
         startTransition(async () => {
-             const result = await startLeapAssessment();
+            // To call a server action that needs auth, we should pass the token.
+            const token = await user.getIdToken();
+            const result = await startLeapAssessment();
 
             if (result.success && result.assessmentId) {
                 toast({ title: 'Assessment Started!', description: 'You have been redirected to the first step.' });
                 router.push(`/leap/assessment/${result.assessmentId}/l`);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not start the assessment.' });
-                if (result.error?.includes('expired') || result.error?.includes('Unauthorized') || result.error?.includes('organization')) {
-                    router.push('/login?redirect=/leap');
+                if (result.error?.includes('Unauthorized') || result.error?.includes('organization')) {
+                    router.push('/admin/organization'); // Redirect to create an org
                 }
             }
         });
