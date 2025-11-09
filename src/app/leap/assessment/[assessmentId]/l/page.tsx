@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useTransition } from 'react';
 import {
   Card,
@@ -39,11 +39,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
+const LocatePage = () => {
   const router = useRouter();
+  const params = useParams();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
-  const assessmentId = params.assessmentId;
+  const assessmentId = params.assessmentId as string;
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
