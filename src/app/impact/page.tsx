@@ -10,6 +10,8 @@ import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import { ImpactMap } from "@/components/impact-map";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, query, where, getDocs, documentId } from "firebase/firestore";
 
 type Action = {
   id: string;
@@ -19,74 +21,94 @@ type Action = {
   location: string;
   createdAt: { _seconds: number; _nanoseconds: number; };
   validationScore?: number;
-  org: {
+  orgId: string;
+  org?: {
     name: string;
     slug: string;
     image?: string;
   }
 };
 
+type Organization = {
+  id: string;
+  name: string;
+  slug: string;
+  image?: string;
+}
+
 const ImpactPage = () => {
-  const [actions, setActions] = useState<Action[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const firestore = useFirestore();
+  const [organizations, setOrganizations] = useState<Record<string, Organization>>({});
+  
+  const actionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'actions'), where('status', '==', 'verified'));
+  }, [firestore]);
+
+  const { data: actionsData, isLoading, error } = useCollection<Action>(actionsQuery);
+  
   const [filters, setFilters] = useState({
     location: '',
     category: '',
   });
 
   useEffect(() => {
-    setIsLoading(true);
-    setError(null);
-    fetch('/api/wall')
-      .then(async res => {
-        if (!res.ok) {
-            const errorData = await res.json().catch(() => ({ error: 'Failed to fetch data from API.' }));
-            throw new Error(errorData.error || `Request failed with status ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setActions(data);
-        } else {
-          setActions([]);
-          // This case should be less frequent now with the improved API error handling
-          console.error("API did not return an array of actions:", data);
-          setError("Received an unexpected data format from the server.");
-        }
-      })
-      .catch(err => {
-        console.error("Failed to fetch actions:", err);
-        setActions([]);
-        setError(err.message || 'An unknown error occurred while fetching actions.');
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, []);
+    const fetchOrganizations = async () => {
+      if (!actionsData || actionsData.length === 0 || !firestore) return;
+      
+      const orgIds = [...new Set(actionsData.map(action => action.orgId).filter(Boolean))];
+      if (orgIds.length === 0) return;
+
+      try {
+        const orgsRef = collection(firestore, 'organizations');
+        const q = query(orgsRef, where(documentId(), 'in', orgIds));
+        const orgsSnapshot = await getDocs(q);
+        
+        const orgsMap: Record<string, Organization> = {};
+        orgsSnapshot.forEach(doc => {
+          const data = doc.data();
+          orgsMap[doc.id] = {
+            id: doc.id,
+            name: data.name,
+            slug: data.slug,
+            image: data.image
+          };
+        });
+        setOrganizations(orgsMap);
+      } catch (e) {
+        console.error("Failed to fetch organizations", e);
+      }
+    };
+    fetchOrganizations();
+  }, [actionsData, firestore]);
   
+  const actionsWithOrgData = useMemo(() => {
+    if (!actionsData) return [];
+    return actionsData.map(action => ({
+      ...action,
+      org: organizations[action.orgId] || { name: 'Unknown Organization', slug: '#', image: undefined }
+    }));
+  }, [actionsData, organizations]);
+
   const filteredActions = useMemo(() => {
-    if (!Array.isArray(actions)) return [];
-    return actions.filter(action => {
+    return actionsWithOrgData.filter(action => {
       const locationMatch = filters.location ? action.location?.toLowerCase().includes(filters.location.toLowerCase()) : true;
       const categoryMatch = filters.category ? action.category === filters.category : true;
       return locationMatch && categoryMatch;
     });
-  }, [actions, filters]);
+  }, [actionsWithOrgData, filters]);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({...prev, [filterName]: value}));
   };
   
   const uniqueCategories = useMemo(() => {
-    if (!Array.isArray(actions)) return [];
-    const categories = new Set(actions.map(action => action.category));
+    if (!actionsData) return [];
+    const categories = new Set(actionsData.map(action => action.category));
     return Array.from(categories).filter(cat => !!cat);
-  }, [actions]);
+  }, [actionsData]);
 
   const mapLocations = useMemo(() => {
-    if (!Array.isArray(filteredActions)) return [];
     return filteredActions.map(action => ({
       id: action.id,
       name: action.title,
@@ -145,8 +167,8 @@ const ImpactPage = () => {
                 <CardTitle className="flex items-center gap-2 text-destructive"><AlertCircle/> Could not load actions</CardTitle>
             </CardHeader>
             <CardContent>
-                <p>{error}</p>
-                <p className="text-sm text-muted-foreground mt-2">This is likely a server configuration issue. The required service credentials may not be available.</p>
+                <p>{error.message}</p>
+                <p className="text-sm text-muted-foreground mt-2">This may be due to a network issue or a security rule misconfiguration.</p>
             </CardContent>
         </Card>
       )}
@@ -163,11 +185,11 @@ const ImpactPage = () => {
           <Card key={action.id} className="overflow-hidden transition-shadow duration-300 hover:shadow-lg flex flex-col">
             <CardHeader className="flex flex-row items-center gap-3 p-4">
                <Avatar className="h-10 w-10 border">
-                  <AvatarImage src={action.org.image} alt={action.org.name} />
-                  <AvatarFallback>{getInitials(action.org.name)}</AvatarFallback>
+                  <AvatarImage src={action.org?.image} alt={action.org?.name} />
+                  <AvatarFallback>{getInitials(action.org?.name || '?')}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <Link href={`/org/${action.org.slug}`} className="font-semibold hover:underline">{action.org.name}</Link>
+                  <Link href={`/org/${action.org?.slug}`} className="font-semibold hover:underline">{action.org?.name}</Link>
                   <p className="text-xs text-muted-foreground">{new Date(action.createdAt._seconds * 1000).toLocaleDateString()}</p>
                 </div>
                  <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -191,7 +213,7 @@ const ImpactPage = () => {
                   <span>Score: {action.validationScore || 'N/A'}</span>
                </div>
                <p className="w-full text-sm mt-2">
-                 <Link href={`/org/${action.org.slug}`} className="font-semibold hover:underline">{action.org.name}</Link>
+                 <Link href={`/org/${action.org?.slug}`} className="font-semibold hover:underline">{action.org?.name}</Link>
                  <span className="text-muted-foreground"> {action.title}</span>
                </p>
                <div className="w-full mt-auto pt-4">
