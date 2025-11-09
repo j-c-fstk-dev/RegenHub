@@ -1,4 +1,5 @@
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Leaf, HandHeart, Code2, Heart, Users, Globe, Building, GitBranch, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -100,6 +101,16 @@ const AboutPage = () => {
                 <BulletPoint><strong>LEAP Wizard:</strong> simple self-assessment with instant scoring and an AI-generated diagnostic.</BulletPoint>
                 <BulletPoint><strong>Public pages:</strong> organization profile, verified actions, and shareable LEAP reports.</BulletPoint>
                 <BulletPoint><strong>Optional on-chain proof:</strong> publish report hashes and metadata on low-cost EVM networks (e.g., Celo) and mint a Hypercert (ERC-1155) linking to IPFS artifacts for long-term integrity and wider interoperability in the ReFi ecosystem.</BulletPoint>
+            </ul>
+        </SectionCard>
+        
+        <SectionCard title="Data & transparency">
+            <ul className="space-y-3">
+                <BulletPoint><strong>Open by default, respectful by design.</strong> Public pages show only what you choose to publish. Drafts and private notes stay private.</BulletPoint>
+                <BulletPoint><strong>Evidence matters.</strong> We encourage concrete, contextual proof (photos, links, datasets, references).</BulletPoint>
+                <BulletPoint><strong>Traceable artifacts.</strong> Published reports can store their PDF and JSON metadata on IPFS.</BulletPoint>
+                <BulletPoint><strong>Verifiable claims.</strong> For organizations that opt in, key hashes are anchored on-chain and linked from the public report page.</BulletPoint>
+                <BulletPoint><strong>Community review.</strong> Admins and designated validators can review AI suggestions before final approval.</BulletPoint>
             </ul>
         </SectionCard>
 
