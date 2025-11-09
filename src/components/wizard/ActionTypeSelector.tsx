@@ -133,9 +133,6 @@ export function ActionTypeSelector({ actionId, initialValue, onSelect, className
             {(Object.keys(filtered).length === 0 && query.trim()) && (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 Nenhum resultado para "{query}".
-                <Button variant="link" className="ml-1" onClick={() => setOpenNew(true)}>
-                  Adicionar um novo tipo?
-                </Button>
               </div>
             )}
 
@@ -173,11 +170,6 @@ export function ActionTypeSelector({ actionId, initialValue, onSelect, className
                     </ul>
                   </div>
                 ))}
-                 <div className="p-2 border-t mt-2">
-                  <Button variant="ghost" size="sm" className="w-full" onClick={() => setOpenNew(true)}>
-                    ➕ Não encontrou? Adicione um novo tipo de ação
-                  </Button>
-                </div>
               </TabsContent>
             ))}
           </Tabs>
