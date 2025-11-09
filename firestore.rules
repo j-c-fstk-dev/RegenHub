@@ -43,12 +43,11 @@ service cloud.firestore {
 
     // ORGANIZATIONS
     // Publicly readable for single document reads (get for profile pages).
-    // Listable by signed-in users (queries must be secured on the client).
+    // Listable by anyone for the Impact Wall.
     // Can be created by any signed-in user.
     // Can be updated or deleted by their owner or an admin.
     match /organizations/{orgId} {
-        allow get: if true;
-        allow list: if isSignedIn();
+        allow get, list: if true;
         allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
         allow update, delete: if isAdmin() || (isSignedIn() && isOrgOwner(orgId));
     }
@@ -64,12 +63,12 @@ service cloud.firestore {
     
     // ACTIONS
     // Actions can be created by any signed-in user.
-    // They are publicly readable if verified.
-    // They are always readable by their creator or an admin.
+    // They are publicly readable (get) if verified. They are always readable by their creator or an admin.
+    // They can be listed (queried) by anyone for the Impact Wall.
     // Admin can update them (for verification). Owner can update before verification.
     match /actions/{actionId} {
         allow get: if resource.data.status == 'verified' || (isSignedIn() && isOwner(resource.data.createdBy)) || isAdmin();
-        allow list: if isSignedIn(); // Client-side queries must enforce further restrictions.
+        allow list: if true;
         allow create: if isSignedIn(); // Any signed-in user can create an action.
         allow update: if isAdmin() || (isSignedIn() && isOwner(resource.data.createdBy) && resource.data.status != 'verified');
         allow delete: if isSignedIn() && isOwner(resource.data.createdBy);
