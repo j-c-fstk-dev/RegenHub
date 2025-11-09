@@ -14,19 +14,18 @@ service cloud.firestore {
     }
     
     function isOrgOwner(orgId) {
-        let orgDoc = get(/databases/$(database)/documents/organizations/$(orgId));
-        return orgDoc.data.createdBy == request.auth.uid;
+        // Gracefully handle cases where the organization might not exist yet or is inaccessible
+        let orgDoc = get_if_exists(/databases/$(database)/documents/organizations/$(orgId));
+        return orgDoc != null && orgDoc.data.createdBy == request.auth.uid;
+    }
+    
+    function get_if_exists(path) {
+      return exists(path) ? get(path) : null;
     }
     
     function isAdmin() {
-      // Explicitly grant admin role only to a specific email and deny to another.
-      let isSpecficAdmin = request.auth.token.email == 'beregenerative.life@gmail.com';
-      let isNotDev = request.auth.token.email != 'dev.jorge.c@gmail.com';
-      let hasAdminRole = exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      
-      // The user must not be the dev user AND (either have the admin role OR be the specific admin email).
-      return isNotDev && (hasAdminRole || isSpecficAdmin);
+      // Explicitly grant admin role only to a specific email.
+      return request.auth.token.email == 'dev.jorge.c@gmail.com';
     }
 
     // USERS
@@ -34,7 +33,7 @@ service cloud.firestore {
     // Users can only read and update their own profile. Admins can also update.
     match /users/{userId} {
       allow read, write: if isSignedIn() && isOwner(userId);
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
     }
     
     // Allow users to manage their own action drafts
@@ -44,21 +43,23 @@ service cloud.firestore {
 
     // ORGANIZATIONS
     // Publicly readable for single document reads (get for profile pages).
-    // Listable only by the user who created them.
+    // Listable by signed-in users (queries must be secured on the client).
+    // Can be created by any signed-in user.
+    // Can be updated or deleted by their owner or an admin.
     match /organizations/{orgId} {
         allow get: if true;
         allow list: if isSignedIn();
         allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-        allow update, delete: if isSignedIn() && isOrgOwner(orgId);
+        allow update, delete: if isAdmin() || (isSignedIn() && isOrgOwner(orgId));
     }
     
     // PROJECTS
-    // Projects can only be created by the owner of the parent organization.
-    // They can only be read, updated, or deleted by the organization owner.
+    // Can be read by anyone if they have the orgId.
+    // Can be created, updated, or deleted by the organization owner or an admin.
     match /projects/{projectId} {
-        allow read, list: if isSignedIn() && isOrgOwner(resource.data.orgId);
+        allow read, list: if isSignedIn();
         allow create: if isSignedIn() && isOrgOwner(request.resource.data.orgId) && request.resource.data.createdBy == request.auth.uid;
-        allow update, delete: if isSignedIn() && isOrgOwner(resource.data.orgId);
+        allow update, delete: if isSignedIn() && (isOrgOwner(resource.data.orgId) || isAdmin());
     }
     
     // ACTIONS
@@ -68,7 +69,7 @@ service cloud.firestore {
     // Admin can update them (for verification). Owner can update before verification.
     match /actions/{actionId} {
         allow get: if resource.data.status == 'verified' || (isSignedIn() && isOwner(resource.data.createdBy)) || isAdmin();
-        allow list: if isSignedIn(); // Users can list their own actions via client-side query
+        allow list: if isSignedIn(); // Client-side queries must enforce further restrictions.
         allow create: if isSignedIn(); // Any signed-in user can create an action.
         allow update: if isAdmin() || (isSignedIn() && isOwner(resource.data.createdBy) && resource.data.status != 'verified');
         allow delete: if isSignedIn() && isOwner(resource.data.createdBy);
@@ -77,15 +78,14 @@ service cloud.firestore {
     // LEAP ASSESSMENTS
     // Only the organization owner or an admin can manage assessments.
     match /leapAssessments/{assessmentId} {
-       allow get, list, update, delete: if isSignedIn() && (isOrgOwner(resource.data.orgId) || isAdmin());
+       allow read, list, update, delete: if isSignedIn() && (isOrgOwner(resource.data.orgId) || isAdmin());
        allow create: if isSignedIn() && isOrgOwner(request.resource.data.orgId);
     }
 
     // ACTION TYPES
     // Action types are public but can only be created by admins.
     match /actionTypes/{typeId} {
-      allow read;
-      allow list;
+      allow read, list;
       allow create: if isAdmin();
     }
 
