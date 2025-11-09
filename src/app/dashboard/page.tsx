@@ -2,15 +2,18 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, DocumentData } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, where, doc, DocumentData } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Loader2, Building, Activity, AlertCircle, Edit, ExternalLink } from 'lucide-react';
+import { Loader2, Building, Activity, Edit, ExternalLink, Wallet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
+import { BrowserProvider, Eip1193Provider } from 'ethers';
+import { useToast } from '@/hooks/use-toast';
+import { updateUserWallet } from '../admin/actions';
 
 // Helper for status styling
 const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
@@ -20,6 +23,94 @@ const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destr
   verified: { variant: 'secondary', text: 'Verified' },
   rejected: { variant: 'destructive', text: 'Rejected' },
 };
+
+// Define a type for the Ethereum window object
+interface WindowWithEthereum extends Window {
+    ethereum?: Eip1193Provider;
+}
+
+const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: string }) => {
+    const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    const savedAddress = userProfile?.walletAddress;
+
+    const connectWallet = async () => {
+        const localWindow = window as WindowWithEthereum;
+        if (localWindow.ethereum) {
+            try {
+                const provider = new BrowserProvider(localWindow.ethereum);
+                const signer = await provider.getSigner();
+                const address = await signer.getAddress();
+                setConnectedAddress(address);
+                setError(null);
+            } catch (err) {
+                console.error("Failed to connect wallet:", err);
+                setError("Failed to connect wallet. Please make sure MetaMask is unlocked.");
+            }
+        } else {
+            setError("MetaMask is not installed. Please install it to connect your wallet.");
+        }
+    };
+    
+    const handleSaveWallet = async () => {
+        if (!connectedAddress || !userId) return;
+        setIsSaving(true);
+        const result = await updateUserWallet(userId, connectedAddress);
+        if (result.success) {
+            toast({ title: 'Success', description: 'Wallet address updated successfully.' });
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: result.error });
+        }
+        setIsSaving(false);
+    };
+
+    const isAddressUnsaved = connectedAddress && (connectedAddress !== savedAddress);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/> Web3 Wallet</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {savedAddress && (
+                    <div>
+                        <p className="text-sm font-medium">Saved Address:</p>
+                        <p className="text-xs text-muted-foreground break-all">{savedAddress}</p>
+                    </div>
+                )}
+                {connectedAddress && connectedAddress !== savedAddress && (
+                     <div>
+                        <p className="text-sm font-medium">Connected Address:</p>
+                        <p className="text-xs text-muted-foreground break-all">{connectedAddress}</p>
+                    </div>
+                )}
+
+                {!connectedAddress && !savedAddress && (
+                     <p className="text-sm text-muted-foreground">Connect your wallet to manage your on-chain identity.</p>
+                )}
+
+                <div className="flex flex-col gap-2">
+                    <Button onClick={connectWallet} disabled={!!connectedAddress}>
+                        {connectedAddress || savedAddress ? 'Connect Different Wallet' : 'Connect Wallet'}
+                    </Button>
+
+                    {isAddressUnsaved && (
+                        <Button onClick={handleSaveWallet} disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save to Profile
+                        </Button>
+                    )}
+                </div>
+
+                {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+            </CardContent>
+        </Card>
+    );
+};
+
 
 const DashboardPage = () => {
   const { user, isUserLoading } = useUser();
@@ -33,6 +124,13 @@ const DashboardPage = () => {
     }
   }, [user, isUserLoading, router]);
 
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user?.uid]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+
   // Memoized query for user's organizations
   const orgsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -42,13 +140,13 @@ const DashboardPage = () => {
   // Memoized query for user's actions
   const actionsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return query(collection(firestore, 'actions'), where('createdBy', '==', user.uid));
+    return query(collection(firestore, 'actions'), where('createdBy', '==', user.uid), orderBy('createdAt', 'desc'));
   }, [user, firestore]);
 
   const { data: organizations, isLoading: isLoadingOrgs } = useCollection(orgsQuery);
   const { data: actions, isLoading: isLoadingActions } = useCollection(actionsQuery);
 
-  if (isUserLoading || isLoadingOrgs || isLoadingActions || !user) {
+  if (isUserLoading || isLoadingOrgs || isLoadingActions || isProfileLoading || !user) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -85,11 +183,13 @@ const DashboardPage = () => {
                 <p className="font-semibold">{user.displayName || 'Anonymous User'}</p>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
               </div>
-               <Button variant="ghost" size="icon" className="ml-auto">
+               <Button variant="ghost" size="icon" className="ml-auto" disabled>
                  <Edit className="h-4 w-4"/>
               </Button>
             </CardContent>
           </Card>
+          
+          {user && userProfile && <WalletConnector userProfile={userProfile} userId={user.uid} />}
 
           <Card>
             <CardHeader>
@@ -141,7 +241,7 @@ const DashboardPage = () => {
                     {actions.map(action => (
                       <TableRow key={action.id}>
                         <TableCell className="font-medium">{action.title}</TableCell>
-                        <TableCell>{new Date(action.createdAt.seconds * 1000).toLocaleDateString()}</TableCell>
+                        <TableCell>{action.createdAt.toDate().toLocaleDateString()}</TableCell>
                         <TableCell>
                           <Badge variant={statusStyles[action.status]?.variant || 'default'}>
                             {statusStyles[action.status]?.text || action.status}

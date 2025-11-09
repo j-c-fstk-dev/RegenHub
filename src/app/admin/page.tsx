@@ -6,7 +6,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription
 } from '@/components/ui/card';
 import {
   Table,
@@ -18,10 +17,10 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, AlertCircle, Sparkles, User, Info, FileText, Wallet, Building, Eye } from 'lucide-react';
+import { Check, Loader2, AlertCircle, Sparkles, Eye, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc } from '@/firebase';
-import { approveAction, updateUserWallet } from './actions';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { approveAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -34,8 +33,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AIAssistedIntentVerificationOutput } from '@/ai/schemas/ai-assisted-intent-verification';
-import { BrowserProvider, Eip1193Provider } from 'ethers';
-import { doc } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
 
 type Action = {
@@ -43,97 +41,9 @@ type Action = {
   title: string;
   description: string;
   status: 'submitted' | 'review_ready' | 'review_failed' | 'verified' | 'rejected';
-  createdAt: { _seconds: number; _nanoseconds: number; };
+  createdAt: { toDate: () => Date };
   aiVerification?: AIAssistedIntentVerificationOutput;
 };
-
-// Define a type for the Ethereum window object
-interface WindowWithEthereum extends Window {
-    ethereum?: Eip1193Provider;
-}
-
-const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: string }) => {
-    const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [isSaving, setIsSaving] = useState(false);
-    const { toast } = useToast();
-
-    const savedAddress = userProfile?.walletAddress;
-
-    const connectWallet = async () => {
-        const localWindow = window as WindowWithEthereum;
-        if (localWindow.ethereum) {
-            try {
-                const provider = new BrowserProvider(localWindow.ethereum);
-                const signer = await provider.getSigner();
-                const address = await signer.getAddress();
-                setConnectedAddress(address);
-                setError(null);
-            } catch (err) {
-                console.error("Failed to connect wallet:", err);
-                setError("Failed to connect wallet. Please make sure MetaMask is unlocked.");
-            }
-        } else {
-            setError("MetaMask is not installed. Please install it to connect your wallet.");
-        }
-    };
-    
-    const handleSaveWallet = async () => {
-        if (!connectedAddress || !userId) return;
-        setIsSaving(true);
-        const result = await updateUserWallet(userId, connectedAddress);
-        if (result.success) {
-            toast({ title: 'Success', description: 'Wallet address updated successfully.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: result.error });
-        }
-        setIsSaving(false);
-    };
-
-    const isAddressUnsaved = connectedAddress && (connectedAddress !== savedAddress);
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/> Web3 Wallet</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {savedAddress && (
-                    <div>
-                        <p className="text-sm font-medium">Saved Address:</p>
-                        <p className="text-xs text-muted-foreground break-all">{savedAddress}</p>
-                    </div>
-                )}
-                {connectedAddress && connectedAddress !== savedAddress && (
-                     <div>
-                        <p className="text-sm font-medium">Connected Address:</p>
-                        <p className="text-xs text-muted-foreground break-all">{connectedAddress}</p>
-                    </div>
-                )}
-
-                {!connectedAddress && !savedAddress && (
-                     <p className="text-sm text-muted-foreground">Connect your wallet to manage your on-chain identity.</p>
-                )}
-
-                <div className="flex flex-col gap-2">
-                    <Button onClick={connectWallet} disabled={!!connectedAddress}>
-                        {connectedAddress || savedAddress ? 'Connect Different Wallet' : 'Connect Wallet'}
-                    </Button>
-
-                    {isAddressUnsaved && (
-                        <Button onClick={handleSaveWallet} disabled={isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save to Profile
-                        </Button>
-                    )}
-                </div>
-
-                {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-            </CardContent>
-        </Card>
-    );
-};
-
 
 const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
   submitted: { variant: 'outline', text: 'Pending AI' },
@@ -149,67 +59,47 @@ const AdminPage = () => {
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const [submissions, setSubmissions] = useState<Action[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<Action | null>(null);
   const [impactScore, setImpactScore] = useState<number | string>('');
 
-  const userDocRef = useMemo(() => {
-    if (!firestore || !user?.uid) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user?.uid]);
+  // Client-side data fetching
+  const actionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'actions'), orderBy('createdAt', 'desc'));
+  }, [firestore]);
 
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+  const { data: submissionsData, isLoading: isLoadingSubmissions, error: submissionsError } = useCollection<Action>(actionsQuery);
+  
+  const submissions = useMemo(() => {
+    if (!submissionsData) return [];
+    return submissionsData.sort((a, b) => {
+      const order = ['review_ready', 'submitted', 'review_failed', 'verified', 'rejected'];
+      return order.indexOf(a.status) - order.indexOf(b.status);
+    });
+  }, [submissionsData]);
 
   // Authorization check
   useEffect(() => {
-    if (isUserLoading) return; // Wait until user object is available
+    if (isUserLoading) return;
 
     if (!user) {
       router.push('/login?redirect=/admin');
       return;
     }
     
-    // Check if the user's email is the admin email
     if (user.email !== 'dev.jorge.c@gmail.com') {
       toast({
         variant: 'destructive',
         title: 'Access Denied',
         description: 'You do not have permission to view this page.'
       });
-      router.push('/dashboard'); // Redirect non-admins to their dashboard
+      router.push('/dashboard');
       return;
     }
-    
-    // If user is an admin, proceed to fetch data
-    const fetchSubmissions = async () => {
-       try {
-        const response = await fetch('/api/wall?all=true'); 
-        if(!response.ok) throw new Error("Failed to fetch submissions");
-        let data = await response.json();
-        
-        data.sort((a: Action, b: Action) => {
-          const order = ['review_ready', 'submitted', 'review_failed', 'verified', 'rejected'];
-          return order.indexOf(a.status) - order.indexOf(b.status);
-        });
-
-        setSubmissions(data);
-      } catch (e) {
-        setError('Could not load submissions.');
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchSubmissions();
-
   }, [user, isUserLoading, router, toast]);
   
   const handleReviewClick = (submission: Action) => {
     setSelectedSubmission(submission);
-    // Pre-fill score if AI provided one, otherwise empty
     setImpactScore(submission.aiVerification?.finalScore || '');
   };
 
@@ -222,7 +112,7 @@ const AdminPage = () => {
     const result = await approveAction(selectedSubmission.id, impactScore, user.uid);
     if (result.success) {
       toast({ title: 'Success', description: 'Action approved successfully.' });
-      setSubmissions(submissions.map(s => s.id === selectedSubmission.id ? { ...s, status: 'verified' } : s));
+      // The local state will update automatically due to the real-time listener from useCollection
       setSelectedSubmission(null);
       setImpactScore('');
     } else {
@@ -230,7 +120,7 @@ const AdminPage = () => {
     }
   };
   
-  if (isUserLoading || isLoading || (user && user.email !== 'dev.jorge.c@gmail.com')) {
+  if (isUserLoading || (user && user.email !== 'dev.jorge.c@gmail.com')) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -254,115 +144,95 @@ const AdminPage = () => {
     )
   };
 
-
   return (
     <div className="container py-12">
         <header className="mb-8">
-            <h1 className="font-headline text-4xl font-bold text-primary">
-            Admin Panel
+            <h1 className="font-headline text-4xl font-bold text-primary flex items-center gap-3">
+              <ShieldCheck />
+              Admin Panel
             </h1>
             <p className="mt-2 text-lg text-muted-foreground">
-            Review submissions and manage your regenerative identity.
+              Review and validate submissions from the community.
             </p>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-3">
-            <main className="lg:col-span-2">
-                <Card>
-                    <CardHeader>
-                    <CardTitle>Recent Submissions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                    {error && (
-                        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-destructive">
-                        <div className="flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5" />
-                            <h3 className="font-semibold">Error Loading Submissions</h3>
-                        </div>
-                        <p className="ml-7 text-sm">{error}</p>
-                        </div>
-                    )}
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead>Action Title</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>AI Score</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {submissions && submissions.length > 0 ? (
-                            submissions.map((submission) => (
-                            <TableRow key={submission.id}>
-                                <TableCell className="font-medium">
-                                {submission.title}
-                                </TableCell>
-                                <TableCell>
-                                {new Date(submission.createdAt._seconds * 1000).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell>
-                                {submission.aiVerification?.finalScore !== undefined ? (
-                                    <div className="flex items-center gap-1">
-                                        <Sparkles className="h-4 w-4 text-accent"/>
-                                        <span className="font-bold">{submission.aiVerification.finalScore}</span>
-                                    </div>
-                                ): (
-                                    <span className="text-muted-foreground">-</span>
-                                )}
-                                </TableCell>
-                                <TableCell>
-                                <Badge variant={statusStyles[submission.status]?.variant || 'default'}>
-                                    {statusStyles[submission.status]?.text || submission.status}
-                                </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                {(submission.status === 'review_ready' || submission.status === 'review_failed') && (
-                                    <Button onClick={() => handleReviewClick(submission)}>
-                                        <Check className="mr-2 h-4 w-4" /> Review
-                                    </Button>
-                                )}
-                                {submission.status === 'verified' && (
-                                    <Button asChild variant="outline" size="sm">
-                                        <Link href={`/action/${submission.id}`} target="_blank"><Eye className="mr-2 h-4 w-4"/> View</Link>
-                                    </Button>
-                                )}
-                                </TableCell>
-                            </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                            <TableCell
-                                colSpan={5}
-                                className="h-24 text-center text-muted-foreground"
-                            >
-                                {isLoading ? 'Loading submissions...' : 'No submissions to review.'}
-                            </TableCell>
-                            </TableRow>
+        <Card>
+            <CardHeader>
+            <CardTitle>Recent Submissions</CardTitle>
+            </CardHeader>
+            <CardContent>
+            {submissionsError && (
+                <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-destructive">
+                <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5" />
+                    <h3 className="font-semibold">Error Loading Submissions</h3>
+                </div>
+                <p className="ml-7 text-sm">{submissionsError.message}</p>
+                </div>
+            )}
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead>Action Title</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>AI Score</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+                </TableHeader>
+                <TableBody>
+                {!isLoadingSubmissions && submissions.length > 0 ? (
+                    submissions.map((submission) => (
+                    <TableRow key={submission.id}>
+                        <TableCell className="font-medium">
+                        {submission.title}
+                        </TableCell>
+                        <TableCell>
+                        {submission.createdAt?.toDate().toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                        {submission.aiVerification?.finalScore !== undefined ? (
+                            <div className="flex items-center gap-1">
+                                <Sparkles className="h-4 w-4 text-accent"/>
+                                <span className="font-bold">{submission.aiVerification.finalScore}</span>
+                            </div>
+                        ): (
+                            <span className="text-muted-foreground">-</span>
                         )}
-                        </TableBody>
-                    </Table>
-                    </CardContent>
-                </Card>
-            </main>
-            <aside className="space-y-8 lg:col-span-1">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Building className="h-5 w-5"/> My Organization</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground mb-4">Manage your organization's profile and projects.</p>
-                        <Button asChild className="w-full">
-                            <Link href="/admin/organization">Manage Organization</Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                {user && userProfile && <WalletConnector userProfile={userProfile} userId={user.uid} />}
-            </aside>
-        </div>
-
+                        </TableCell>
+                        <TableCell>
+                        <Badge variant={statusStyles[submission.status]?.variant || 'default'}>
+                            {statusStyles[submission.status]?.text || submission.status}
+                        </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                        {(submission.status === 'review_ready' || submission.status === 'review_failed' || submission.status === 'submitted') && (
+                            <Button onClick={() => handleReviewClick(submission)}>
+                                <Check className="mr-2 h-4 w-4" /> Review
+                            </Button>
+                        )}
+                        {submission.status === 'verified' && (
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={`/action/${submission.id}`} target="_blank"><Eye className="mr-2 h-4 w-4"/> View</Link>
+                            </Button>
+                        )}
+                        </TableCell>
+                    </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                    <TableCell
+                        colSpan={5}
+                        className="h-24 text-center text-muted-foreground"
+                    >
+                        {isLoadingSubmissions ? <span className="flex items-center justify-center"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Loading submissions...</span> : 'No submissions to review.'}
+                    </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+            </CardContent>
+        </Card>
 
       {selectedSubmission && (
         <Dialog open={!!selectedSubmission} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
@@ -374,7 +244,7 @@ const AdminPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[60vh] overflow-y-auto pr-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2"><FileText className="h-5 w-5"/>Submission Details</CardTitle>
+                            <CardTitle className="text-lg">Submission Details</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4 text-sm">
                             <div>
@@ -447,5 +317,3 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
-
-    
