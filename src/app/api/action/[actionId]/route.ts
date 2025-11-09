@@ -3,19 +3,26 @@ import { initializeApp, cert, getApps, ServiceAccount } from 'firebase-admin/app
 import { getFirestore } from 'firebase-admin/firestore';
 
 function initializeAdminApp() {
-    if (getApps().length === 0) {
-      if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-        const serviceAccount: ServiceAccount = JSON.parse(
-          process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-        );
-        initializeApp({
-          credential: cert(serviceAccount),
-        });
-      } else {
-          console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Admin actions will fail.");
-      }
+    if (getApps().length > 0) {
+        return { db: getFirestore(), initialized: true };
     }
-    return getFirestore();
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+        try {
+            const serviceAccount: ServiceAccount = JSON.parse(
+              process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+            );
+            initializeApp({
+              credential: cert(serviceAccount),
+            });
+            return { db: getFirestore(), initialized: true };
+        } catch(e) {
+            console.error("Firebase Admin SDK Initialization Error:", e);
+            return { db: null, initialized: false };
+        }
+    } else {
+      console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Admin actions will fail.");
+      return { db: null, initialized: false };
+    }
 }
 
 export async function GET(req: NextRequest, { params }: { params: { actionId: string } }) {
@@ -25,9 +32,13 @@ export async function GET(req: NextRequest, { params }: { params: { actionId: st
     return NextResponse.json({ error: 'Action ID is required.' }, { status: 400 });
   }
 
+  const { db, initialized } = initializeAdminApp();
+  
+  if (!initialized || !db) {
+    return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
+  }
+
   try {
-    const db = initializeAdminApp();
-    
     // 1. Find the action by its ID
     const actionRef = db.collection('actions').doc(actionId);
     const actionDoc = await actionRef.get();
