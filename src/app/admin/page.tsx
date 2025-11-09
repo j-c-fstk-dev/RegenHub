@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, AlertCircle, Sparkles, Eye, ShieldCheck } from 'lucide-react';
+import { Check, Loader2, AlertCircle, Sparkles, Eye, ShieldCheck, FileText, Link as LinkIcon, MapPin, Building, FolderKanban } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { approveAction } from './actions';
@@ -33,7 +34,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AIAssistedIntentVerificationOutput } from '@/ai/schemas/ai-assisted-intent-verification';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, doc } from 'firebase/firestore';
 import Link from 'next/link';
 
 type Action = {
@@ -43,6 +44,11 @@ type Action = {
   status: 'submitted' | 'review_ready' | 'review_failed' | 'verified' | 'rejected';
   createdAt: { toDate: () => Date };
   aiVerification?: AIAssistedIntentVerificationOutput;
+  orgId: string;
+  projectId: string;
+  location: string;
+  category: string;
+  mediaUrls: string[];
 };
 
 const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
@@ -104,15 +110,16 @@ const AdminPage = () => {
   };
 
   const handleApprove = async () => {
-    if (!selectedSubmission || typeof impactScore !== 'number' || !user) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Impact score is required and must be a number.' });
+    if (!selectedSubmission || typeof impactScore !== 'number' || !user || !firestore) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Impact score, user and firestore are required.' });
       return;
     }
     
-    const result = await approveAction(selectedSubmission.id, impactScore, user.uid);
+    const actionRef = doc(firestore, 'actions', selectedSubmission.id);
+    const result = await approveAction(actionRef, impactScore, user.uid);
+
     if (result.success) {
       toast({ title: 'Success', description: 'Action approved successfully.' });
-      // The local state will update automatically due to the real-time listener from useCollection
       setSelectedSubmission(null);
       setImpactScore('');
     } else {
@@ -242,17 +249,42 @@ const AdminPage = () => {
                     <DialogDescription>Review the submission details and the AI's analysis before approving.</DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[60vh] overflow-y-auto pr-4">
-                    <Card>
+                    
+                    <Card className="md:col-span-2">
                         <CardHeader>
-                            <CardTitle className="text-lg">Submission Details</CardTitle>
+                            <CardTitle className="text-lg flex items-center gap-2"><FileText /> Submission Details</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4 text-sm">
                             <div>
                                 <Label className="font-semibold text-muted-foreground">Description</Label>
                                 <p>{selectedSubmission.description}</p>
                             </div>
+                             <div>
+                                <Label className="font-semibold text-muted-foreground flex items-center gap-1"><FolderKanban className="h-4 w-4"/> Category</Label>
+                                <p>{selectedSubmission.category}</p>
+                            </div>
+                             <div>
+                                <Label className="font-semibold text-muted-foreground flex items-center gap-1"><MapPin className="h-4 w-4"/> Location</Label>
+                                <p>{selectedSubmission.location}</p>
+                            </div>
+                             <div>
+                                <Label className="font-semibold text-muted-foreground flex items-center gap-1"><LinkIcon className="h-4 w-4"/> Evidence</Label>
+                                {selectedSubmission.mediaUrls && selectedSubmission.mediaUrls.length > 0 ? (
+                                   <ul className="list-disc pl-5 space-y-1">
+                                       {selectedSubmission.mediaUrls.map((url, index) => url && <li key={index}><a href={url} target="_blank" rel="noopener noreferrer" className="underline break-all text-primary hover:text-primary/80">{url}</a></li>)}
+                                   </ul>
+                               ) : (
+                                   <p className="text-muted-foreground">No evidence provided.</p>
+                               )}
+                            </div>
+                             <div>
+                                <Label className="font-semibold text-muted-foreground flex items-center gap-1"><Building className="h-4 w-4"/> Context</Label>
+                                <p>Org ID: {selectedSubmission.orgId}</p>
+                                <p>Project ID: {selectedSubmission.projectId}</p>
+                            </div>
                         </CardContent>
                     </Card>
+
                      <Card className="bg-accent/10 border-accent/50">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent"/>AI Analysis</CardTitle>
@@ -272,7 +304,7 @@ const AdminPage = () => {
                     </Card>
                     
                     {selectedSubmission.aiVerification?.subscores && (
-                        <Card className="md:col-span-2">
+                        <Card>
                             <CardHeader>
                                 <CardTitle className="text-lg">AI Subscores</CardTitle>
                             </CardHeader>
