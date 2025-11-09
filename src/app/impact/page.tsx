@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Map, Users, CheckCircle, Loader2, Award, Building, Calendar, MoreHorizontal, AlertCircle } from "lucide-react";
+import { MapPin, Users, CheckCircle, Loader2, Award, Building, Calendar, MoreHorizontal, AlertCircle, Eye, Image as ImageIcon, Link as LinkIcon, FileText } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
@@ -12,6 +12,7 @@ import { ImpactMap } from "@/components/impact-map";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where, getDocs, documentId } from "firebase/firestore";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 type Action = {
   id: string;
@@ -27,6 +28,7 @@ type Action = {
     slug: string;
     image?: string;
   }
+  mediaUrls: string[];
 };
 
 type Organization = {
@@ -35,6 +37,94 @@ type Organization = {
   slug: string;
   image?: string;
 }
+
+const ActionPostCard = ({ action }: { action: Action }) => {
+    const getInitials = (name: string) => (name || '').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const coverImage = action.mediaUrls?.[0] || `https://picsum.photos/seed/${action.id}/600`;
+    const isPlaceholder = !action.mediaUrls?.[0];
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Card className="overflow-hidden transition-shadow duration-300 hover:shadow-lg flex flex-col cursor-pointer">
+                    <CardHeader className="flex flex-row items-center gap-3 p-4">
+                        <Avatar className="h-10 w-10 border">
+                            <AvatarImage src={action.org?.image} alt={action.org?.name} />
+                            <AvatarFallback>{getInitials(action.org?.name || '?')}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                            <Link href={`/org/${action.org?.slug}`} className="font-semibold hover:underline" onClick={e => e.stopPropagation()}>{action.org?.name}</Link>
+                            <p className="text-xs text-muted-foreground">{new Date(action.createdAt._seconds * 1000).toLocaleDateString()}</p>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="relative aspect-square w-full">
+                            <Image 
+                                src={coverImage}
+                                alt={action.title} 
+                                fill 
+                                className="object-cover" 
+                                data-ai-hint={isPlaceholder ? "regenerative action" : ""}
+                            />
+                        </div>
+                    </CardContent>
+                    <CardFooter className="p-4 flex flex-col items-start flex-grow">
+                        <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                            <Award className="h-4 w-4" />
+                            <span>Score: {action.validationScore || 'N/A'}</span>
+                        </div>
+                        <p className="w-full text-sm mt-2">
+                            <Link href={`/org/${action.org?.slug}`} className="font-semibold hover:underline" onClick={e => e.stopPropagation()}>{action.org?.name}</Link>
+                            <span className="text-muted-foreground"> {action.title}</span>
+                        </p>
+                        <div className="w-full mt-auto pt-4">
+                            <Button variant="secondary" size="sm" className="w-full">
+                                <Eye className="mr-2 h-4 w-4" /> View Details
+                            </Button>
+                        </div>
+                    </CardFooter>
+                </Card>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle className="font-headline text-2xl">{action.title}</DialogTitle>
+                    <div className="text-sm text-muted-foreground pt-2">
+                        By <Link href={`/org/${action.org?.slug}`} className="font-semibold hover:underline">{action.org?.name}</Link> on {new Date(action.createdAt._seconds * 1000).toLocaleDateString()}
+                    </div>
+                </DialogHeader>
+                <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                    {action.mediaUrls && action.mediaUrls.length > 0 && (
+                        <div className="space-y-4">
+                             <h3 className="font-semibold flex items-center gap-2"><ImageIcon/> Evidence Gallery</h3>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {action.mediaUrls.map((url, index) => (
+                                     <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block relative aspect-square w-full overflow-hidden rounded-md border">
+                                        <Image src={url} alt={`Evidence ${index+1}`} fill className="object-cover transition-transform hover:scale-105" />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                     <div>
+                        <h3 className="font-semibold flex items-center gap-2"><FileText/> Description</h3>
+                        <p className="text-muted-foreground mt-2">{action.description}</p>
+                    </div>
+                     <div>
+                        <h3 className="font-semibold flex items-center gap-2"><MapPin/> Location</h3>
+                        <p className="text-muted-foreground mt-2">{action.location}</p>
+                    </div>
+                     <div>
+                        <h3 className="font-semibold flex items-center gap-2"><Award/> Final Score</h3>
+                        <p className="text-2xl font-bold text-primary mt-2">{action.validationScore}</p>
+                    </div>
+                </div>
+                 <Button asChild className="mt-4">
+                    <Link href={`/action/${action.id}`}>View Full Certificate</Link>
+                </Button>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 const ImpactPage = () => {
   const firestore = useFirestore();
@@ -59,35 +149,47 @@ const ImpactPage = () => {
       const orgIds = [...new Set(actionsData.map(action => action.orgId).filter(Boolean))];
       if (orgIds.length === 0) return;
 
+      const orgsToFetch = orgIds.filter(id => !organizations[id]);
+      if (orgsToFetch.length === 0) return;
+
       try {
-        const orgsRef = collection(firestore, 'organizations');
-        const q = query(orgsRef, where(documentId(), 'in', orgIds));
-        const orgsSnapshot = await getDocs(q);
-        
+        // Firestore 'in' query is limited to 30 items. Batch if necessary.
+        const batches = [];
+        for (let i = 0; i < orgsToFetch.length; i += 30) {
+            batches.push(orgsToFetch.slice(i, i + 30));
+        }
+
         const orgsMap: Record<string, Organization> = {};
-        orgsSnapshot.forEach(doc => {
-          const data = doc.data();
-          orgsMap[doc.id] = {
-            id: doc.id,
-            name: data.name,
-            slug: data.slug,
-            image: data.image
-          };
-        });
-        setOrganizations(orgsMap);
+        for (const batch of batches) {
+            const orgsRef = collection(firestore, 'organizations');
+            const q = query(orgsRef, where(documentId(), 'in', batch));
+            const orgsSnapshot = await getDocs(q);
+            
+            orgsSnapshot.forEach(doc => {
+              const data = doc.data();
+              orgsMap[doc.id] = {
+                id: doc.id,
+                name: data.name,
+                slug: data.slug,
+                image: data.image
+              };
+            });
+        }
+
+        setOrganizations(prev => ({...prev, ...orgsMap}));
       } catch (e) {
         console.error("Failed to fetch organizations", e);
       }
     };
     fetchOrganizations();
-  }, [actionsData, firestore]);
+  }, [actionsData, firestore, organizations]);
   
   const actionsWithOrgData = useMemo(() => {
     if (!actionsData) return [];
     return actionsData.map(action => ({
       ...action,
-      org: organizations[action.orgId] || { name: 'Unknown Organization', slug: '#', image: undefined }
-    }));
+      org: organizations[action.orgId]
+    })).filter(action => action.org); // Only show actions where org data is loaded
   }, [actionsData, organizations]);
 
   const filteredActions = useMemo(() => {
@@ -119,7 +221,6 @@ const ImpactPage = () => {
     }));
   }, [filteredActions]);
   
-  const getInitials = (name: string) => (name || '').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
   return (
     <div className="container py-12">
@@ -182,47 +283,7 @@ const ImpactPage = () => {
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredActions.map(action => (
-          <Card key={action.id} className="overflow-hidden transition-shadow duration-300 hover:shadow-lg flex flex-col">
-            <CardHeader className="flex flex-row items-center gap-3 p-4">
-               <Avatar className="h-10 w-10 border">
-                  <AvatarImage src={action.org?.image} alt={action.org?.name} />
-                  <AvatarFallback>{getInitials(action.org?.name || '?')}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <Link href={`/org/${action.org?.slug}`} className="font-semibold hover:underline">{action.org?.name}</Link>
-                  <p className="text-xs text-muted-foreground">{new Date(action.createdAt._seconds * 1000).toLocaleDateString()}</p>
-                </div>
-                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="relative aspect-square w-full">
-                <Image 
-                  src={`https://picsum.photos/seed/${action.id}/600`} 
-                  alt={action.title} 
-                  fill 
-                  className="object-cover" 
-                  data-ai-hint="regenerative action"
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="p-4 flex flex-col items-start flex-grow">
-               <div className="flex items-center gap-2 text-sm font-bold text-primary">
-                  <Award className="h-4 w-4" />
-                  <span>Score: {action.validationScore || 'N/A'}</span>
-               </div>
-               <p className="w-full text-sm mt-2">
-                 <Link href={`/org/${action.org?.slug}`} className="font-semibold hover:underline">{action.org?.name}</Link>
-                 <span className="text-muted-foreground"> {action.title}</span>
-               </p>
-               <div className="w-full mt-auto pt-4">
-                <Button variant="secondary" size="sm" className="w-full" asChild>
-                  <Link href={`/action/${action.id}`}>View Certificate</Link>
-                </Button>
-               </div>
-            </CardFooter>
-          </Card>
+          <ActionPostCard key={action.id} action={action} />
         ))}
       </div>
     </div>
