@@ -51,6 +51,7 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
     const router = useRouter();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
+    const assessmentId = params.assessmentId;
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -67,10 +68,10 @@ const EvaluatePage = ({ params }: { params: { assessmentId: string } }) => {
 
     const onSubmit = (values: FormValues) => {
         startTransition(async () => {
-            const result = await saveLeapE(params.assessmentId, values);
+            const result = await saveLeapE(assessmentId, values);
             if (result.success) {
                 toast({ title: 'Step 2 Saved!', description: 'Dependencies and impacts evaluation saved.' });
-                router.push(`/leap/assessment/${params.assessmentId}/a`);
+                router.push(`/leap/assessment/${assessmentId}/a`);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not save data.' });
             }

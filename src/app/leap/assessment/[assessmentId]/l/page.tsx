@@ -43,6 +43,7 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const assessmentId = params.assessmentId;
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -62,10 +63,10 @@ const LocatePage = ({ params }: { params: { assessmentId: string } }) => {
 
   const onSubmit = (values: FormValues) => {
     startTransition(async () => {
-      const result = await saveLeapL(params.assessmentId, values.company);
+      const result = await saveLeapL(assessmentId, values.company);
       if (result.success) {
         toast({ title: 'Step 1 Saved!', description: 'Your data has been saved successfully.' });
-        router.push(`/leap/assessment/${params.assessmentId}/e`);
+        router.push(`/leap/assessment/${assessmentId}/e`);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not save data.' });
       }

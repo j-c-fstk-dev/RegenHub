@@ -49,6 +49,7 @@ const PreparePage = ({ params }: { params: { assessmentId: string } }) => {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     const [isDone, setIsDone] = useState(false);
+    const assessmentId = params.assessmentId;
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -63,7 +64,7 @@ const PreparePage = ({ params }: { params: { assessmentId: string } }) => {
 
     const onSubmit = (values: FormValues) => {
         startTransition(async () => {
-            const result = await saveLeapP(params.assessmentId, values);
+            const result = await saveLeapP(assessmentId, values);
             if (result.success) {
                 toast({ title: 'Assessment Complete!', description: 'Your action plan has been saved.' });
                 setIsDone(true);

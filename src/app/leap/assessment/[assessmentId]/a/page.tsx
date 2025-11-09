@@ -76,6 +76,7 @@ const AssessPage = ({ params }: { params: { assessmentId: string } }) => {
     const router = useRouter();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
+    const assessmentId = params.assessmentId;
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -94,13 +95,13 @@ const AssessPage = ({ params }: { params: { assessmentId: string } }) => {
 
     const onSubmit = (values: FormValues) => {
         startTransition(async () => {
-            const result = await saveLeapA(params.assessmentId, {
+            const result = await saveLeapA(assessmentId, {
                 risks: values.risks || [],
                 opportunities: values.opportunities || [],
             });
             if (result.success) {
                 toast({ title: 'Step 3 Saved!', description: 'Risk and opportunity analysis saved.' });
-                router.push(`/leap/assessment/${params.assessmentId}/p`);
+                router.push(`/leap/assessment/${assessmentId}/p`);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not save data.' });
             }
