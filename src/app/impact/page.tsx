@@ -225,15 +225,9 @@ const ImpactPage = () => {
   }, [actionsData]);
 
   const mapLocations = useMemo(() => {
-    return filteredActions.map(action => ({
-      id: action.id,
-      name: action.title,
-      position: {
-        lat: Math.random() * 180 - 90,
-        lng: Math.random() * 360 - 180,
-      }
-    }));
-  }, [filteredActions]);
+    // Return an empty array to disable map pins temporarily
+    return [];
+  }, []);
   
 
   return (
@@ -305,5 +299,3 @@ const ImpactPage = () => {
 };
 
 export default ImpactPage;
-
-    

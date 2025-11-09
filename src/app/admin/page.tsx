@@ -36,6 +36,7 @@ import { AIAssistedIntentVerificationOutput } from '@/ai/schemas/ai-assisted-int
 import { collection, query, orderBy, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { Switch } from '@/components/ui/switch';
+import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
 type Action = {
   id: string;
@@ -63,7 +64,7 @@ const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destr
 const VisibilityToggle = ({ action }: { action: Action }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [isChecked, setIsChecked] = useState(action.isPublic ?? true);
+    const [isChecked, setIsChecked] = useState(action.isPublic ?? false);
     const [isUpdating, setIsUpdating] = useState(false);
 
     const handleToggle = async (isPublic: boolean) => {
@@ -76,6 +77,12 @@ const VisibilityToggle = ({ action }: { action: Action }) => {
             toast({ title: 'Success', description: `Action is now ${isPublic ? 'visible' : 'hidden'} on the Impact Wall.` });
         } catch (error) {
             console.error("Error updating visibility:", error);
+            const permissionError = new FirestorePermissionError({
+                path: `actions/${action.id}`,
+                operation: 'update',
+                requestResourceData: { isPublic },
+            });
+            errorEmitter.emit('permission-error', permissionError);
             setIsChecked(!isPublic); // Revert on error
             const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
             toast({ variant: 'destructive', title: 'Error', description: `Failed to update visibility: ${errorMessage}` });
@@ -165,6 +172,12 @@ const AdminPage = () => {
         setSelectedSubmission(null);
         setImpactScore('');
     } catch(error) {
+        const permissionError = new FirestorePermissionError({
+            path: `actions/${selectedSubmission.id}`,
+            operation: 'update',
+            requestResourceData: { status: 'verified', validationScore: impactScore },
+        });
+        errorEmitter.emit('permission-error', permissionError);
         console.error("Error approving action:", error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
         toast({ variant: 'destructive', title: 'Error', description: `Failed to approve action: ${errorMessage}` });
@@ -399,5 +412,3 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
-
-    
