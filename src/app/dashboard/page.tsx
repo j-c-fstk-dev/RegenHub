@@ -34,6 +34,7 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
+    const firestore = useFirestore();
 
     const savedAddress = userProfile?.walletAddress;
 
@@ -56,9 +57,9 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
     };
     
     const handleSaveWallet = async () => {
-        if (!connectedAddress || !userId) return;
+        if (!connectedAddress || !userId || !firestore) return;
         setIsSaving(true);
-        const result = await updateUserWallet(userId, connectedAddress);
+        const result = await updateUserWallet(firestore, userId, connectedAddress);
         if (result.success) {
             toast({ title: 'Success', description: 'Wallet address updated successfully.' });
         } else {
@@ -140,7 +141,7 @@ const DashboardPage = () => {
   // Memoized query for user's actions
   const actionsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return query(collection(firestore, 'actions'), where('createdBy', '==', user.uid), orderBy('createdAt', 'desc'));
+    return query(collection(firestore, 'actions'), where('createdBy', '==', user.uid));
   }, [user, firestore]);
 
   const { data: organizations, isLoading: isLoadingOrgs } = useCollection(orgsQuery);

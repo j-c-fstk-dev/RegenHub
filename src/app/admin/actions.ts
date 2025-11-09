@@ -1,6 +1,6 @@
 'use server';
 
-import { doc, updateDoc, serverTimestamp, DocumentReference } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, DocumentReference, Firestore } from 'firebase/firestore';
 
 /**
  * Approves an action and assigns an impact score.
@@ -38,5 +38,37 @@ export async function approveAction(
     console.error('Error approving action:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
     return { success: false, error: `Failed to approve action: ${errorMessage}` };
+  }
+}
+
+/**
+ * Updates the wallet address for a user.
+ * This is a server action that can be called from the client.
+ * This function uses a client-side Firestore instance passed from the component.
+ * @param db The client-side Firestore instance.
+ * @param userId The UID of the user to update.
+ * @param walletAddress The new wallet address.
+ */
+export async function updateUserWallet(
+  db: Firestore,
+  userId: string, 
+  walletAddress: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!userId || !walletAddress) {
+    return { success: false, error: "User ID and wallet address are required." };
+  }
+
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      walletAddress: walletAddress
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating wallet address:", error);
+    // In a real app, you might want to use a more sophisticated error handler.
+    // For now, we'll return a generic error message.
+    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return { success: false, error: `Failed to update wallet: ${errorMessage}` };
   }
 }
