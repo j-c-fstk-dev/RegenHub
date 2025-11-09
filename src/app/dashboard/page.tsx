@@ -33,7 +33,7 @@ const leapStageLabels: { [key: string]: string } = {
     done: 'Completed'
 }
 const leapStageSlugs: { [key: string]: string } = {
-    L: 'l', E: 'e', A: 'a', P: 'p',
+    L: 'l', E: 'e', A: 'a', P: 'p', done: 'p',
 }
 
 // Define a type for the Ethereum window object
@@ -237,9 +237,9 @@ const DashboardPage = () => {
                         <li key={assessment.id} className="text-sm font-medium flex items-center justify-between p-2 rounded-md hover:bg-secondary">
                           <div>
                             <span className="font-semibold">Assessment from {assessment.createdAt.toDate().toLocaleDateString()}</span>
-                            <p className="text-xs text-muted-foreground">
+                            <div className="text-xs text-muted-foreground">
                                 Status: <Badge variant="outline">{leapStageLabels[assessment.stage] || 'In Progress'}</Badge>
-                            </p>
+                            </div>
                           </div>
                            <Button asChild variant="ghost" size="icon">
                                <Link href={`/leap/assessment/${assessment.id}/${leapStageSlugs[assessment.stage]}`}><ChevronRight className="h-4 w-4"/></Link>
