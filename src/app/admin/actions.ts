@@ -1,36 +1,59 @@
 'use server';
 
-import { doc, updateDoc, serverTimestamp, DocumentReference, Firestore } from 'firebase/firestore';
+import { initializeApp, cert, getApps, ServiceAccount } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+
+/**
+ * Initializes the Firebase Admin SDK.
+ * @returns The Firestore database instance.
+ * @throws If the service account key is not found.
+ */
+function initializeAdminApp() {
+  if (getApps().length > 0) {
+    return getFirestore();
+  }
+
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    // This will be caught by the action handler and result in a user-friendly error.
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not found. Server is not configured for admin operations.');
+  }
+
+  const serviceAccount: ServiceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+  initializeApp({
+    credential: cert(serviceAccount),
+  });
+
+  return getFirestore();
+}
 
 /**
  * Approves an action and assigns an impact score.
- * This is now called from the client-side but remains a Server Action for potential future server-only logic.
- * It now accepts a DocumentReference from the client-side Firestore instance.
- * @param actionRef A client-side DocumentReference to the action document.
+ * This is a Server Action that uses the Firebase Admin SDK to perform a privileged update.
+ * @param actionId The ID of the action document to approve.
  * @param impactScore The manual score (0-100) assigned by the human validator.
  * @param validatorId The UID of the admin/validator performing the action.
  */
 export async function approveAction(
-  actionRef: DocumentReference,
+  actionId: string,
   impactScore: number,
   validatorId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!actionRef || impactScore === undefined || !validatorId) {
-    return { success: false, error: 'Action reference, impact score, and validator ID are required.' };
+  if (!actionId || impactScore === undefined || !validatorId) {
+    return { success: false, error: 'Action ID, impact score, and validator ID are required.' };
   }
   if (impactScore < 0 || impactScore > 100) {
     return { success: false, error: 'Impact score must be between 0 and 100.' };
   }
 
   try {
-    // The actionRef is now a live, client-side reference,
-    // and this updateDoc call will be executed on the client,
-    // respecting the security rules for the authenticated admin user.
-    await updateDoc(actionRef, {
+    const db = initializeAdminApp();
+    const actionRef = db.collection('actions').doc(actionId);
+
+    await actionRef.update({
       status: 'verified',
       validationScore: impactScore,
       validatorId: validatorId,
-      validatedAt: serverTimestamp(),
+      validatedAt: FieldValue.serverTimestamp(),
     });
 
     return { success: true };
@@ -41,16 +64,16 @@ export async function approveAction(
   }
 }
 
+
 /**
  * Updates the wallet address for a user.
  * This is a server action that can be called from the client.
- * This function uses a client-side Firestore instance passed from the component.
- * @param db The client-side Firestore instance.
+ * NOTE: This action uses the ADMIN SDK. For it to work, the service account
+ * credentials must be available in the environment.
  * @param userId The UID of the user to update.
  * @param walletAddress The new wallet address.
  */
 export async function updateUserWallet(
-  db: Firestore,
   userId: string, 
   walletAddress: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -59,15 +82,14 @@ export async function updateUserWallet(
   }
 
   try {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
+    const db = initializeAdminApp();
+    const userRef = db.collection('users').doc(userId);
+    await userRef.update({
       walletAddress: walletAddress
     });
     return { success: true };
   } catch (error) {
     console.error("Error updating wallet address:", error);
-    // In a real app, you might want to use a more sophisticated error handler.
-    // For now, we'll return a generic error message.
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
     return { success: false, error: `Failed to update wallet: ${errorMessage}` };
   }

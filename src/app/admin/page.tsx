@@ -110,13 +110,12 @@ const AdminPage = () => {
   };
 
   const handleApprove = async () => {
-    if (!selectedSubmission || typeof impactScore !== 'number' || !user || !firestore) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Impact score, user and firestore are required.' });
+    if (!selectedSubmission || typeof impactScore !== 'number' || !user) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Impact score and user are required.' });
       return;
     }
-    
-    const actionRef = doc(firestore, 'actions', selectedSubmission.id);
-    const result = await approveAction(actionRef, impactScore, user.uid);
+
+    const result = await approveAction(selectedSubmission.id, impactScore, user.uid);
 
     if (result.success) {
       toast({ title: 'Success', description: 'Action approved successfully.' });
