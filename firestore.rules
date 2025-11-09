@@ -76,11 +76,12 @@ service cloud.firestore {
 
     // LEAP ASSESSMENTS
     // A user can create an assessment for an org they own.
-    // They can read, update, or delete an assessment document if they own the parent org or are an admin.
+    // They can read, update, or delete an assessment document if they created it.
     // They can list assessments only if they are querying for their own created documents.
     match /leapAssessments/{assessmentId} {
        allow create: if isSignedIn() && isOrgOwner(request.resource.data.orgId);
-       allow read, update, delete: if isSignedIn() && (isOrgOwner(resource.data.orgId) || isAdmin());
+       allow read, delete: if isSignedIn() && isOwner(resource.data.createdBy);
+       allow update: if isSignedIn() && isOwner(resource.data.createdBy); // Allow updates by the creator
        allow list: if isSignedIn() && request.query.where.get('createdBy')[2] == request.auth.uid;
     }
 

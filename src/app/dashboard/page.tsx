@@ -33,7 +33,7 @@ const leapStageLabels: { [key: string]: string } = {
     done: 'Completed'
 }
 const leapStageSlugs: { [key: string]: string } = {
-    L: 'l', E: 'e', A: 'a', P: 'p', done: 'p',
+    L: 'l', E: 'e', A: 'a', P: 'p', done: 'plan',
 }
 
 // Define a type for the Ethereum window object
