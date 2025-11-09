@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useWizard } from "../wizard-context";
 
 const StepFinal = () => {
-    const { resetWizard } = useWizard();
+    const { startNewWizard } = useWizard();
 
     return (
         <Card className="max-w-2xl mx-auto text-center">
@@ -27,7 +27,7 @@ const StepFinal = () => {
                 <Button asChild>
                     <Link href="/admin">Go to Dashboard</Link>
                 </Button>
-                <Button variant="outline" onClick={resetWizard}>
+                <Button variant="outline" onClick={startNewWizard}>
                     Submit Another Action
                 </Button>
             </CardFooter>

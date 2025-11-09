@@ -38,6 +38,7 @@ interface WizardContextProps {
   updateDraft: (data: Partial<ActionDraft>) => void;
   submitAction: () => Promise<void>;
   resetWizard: () => void;
+  startNewWizard: () => void;
 }
 
 const WizardContext = createContext<WizardContextProps | undefined>(undefined);
@@ -184,9 +185,13 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     setDraftId(null);
     setStep(0);
     setIsSubmitted(false);
-    // After resetting, immediately load or create a new draft for the next session
-    loadOrCreateDraft();
-  }, [getDraftRef, loadOrCreateDraft]);
+  }, [getDraftRef]);
+  
+  const startNewWizard = () => {
+    resetWizard().then(() => {
+        loadOrCreateDraft();
+    });
+  }
 
   const value = {
     step,
@@ -200,6 +205,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     updateDraft,
     submitAction,
     resetWizard,
+    startNewWizard
   };
 
   return <WizardContext.Provider value={value}>{children}</WizardContext.Provider>;

@@ -21,10 +21,15 @@ function initializeAdminApp() {
       console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Skipping Admin SDK initialization. API will fail if called.");
     }
   }
-  return getFirestore();
+  // No need to return getFirestore() here, it will be checked later
 }
 
 async function triggerAiVerification(actionId: string, aiInput: AIAssistedIntentVerificationInput) {
+    // Ensure admin app is initialized before proceeding
+    if (getApps().length === 0) {
+        console.error(`AI Verification Aborted for ${actionId}: Firebase Admin not initialized.`);
+        return; 
+    }
     try {
         const aiResult = await aiAssistedIntentVerification(aiInput);
         const firestore = getFirestore();
@@ -55,9 +60,10 @@ async function triggerAiVerification(actionId: string, aiInput: AIAssistedIntent
 
 
 export async function POST(req: NextRequest) {
-  const db = initializeAdminApp();
+  initializeAdminApp();
+  // CRITICAL CHECK: Ensure Firebase Admin is ready before proceeding.
   if (getApps().length === 0) {
-      return NextResponse.json({ success: false, error: 'Firebase Admin not initialized. Check server logs.' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Firebase Admin not initialized. Check server logs for FIREBASE_SERVICE_ACCOUNT_KEY.' }, { status: 500 });
   }
 
   let actionRefId: string | null = null;
@@ -68,6 +74,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized: No token provided' }, { status: 401 });
     }
 
+    const db = getFirestore(); // Now safe to call
     let decodedToken;
     try {
       decodedToken = await getAuth().verifyIdToken(authToken);
