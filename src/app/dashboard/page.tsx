@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, DocumentData } from 'firebase/firestore';
+import { collection, query, where, doc, DocumentData, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,8 @@ import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { BrowserProvider, Eip1193Provider } from 'ethers';
 import { useToast } from '@/hooks/use-toast';
-import { updateUserWallet } from '../admin/actions';
+import { FirestorePermissionError, errorEmitter } from '@/firebase';
+
 
 // Helper for status styling
 const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
@@ -76,13 +77,20 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
     const handleSaveWallet = async () => {
         if (!connectedAddress || !userId || !firestore) return;
         setIsSaving(true);
-        const result = await updateUserWallet(firestore, userId, connectedAddress);
-        if (result.success) {
+         try {
+            const userRef = doc(firestore, 'users', userId);
+            await updateDoc(userRef, { walletAddress: connectedAddress });
             toast({ title: 'Success', description: 'Wallet address updated successfully.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: result.error });
+        } catch (e: any) {
+            const permissionError = new FirestorePermissionError({
+                path: `users/${userId}`,
+                operation: 'update',
+                requestResourceData: { walletAddress: connectedAddress },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } finally {
+            setIsSaving(false);
         }
-        setIsSaving(false);
     };
 
     const isAddressUnsaved = connectedAddress && (connectedAddress !== savedAddress);
@@ -151,21 +159,21 @@ const DashboardPage = () => {
 
   // Memoized query for user's organizations
   const orgsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
+    if (!user?.uid || !firestore) return null;
     return query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
-  }, [user, firestore]);
+  }, [user?.uid, firestore]);
 
   // Memoized query for user's actions
   const actionsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
+    if (!user?.uid || !firestore) return null;
     return query(collection(firestore, 'actions'), where('createdBy', '==', user.uid));
-  }, [user, firestore]);
+  }, [user?.uid, firestore]);
   
   // Memoized query for user's LEAP assessments
   const leapQuery = useMemoFirebase(() => {
-      if (!user || !firestore) return null;
-      return query(collection(firestore, 'leapAssessments'), where('createdBy', '==', user.uid), where('stage', '!=', 'done'));
-  }, [user, firestore]);
+      if (!user?.uid || !firestore) return null;
+      return query(collection(firestore, 'leapAssessments'), where('createdBy', '==', user.uid));
+  }, [user?.uid, firestore]);
 
   const { data: organizations, isLoading: isLoadingOrgs } = useCollection(orgsQuery);
   const { data: actions, isLoading: isLoadingActions } = useCollection(actionsQuery);
