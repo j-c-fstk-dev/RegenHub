@@ -75,10 +75,13 @@ service cloud.firestore {
     }
 
     // LEAP ASSESSMENTS
-    // Only the organization owner or an admin can manage assessments.
+    // A user can create an assessment for an org they own.
+    // They can read, update, or delete an assessment document if they own the parent org or are an admin.
+    // They can list assessments only if they are querying for their own created documents.
     match /leapAssessments/{assessmentId} {
-       allow read, list, update, delete: if isSignedIn() && (isOrgOwner(resource.data.orgId) || isAdmin());
        allow create: if isSignedIn() && isOrgOwner(request.resource.data.orgId);
+       allow read, update, delete: if isSignedIn() && (isOrgOwner(resource.data.orgId) || isAdmin());
+       allow list: if isSignedIn() && request.query.where.get('createdBy')[2] == request.auth.uid;
     }
 
     // ACTION TYPES
