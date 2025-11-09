@@ -1,25 +1,30 @@
 'use server';
 
-import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase-admin/firestore';
 import { initializeApp, cert, getApps, type ServiceAccount } from 'firebase-admin/app';
-import { initializeFirebase } from '@/firebase';
-
 
 // Helper to initialize Firebase Admin SDK only once
 // This is still needed for server-side actions that require admin privileges.
 function initializeAdminApp() {
   if (getApps().length === 0) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-       const serviceAccount: ServiceAccount = JSON.parse(
-        process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-      );
-      initializeApp({
-        credential: cert(serviceAccount),
-      });
+       try {
+        const serviceAccount: ServiceAccount = JSON.parse(
+          process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+        );
+        initializeApp({
+          credential: cert(serviceAccount),
+        });
+       } catch (e) {
+          console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", e);
+          throw new Error("Server configuration error: Invalid service account key.");
+       }
     } else {
         console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Admin actions will fail.");
+        throw new Error("Server configuration error: Service account key not found.");
     }
   }
+  // Use the Admin Firestore instance
   return getFirestore();
 }
 
