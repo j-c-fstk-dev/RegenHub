@@ -7,34 +7,41 @@ import { headers } from 'next/headers';
 
 // Helper to initialize Firebase Admin SDK only once
 function initializeAdminApp() {
-  if (getApps().length === 0) {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-       const serviceAccount: ServiceAccount = JSON.parse(
-        process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-      );
-      initializeApp({
-        credential: cert(serviceAccount),
-      });
-    } else {
-        console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Admin actions will fail.");
-    }
+  if (getApps().length > 0) {
+    return getFirestore();
   }
-  return getFirestore();
+  
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      try {
+        const serviceAccount: ServiceAccount = JSON.parse(
+            Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString('utf-8')
+        );
+        initializeApp({
+            credential: cert(serviceAccount),
+        });
+        return getFirestore();
+      } catch (e) {
+          console.error("Error parsing FIREBASE_SERVICE_ACCOUNT_KEY:", e);
+          throw new Error("Server configuration error: Could not parse Firebase service account key.");
+      }
+  } 
+  
+  throw new Error('Server configuration error: FIREBASE_SERVICE_ACCOUNT_KEY is not set.');
 }
 
 /**
  * Creates a new LEAP assessment document in Firestore for the current user's organization.
  */
 export async function startLeapAssessment(): Promise<{ success: boolean; error?: string; assessmentId?: string }> {
-  const db = initializeAdminApp();
-  const headersList = headers();
-  const authorization = headersList.get('Authorization');
-  
-  if (!authorization) {
-    return { success: false, error: "Unauthorized: No token provided." };
-  }
-  
   try {
+    const db = initializeAdminApp();
+    const headersList = headers();
+    const authorization = headersList.get('Authorization');
+    
+    if (!authorization) {
+      return { success: false, error: "Unauthorized: No token provided." };
+    }
+  
     const token = authorization.split('Bearer ')[1];
     const decodedToken = await getAuth().verifyIdToken(token);
     const userId = decodedToken.uid;

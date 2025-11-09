@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/firebase";
+import { startLeapAssessment } from "./actions";
 
 const leapSteps = [
     {
@@ -56,33 +57,16 @@ const LeapPage = () => {
         }
 
         startTransition(async () => {
-            try {
-                const token = await user.getIdToken();
-                if (!token) {
-                     toast({ variant: 'destructive', title: 'Access Denied', description: 'Invalid session. Please log in again.' });
-                     router.push('/login?redirect=/leap');
-                     return;
-                }
+             const result = await startLeapAssessment();
 
-                const response = await fetch('/api/leap/start', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                const result = await response.json();
-
-                if (result.success && result.assessmentId) {
-                    toast({ title: 'Assessment Started!', description: 'You have been redirected to the first step.' });
-                    router.push(`/leap/assessment/${result.assessmentId}/l`);
-                } else {
-                    toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not start the assessment.' });
-                    if (result.error?.includes('expired') || result.error?.includes('Unauthorized') || result.error?.includes('organization')) {
-                        router.push('/login?redirect=/leap');
-                    }
+            if (result.success && result.assessmentId) {
+                toast({ title: 'Assessment Started!', description: 'You have been redirected to the first step.' });
+                router.push(`/leap/assessment/${result.assessmentId}/l`);
+            } else {
+                toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not start the assessment.' });
+                if (result.error?.includes('expired') || result.error?.includes('Unauthorized') || result.error?.includes('organization')) {
+                    router.push('/login?redirect=/leap');
                 }
-            } catch (error) {
-                 toast({ variant: 'destructive', title: 'Network Error', description: 'Could not connect to the server. Please try again.' });
             }
         });
     };
