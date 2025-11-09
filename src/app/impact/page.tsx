@@ -40,8 +40,13 @@ type Organization = {
 
 const ActionPostCard = ({ action }: { action: Action }) => {
     const getInitials = (name: string) => (name || '').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    const coverImage = action.mediaUrls?.[0] || `https://picsum.photos/seed/${action.id}/600`;
-    const isPlaceholder = !action.mediaUrls?.[0];
+    
+    // Helper to check if a URL is likely an image
+    const isImageUrl = (url: string) => /\.(jpeg|jpg|gif|png|webp)$/.test(url.toLowerCase());
+
+    const coverMediaUrl = action.mediaUrls?.[0];
+    const isCoverImage = coverMediaUrl && isImageUrl(coverMediaUrl);
+    const coverImageSrc = isCoverImage ? coverMediaUrl : `https://picsum.photos/seed/${action.id}/600`;
 
     return (
         <Dialog>
@@ -60,11 +65,11 @@ const ActionPostCard = ({ action }: { action: Action }) => {
                     <CardContent className="p-0">
                         <div className="relative aspect-square w-full">
                             <Image 
-                                src={coverImage}
+                                src={coverImageSrc}
                                 alt={action.title} 
                                 fill 
                                 className="object-cover" 
-                                data-ai-hint={isPlaceholder ? "regenerative action" : ""}
+                                data-ai-hint={!isCoverImage ? "regenerative action" : ""}
                             />
                         </div>
                     </CardContent>
@@ -99,7 +104,14 @@ const ActionPostCard = ({ action }: { action: Action }) => {
                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {action.mediaUrls.map((url, index) => (
                                      <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block relative aspect-square w-full overflow-hidden rounded-md border">
-                                        <Image src={url} alt={`Evidence ${index+1}`} fill className="object-cover transition-transform hover:scale-105" />
+                                        {isImageUrl(url) ? (
+                                            <Image src={url} alt={`Evidence ${index+1}`} fill className="object-cover transition-transform hover:scale-105" />
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-full bg-secondary hover:bg-secondary/80">
+                                                <LinkIcon className="h-8 w-8 text-muted-foreground"/>
+                                                <p className="text-xs text-muted-foreground mt-2 text-center p-2 break-all">{url}</p>
+                                            </div>
+                                        )}
                                     </a>
                                 ))}
                             </div>
