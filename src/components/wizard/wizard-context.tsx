@@ -88,7 +88,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, firestore, getDraftRef, toast]);
+  }, [getDraftRef, toast]);
   
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -140,14 +140,25 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(payload)
       });
       
+      if (!response.ok) {
+        // If response is not ok, try to parse error, but handle cases where it's not JSON
+        let errorBody = 'An unknown error occurred on the server.';
+        try {
+            const errorResult = await response.json();
+            errorBody = errorResult.error || errorBody;
+        } catch (e) {
+             // The response was not JSON, which is the root of the original error.
+            errorBody = `Server returned a non-JSON response (status: ${response.status}).`;
+        }
+        throw new Error(errorBody);
+      }
+
       const result = await response.json();
 
-      if (response.ok && result.success) {
+      if (result.success) {
         toast({ title: "Success!", description: "Your action has been submitted for validation." });
         setIsSubmitted(true);
-        // Delete the draft document after successful submission
-        const draftRef = getDraftRef();
-        if(draftRef) await deleteDoc(draftRef);
+        // Deletion of draft now happens in resetWizard, which is called from the final step
       } else {
         throw new Error(result.error || "Failed to submit action.");
       }
@@ -160,12 +171,22 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const resetWizard = () => {
+  const resetWizard = useCallback(async () => {
+    const draftRef = getDraftRef();
+    if (draftRef) {
+        try {
+            await deleteDoc(draftRef);
+        } catch (e) {
+            console.error("Failed to delete draft, but proceeding with UI reset.", e);
+        }
+    }
     setDraft(null);
+    setDraftId(null);
     setStep(0);
     setIsSubmitted(false);
+    // After resetting, immediately load or create a new draft for the next session
     loadOrCreateDraft();
-  };
+  }, [getDraftRef, loadOrCreateDraft]);
 
   const value = {
     step,

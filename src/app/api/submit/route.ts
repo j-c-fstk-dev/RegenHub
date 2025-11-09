@@ -24,6 +24,36 @@ function initializeAdminApp() {
   return getFirestore();
 }
 
+async function triggerAiVerification(actionId: string, aiInput: AIAssistedIntentVerificationInput) {
+    try {
+        const aiResult = await aiAssistedIntentVerification(aiInput);
+        const firestore = getFirestore();
+        const docToUpdate = firestore.collection('actions').doc(actionId);
+        await docToUpdate.update({ 
+            aiVerification: aiResult,
+            status: 'review_ready' 
+        });
+        console.log(`AI verification for action ${actionId} succeeded and document updated.`);
+    } catch (aiError: any) {
+        console.error(`AI verification or Firestore update failed for action ${actionId}:`, aiError);
+        try {
+            const firestore = getFirestore();
+            const docToUpdate = firestore.collection('actions').doc(actionId);
+            await docToUpdate.update({ 
+                status: 'review_failed', 
+                aiVerification: { 
+                    summary: `AI process failed: ${aiError.message}`,
+                    notes: aiError.stack,
+                    flags: { lowTextDensity: true }
+                }
+            });
+        } catch (updateError) {
+            console.error(`CRITICAL: FAILED to update action ${actionId} with AI failure status:`, updateError);
+        }
+    }
+}
+
+
 export async function POST(req: NextRequest) {
   const db = initializeAdminApp();
   if (getApps().length === 0) {
@@ -33,7 +63,6 @@ export async function POST(req: NextRequest) {
   let actionRefId: string | null = null;
 
   try {
-    // 1. Check for authentication
     const authToken = req.headers.get('authorization')?.split('Bearer ')[1];
     if (!authToken) {
       return NextResponse.json({ success: false, error: 'Unauthorized: No token provided' }, { status: 401 });
@@ -62,7 +91,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
     
-    // 2. Fetch Dependent Data from Server-Side to ensure integrity
     const userDoc = await db.collection('users').doc(userId).get();
     const twitterHandle = userDoc.exists ? userDoc.data()?.twitterHandle : undefined;
 
@@ -72,8 +100,6 @@ export async function POST(req: NextRequest) {
     }
     const projectData = projectDoc.data();
 
-
-    // 3. Create the new Action document
     const actionRef = await db.collection('actions').add({
       intentId: intentId || null,
       projectId,
@@ -83,7 +109,7 @@ export async function POST(req: NextRequest) {
       category: category || null,
       location: location || null,
       mediaUrls: mediaUrls || [],
-      status: 'submitted', // Start with "submitted" status
+      status: 'submitted',
       createdBy: userId,
       createdAt: FieldValue.serverTimestamp(),
       validatedAt: null,
@@ -95,7 +121,6 @@ export async function POST(req: NextRequest) {
     
     actionRefId = actionRef.id;
 
-    // 4. Trigger the AI precheck/verification flow asynchronously (don't block the response)
     const aiInput: AIAssistedIntentVerificationInput = {
       actionId: actionRef.id,
       project: { 
@@ -111,41 +136,15 @@ export async function POST(req: NextRequest) {
       locale: 'pt-BR',
     };
 
-    // Don't await this promise. Let it run in the background, but handle errors.
-    aiAssistedIntentVerification(aiInput).then(aiResult => {
-      // Use the firestore instance from the initialized app
-      const firestore = getFirestore();
-      const docToUpdate = firestore.collection('actions').doc(actionRef.id);
-      docToUpdate.update({ 
-        aiVerification: aiResult,
-        status: 'review_ready' 
-      }).catch(aiUpdateError => {
-         console.error(`CRITICAL: AI verification for action ${actionRef.id} succeeded, but FAILED to update the document:`, aiUpdateError);
-      });
-    }).catch(aiError => {
-        console.error(`AI verification failed for action ${actionRef.id}:`, aiError);
-        // Use the firestore instance from the initialized app
-        const firestore = getFirestore();
-        const docToUpdate = firestore.collection('actions').doc(actionRef.id);
-        docToUpdate.update({ 
-            status: 'review_failed', 
-            aiVerification: { 
-                summary: "AI process failed.",
-                notes: `AI process failed: ${aiError.message}`,
-                flags: { lowTextDensity: true } // Assume failure might be due to bad input
-            }
-        }).catch(aiUpdateError => {
-            console.error(`CRITICAL: AI verification for action ${actionRef.id} failed, AND FAILED to update status to 'review_failed':`, aiUpdateError);
-        });
-    });
+    // Trigger AI verification without awaiting it. Fire-and-forget.
+    triggerAiVerification(actionRef.id, aiInput);
 
-    // 5. Respond to the user immediately, confirming submission was received
+    // Respond immediately to the user.
     return NextResponse.json({ success: true, actionId: actionRef.id }, { status: 200 });
 
   } catch (error) {
     console.error(`Error creating action (ID: ${actionRefId ?? 'N/A'}):`, error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred';
-    // Ensure we still send a valid JSON response even on catastrophic failure
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }
