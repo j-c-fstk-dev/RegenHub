@@ -32,14 +32,24 @@ const leapSteps = [
     }
 ];
 
+const LoggedOutCTA = () => (
+    <div className="mt-8 text-center bg-secondary p-8 rounded-lg">
+        <h3 className="font-headline text-2xl font-bold text-primary">Get Started with Your Nature Assessment</h3>
+        <p className="mt-2 text-muted-foreground max-w-xl mx-auto">Log in or create an account to use the LEAP tool and generate your first Nature Intelligence Report.</p>
+        <Button asChild size="lg" className="mt-6">
+            <Link href="/login?redirect=/leap">Log In or Sign Up</Link>
+        </Button>
+    </div>
+)
+
 const LeapPage = () => {
     const router = useRouter();
     const { toast } = useToast();
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
     const [isPending, startTransition] = useTransition();
 
     const handleStartAssessment = () => {
-        if (!user) {
+        if (!user) { // This check is a safeguard
             toast({ variant: 'destructive', title: 'Access Denied', description: 'You need to be logged in to start an assessment.'});
             router.push('/login?redirect=/leap');
             return;
@@ -89,9 +99,17 @@ const LeapPage = () => {
                 <p className="mt-4 text-xl text-muted-foreground max-w-3xl mx-auto">
                     A guided tool to transform how your company understands and responds to its impacts and dependencies on nature.
                 </p>
-                 <Button size="lg" className="mt-8" onClick={handleStartAssessment} disabled={isPending}>
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Start LEAP Assessment'}
-                </Button>
+                 {isUserLoading ? (
+                    <div className="mt-8">
+                        <Loader2 className="h-6 w-6 mx-auto animate-spin" />
+                    </div>
+                 ) : user ? (
+                    <Button size="lg" className="mt-8" onClick={handleStartAssessment} disabled={isPending}>
+                        {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Start LEAP Assessment'}
+                    </Button>
+                 ) : (
+                    <LoggedOutCTA />
+                 )}
             </header>
 
             <div className="max-w-5xl mx-auto">

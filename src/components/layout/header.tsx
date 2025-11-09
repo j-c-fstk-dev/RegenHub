@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Sprout, LogOut, User as UserIcon, LayoutDashboard } from 'lucide-react';
+import { Sprout, LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
@@ -34,10 +34,6 @@ const Header = () => {
     { name: 'About', href: '/about' },
     { name: 'Developers', href: '/developers' },
   ];
-
-  const userNavItems = user ? [
-    { name: 'Dashboard', href: '/dashboard' },
-  ] : [];
 
   // Conditionally show Admin link only for the specific admin user.
   const isAdmin = user?.email === 'dev.jorge.c@gmail.com';
@@ -107,7 +103,7 @@ const Header = () => {
                   <span className="font-bold font-headline text-lg">Regen Impact</span>
                 </Link>
                 <nav className="flex flex-col gap-4">
-                  {[...navItems, ...userNavItems].map((item) => (
+                  {navItems.map((item) => (
                     <Link
                       key={item.name}
                       href={item.href}
@@ -116,6 +112,14 @@ const Header = () => {
                       {item.name}
                     </Link>
                   ))}
+                  {user && (
+                     <Link
+                      href="/dashboard"
+                      className="text-lg font-medium text-foreground/80 transition-colors hover:text-primary"
+                    >
+                      Dashboard
+                    </Link>
+                  )}
                   {isAdmin && (
                      <Link
                       href="/admin"
