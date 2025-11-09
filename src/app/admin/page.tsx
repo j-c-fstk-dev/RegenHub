@@ -164,21 +164,21 @@ const AdminPage = () => {
 
   // Authorization check
   useEffect(() => {
-    const isDataLoading = isUserLoading || isProfileLoading;
-    if (isDataLoading) return; // Wait until all auth data is loaded
+    if (isUserLoading) return; // Wait until user object is available
 
     if (!user) {
       router.push('/login?redirect=/admin');
       return;
     }
     
-    if (userProfile?.role !== 'admin') {
+    // Check if the user's email is the admin email
+    if (user.email !== 'dev.jorge.c@gmail.com') {
       toast({
         variant: 'destructive',
         title: 'Access Denied',
         description: 'You do not have permission to view this page.'
       });
-      router.push('/register'); // Redirect non-admins
+      router.push('/dashboard'); // Redirect non-admins to their dashboard
       return;
     }
     
@@ -205,7 +205,7 @@ const AdminPage = () => {
     
     fetchSubmissions();
 
-  }, [user, userProfile, isUserLoading, isProfileLoading, router, toast]);
+  }, [user, isUserLoading, router, toast]);
   
   const handleReviewClick = (submission: Action) => {
     setSelectedSubmission(submission);
@@ -230,7 +230,7 @@ const AdminPage = () => {
     }
   };
   
-  if (isUserLoading || isProfileLoading || userProfile?.role !== 'admin') {
+  if (isUserLoading || isLoading || (user && user.email !== 'dev.jorge.c@gmail.com')) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -447,3 +447,5 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
+
+    
