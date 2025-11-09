@@ -31,6 +31,7 @@ type Action = {
   }
   mediaUrls: (string | {url:string})[];
   dateOfAction?: string;
+  isPublic?: boolean;
 };
 
 type Organization = {
@@ -149,8 +150,11 @@ const ImpactPage = () => {
   
   const actionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Query for verified actions. This is the single source of truth for public actions.
-    return query(collection(firestore, 'actions'), where('status', '==', 'verified'));
+    return query(
+      collection(firestore, 'actions'), 
+      where('status', '==', 'verified'),
+      where('isPublic', '==', true)
+    );
   }, [firestore]);
 
   const { data: actionsData, isLoading, error } = useCollection<Action>(actionsQuery);

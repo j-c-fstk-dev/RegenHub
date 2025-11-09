@@ -26,3 +26,27 @@ export async function updateUserWallet(
     return { success: false, error: `Failed to update wallet: ${errorMessage}` };
   }
 }
+
+
+export async function toggleActionVisibility(
+  firestore: Firestore,
+  actionId: string,
+  isPublic: boolean
+): Promise<{ success: boolean; error?: string }> {
+  if (!actionId) {
+    return { success: false, error: "Action ID is required." };
+  }
+  if (!firestore) {
+    return { success: false, error: "Firestore instance is not available." };
+  }
+
+  try {
+    const actionRef = doc(firestore, 'actions', actionId);
+    await updateDoc(actionRef, { isPublic });
+    return { success: true };
+  } catch (error) {
+    console.error(`Error updating visibility for action ${actionId}:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return { success: false, error: `Failed to update visibility: ${errorMessage}` };
+  }
+}

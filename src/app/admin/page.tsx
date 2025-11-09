@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useTransition } from 'react';
 import {
   Card,
   CardContent,
@@ -37,6 +37,7 @@ import { collection, query, orderBy, doc, updateDoc, serverTimestamp } from 'fir
 import Link from 'next/link';
 import { Switch } from '@/components/ui/switch';
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
+import { toggleActionVisibility } from './actions';
 
 type Action = {
   id: string;
@@ -50,6 +51,7 @@ type Action = {
   location: string;
   category: string;
   mediaUrls: string[];
+  isPublic?: boolean;
 };
 
 const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
@@ -59,6 +61,55 @@ const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destr
   verified: { variant: 'secondary', text: 'Verified' },
   rejected: { variant: 'destructive', text: 'Rejected' },
 };
+
+
+const VisibilityToggle = ({ actionId, isCurrentlyPublic }: { actionId: string, isCurrentlyPublic: boolean }) => {
+  const [isPublic, setIsPublic] = useState(isCurrentlyPublic);
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const handleToggle = async (checked: boolean) => {
+    startTransition(async () => {
+        if (!firestore) return;
+        
+        const originalState = isPublic;
+        setIsPublic(checked); // Optimistic update
+
+        const result = await toggleActionVisibility(firestore, actionId, checked);
+
+        if (!result.success) {
+            setIsPublic(originalState); // Revert on failure
+            toast({
+                variant: 'destructive',
+                title: 'Update Failed',
+                description: result.error,
+            });
+        } else {
+             toast({
+                title: 'Visibility Updated',
+                description: `Action is now ${checked ? 'public' : 'hidden'}.`,
+            });
+        }
+    });
+  }
+
+  return (
+      <div className="flex items-center space-x-2">
+        <Switch
+            id={`visibility-${actionId}`}
+            checked={isPublic}
+            onCheckedChange={handleToggle}
+            disabled={isPending}
+            aria-label="Toggle public visibility"
+        />
+        <Label htmlFor={`visibility-${actionId}`} className="text-xs text-muted-foreground">
+            {isPending ? 'Updating...' : (isPublic ? 'Public' : 'Hidden')}
+        </Label>
+    </div>
+  )
+}
+
 
 const AdminPage = () => {
   const { user, isUserLoading } = useUser();
@@ -127,6 +178,7 @@ const AdminPage = () => {
             validationScore: impactScore,
             validatorId: user.uid,
             validatedAt: serverTimestamp(),
+            isPublic: true, // Set to public by default on approval
         });
         toast({ title: 'Success', description: 'Action approved successfully.' });
         setSelectedSubmission(null);
@@ -135,7 +187,7 @@ const AdminPage = () => {
         const permissionError = new FirestorePermissionError({
             path: `actions/${selectedSubmission.id}`,
             operation: 'update',
-            requestResourceData: { status: 'verified', validationScore: impactScore },
+            requestResourceData: { status: 'verified', validationScore: impactScore, isPublic: true },
         });
         errorEmitter.emit('permission-error', permissionError);
         console.error("Error approving action:", error);
@@ -239,6 +291,7 @@ const AdminPage = () => {
                         )}
                         {submission.status === 'verified' && (
                            <>
+                            <VisibilityToggle actionId={submission.id} isCurrentlyPublic={submission.isPublic ?? false} />
                              <Button asChild variant="outline" size="sm">
                                 <Link href={`/action/${submission.id}`} target="_blank"><Eye className="mr-2 h-4 w-4"/> View</Link>
                             </Button>
