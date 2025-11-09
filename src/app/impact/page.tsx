@@ -29,7 +29,7 @@ type Action = {
     slug: string;
     image?: string;
   }
-  mediaUrls: string[];
+  mediaUrls: (string | {url:string})[];
   dateOfAction?: string;
 };
 
@@ -45,7 +45,9 @@ const ActionPostCard = ({ action }: { action: Action }) => {
     
     const isImageUrl = (url: string) => /\.(jpeg|jpg|gif|png|webp)$/i.test(url);
 
-    const coverMediaUrl = action.mediaUrls?.[0];
+    const firstMedia = action.mediaUrls?.[0];
+    const coverMediaUrl = typeof firstMedia === 'string' ? firstMedia : firstMedia?.url;
+    
     const isCoverImage = coverMediaUrl && isImageUrl(coverMediaUrl);
     
     const placeholderImage = PlaceHolderImages.find(p => p.id === 'action-placeholder');
@@ -107,8 +109,9 @@ const ActionPostCard = ({ action }: { action: Action }) => {
                         <div className="space-y-4">
                              <h3 className="font-semibold flex items-center gap-2"><ImageIcon/> Evidence Gallery</h3>
                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {action.mediaUrls.map((mediaUrl, index) => (
-                                     mediaUrl && <a key={index} href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block relative aspect-square w-full overflow-hidden rounded-md border">
+                                {action.mediaUrls.map((media, index) => {
+                                    const mediaUrl = typeof media === 'string' ? media : media.url;
+                                    return mediaUrl && <a key={index} href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block relative aspect-square w-full overflow-hidden rounded-md border">
                                         {isImageUrl(mediaUrl) ? (
                                             <Image src={mediaUrl} alt={`Evidence ${index+1}`} fill className="object-cover transition-transform hover:scale-105" />
                                         ) : (
@@ -118,7 +121,7 @@ const ActionPostCard = ({ action }: { action: Action }) => {
                                             </div>
                                         )}
                                     </a>
-                                ))}
+                                })}
                             </div>
                         </div>
                     )}
@@ -146,9 +149,8 @@ const ImpactPage = () => {
   
   const actionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Simplified query to avoid composite index requirement. 
-    // The `isPublic` flag is only set to true upon verification, so this is safe.
-    return query(collection(firestore, 'actions'), where('isPublic', '==', true));
+    // Query for verified actions. This is the single source of truth for public actions.
+    return query(collection(firestore, 'actions'), where('status', '==', 'verified'));
   }, [firestore]);
 
   const { data: actionsData, isLoading, error } = useCollection<Action>(actionsQuery);

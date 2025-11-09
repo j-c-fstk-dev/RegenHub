@@ -50,7 +50,6 @@ type Action = {
   location: string;
   category: string;
   mediaUrls: string[];
-  isPublic?: boolean;
 };
 
 const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
@@ -59,44 +58,6 @@ const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destr
   review_failed: { variant: 'destructive', text: 'AI Failed' },
   verified: { variant: 'secondary', text: 'Verified' },
   rejected: { variant: 'destructive', text: 'Rejected' },
-};
-
-const VisibilityToggle = ({ action }: { action: Action }) => {
-    const firestore = useFirestore();
-    const { toast } = useToast();
-    const [isChecked, setIsChecked] = useState(action.isPublic ?? false);
-    const [isUpdating, setIsUpdating] = useState(false);
-
-    const handleToggle = async (isPublic: boolean) => {
-        if (!firestore) return;
-        setIsUpdating(true);
-        setIsChecked(isPublic);
-        try {
-            const actionRef = doc(firestore, 'actions', action.id);
-            await updateDoc(actionRef, { isPublic });
-            toast({ title: 'Success', description: `Action is now ${isPublic ? 'visible' : 'hidden'} on the Impact Wall.` });
-        } catch (error) {
-            console.error("Error updating visibility:", error);
-            const permissionError = new FirestorePermissionError({
-                path: `actions/${action.id}`,
-                operation: 'update',
-                requestResourceData: { isPublic },
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            setIsChecked(!isPublic); // Revert on error
-            const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
-            toast({ variant: 'destructive', title: 'Error', description: `Failed to update visibility: ${errorMessage}` });
-        } finally {
-            setIsUpdating(false);
-        }
-    };
-    
-    return (
-      <div className="flex items-center space-x-2">
-        {isUpdating ? <Loader2 className="h-4 w-4 animate-spin"/> : <Switch id={`visibility-${action.id}`} checked={isChecked} onCheckedChange={handleToggle} />}
-        <Label htmlFor={`visibility-${action.id}`} className="text-xs text-muted-foreground">{isChecked ? 'Public' : 'Hidden'}</Label>
-      </div>
-    );
 };
 
 const AdminPage = () => {
@@ -166,7 +127,6 @@ const AdminPage = () => {
             validationScore: impactScore,
             validatorId: user.uid,
             validatedAt: serverTimestamp(),
-            isPublic: true, // Make public by default on approval
         });
         toast({ title: 'Success', description: 'Action approved successfully.' });
         setSelectedSubmission(null);
@@ -279,7 +239,6 @@ const AdminPage = () => {
                         )}
                         {submission.status === 'verified' && (
                            <>
-                             <VisibilityToggle action={submission} />
                              <Button asChild variant="outline" size="sm">
                                 <Link href={`/action/${submission.id}`} target="_blank"><Eye className="mr-2 h-4 w-4"/> View</Link>
                             </Button>
