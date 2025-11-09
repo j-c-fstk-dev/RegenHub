@@ -23,9 +23,6 @@ function initializeAdminApp() {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const showAll = searchParams.get('all') === 'true';
-
   try {
     const db = initializeAdminApp();
     if (!db) {
@@ -33,14 +30,11 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
     }
     
-    let actionsQuery: Query = db.collection('actions');
-
-    // For the public wall, only show verified. For admin, show all.
-    if (!showAll) {
-      actionsQuery = actionsQuery.where('status', '==', 'verified');
-    }
-    
-    actionsQuery = actionsQuery.orderBy('createdAt', 'desc').limit(50);
+    let actionsQuery: Query = db.collection('actions')
+                                .where('status', '==', 'verified')
+                                .where('isPublic', '==', true) // Filter for public actions
+                                .orderBy('createdAt', 'desc')
+                                .limit(50);
 
     const actionsSnapshot = await actionsQuery.get();
 
@@ -50,11 +44,16 @@ export async function GET(req: NextRequest) {
     const orgsData: { [key: string]: { name: string; slug: string; image?: string; } } = {};
 
     if (orgIds.length > 0) {
-        const orgsRef = db.collection('organizations');
-        // Firestore 'in' query is limited to 30 items. If we have more, we need to batch.
-        // For simplicity, this example assumes we won't hit the limit, but for production, batching is needed.
-        if (orgIds.length <= 30) {
-            const orgsQuery = orgsRef.where('__name__', 'in', orgIds);
+        // Firestore 'in' query is limited to 30 items. Batch if necessary.
+        const batches: string[][] = [];
+        for (let i = 0; i < orgIds.length; i += 30) {
+          batches.push(orgIds.slice(i, i + 30));
+        }
+
+        for (const batch of batches) {
+          if (batch.length > 0) {
+            const orgsRef = db.collection('organizations');
+            const orgsQuery = orgsRef.where('__name__', 'in', batch);
             const orgsSnapshot = await orgsQuery.get();
             orgsSnapshot.forEach(doc => {
                 orgsData[doc.id] = {
@@ -63,9 +62,7 @@ export async function GET(req: NextRequest) {
                     image: doc.data().image || undefined,
                 };
             });
-        } else {
-            console.warn(`Org ID query limit reached. Only fetching data for the first 30 of ${orgIds.length} organizations.`);
-            // Implement batching for production if needed
+          }
         }
     }
 

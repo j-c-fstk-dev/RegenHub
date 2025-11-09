@@ -10,8 +10,6 @@ import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import { ImpactMap } from "@/components/impact-map";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where, getDocs, documentId } from "firebase/firestore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 
@@ -24,7 +22,7 @@ type Action = {
   createdAt: { toDate: () => Date };
   validationScore?: number;
   orgId: string;
-  org?: {
+  org: { // org is now directly included from the API
     name: string;
     slug: string;
     image?: string;
@@ -33,13 +31,6 @@ type Action = {
   dateOfAction?: string;
   isPublic?: boolean;
 };
-
-type Organization = {
-  id: string;
-  name: string;
-  slug: string;
-  image?: string;
-}
 
 const ActionPostCard = ({ action }: { action: Action }) => {
     const getInitials = (name: string) => (name || '').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -145,92 +136,52 @@ const ActionPostCard = ({ action }: { action: Action }) => {
 };
 
 const ImpactPage = () => {
-  const firestore = useFirestore();
-  const [organizations, setOrganizations] = useState<Record<string, Organization>>({});
-  
-  const actionsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'actions'), 
-      where('status', '==', 'verified'),
-      where('isPublic', '==', true)
-    );
-  }, [firestore]);
+  const [actions, setActions] = useState<Action[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: actionsData, isLoading, error } = useCollection<Action>(actionsQuery);
-  
   const [filters, setFilters] = useState({
     location: '',
     category: '',
   });
 
   useEffect(() => {
-    const fetchOrganizations = async () => {
-      if (!actionsData || actionsData.length === 0 || !firestore) return;
-      
-      const orgIds = [...new Set(actionsData.map(action => action.orgId).filter(Boolean))];
-      if (orgIds.length === 0) return;
-
-      const orgsToFetch = orgIds.filter(id => !organizations[id]);
-      if (orgsToFetch.length === 0) return;
-
+    const fetchActions = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
-        // Firestore 'in' query is limited to 30 items. Batch if necessary.
-        const batches = [];
-        for (let i = 0; i < orgsToFetch.length; i += 30) {
-            batches.push(orgsToFetch.slice(i, i + 30));
+        const response = await fetch('/api/wall');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch actions.');
         }
-
-        const orgsMap: Record<string, Organization> = {};
-        for (const batch of batches) {
-            const orgsRef = collection(firestore, 'organizations');
-            const q = query(orgsRef, where(documentId(), 'in', batch));
-            const orgsSnapshot = await getDocs(q);
-            
-            orgsSnapshot.forEach(doc => {
-              const data = doc.data();
-              orgsMap[doc.id] = {
-                id: doc.id,
-                name: data.name,
-                slug: data.slug,
-                image: data.image
-              };
-            });
-        }
-
-        setOrganizations(prev => ({...prev, ...orgsMap}));
-      } catch (e) {
-        console.error("Failed to fetch organizations", e);
+        const data: Action[] = await response.json();
+        setActions(data);
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setIsLoading(false);
       }
     };
-    fetchOrganizations();
-  }, [actionsData, firestore, organizations]);
-  
-  const actionsWithOrgData = useMemo(() => {
-    if (!actionsData) return [];
-    return actionsData.map(action => ({
-      ...action,
-      org: organizations[action.orgId]
-    })).filter(action => action.org); // Only show actions where org data is loaded
-  }, [actionsData, organizations]);
+    fetchActions();
+  }, []);
 
   const filteredActions = useMemo(() => {
-    return actionsWithOrgData.filter(action => {
+    return actions.filter(action => {
       const locationMatch = filters.location ? action.location?.toLowerCase().includes(filters.location.toLowerCase()) : true;
       const categoryMatch = filters.category ? action.category === filters.category : true;
       return locationMatch && categoryMatch;
     });
-  }, [actionsWithOrgData, filters]);
+  }, [actions, filters]);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({...prev, [filterName]: value}));
   };
   
   const uniqueCategories = useMemo(() => {
-    if (!actionsData) return [];
-    const categories = new Set(actionsData.map(action => action.category));
+    const categories = new Set(actions.map(action => action.category));
     return Array.from(categories).filter(cat => !!cat);
-  }, [actionsData]);
+  }, [actions]);
 
   const mapLocations = useMemo(() => {
     // Return an empty array to disable map pins temporarily
@@ -284,8 +235,8 @@ const ImpactPage = () => {
                 <CardTitle className="flex items-center gap-2 text-destructive"><AlertCircle/> Could not load actions</CardTitle>
             </CardHeader>
             <CardContent>
-                <p>{error.message}</p>
-                <p className="text-sm text-muted-foreground mt-2">This may be due to a network issue or a security rule misconfiguration.</p>
+                <p>{error}</p>
+                <p className="text-sm text-muted-foreground mt-2">This may be due to a network issue or a server configuration problem.</p>
             </CardContent>
         </Card>
       )}
