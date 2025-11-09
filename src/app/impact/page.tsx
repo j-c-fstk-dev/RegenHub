@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Map, Users, CheckCircle, Loader2, Award, Building, Calendar, MoreHorizontal } from "lucide-react";
+import { Map, Users, CheckCircle, Loader2, Award, Building, Calendar, MoreHorizontal, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
@@ -29,6 +29,7 @@ type Action = {
 const ImpactPage = () => {
   const [actions, setActions] = useState<Action[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     location: '',
     category: '',
@@ -36,20 +37,31 @@ const ImpactPage = () => {
 
   useEffect(() => {
     setIsLoading(true);
+    setError(null);
     fetch('/api/wall')
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({ error: 'Failed to fetch data from API.' }));
+            throw new Error(errorData.error || `Request failed with status ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           setActions(data);
         } else {
           setActions([]);
+          // This case should be less frequent now with the improved API error handling
           console.error("API did not return an array of actions:", data);
+          setError("Received an unexpected data format from the server.");
         }
-        setIsLoading(false);
       })
       .catch(err => {
         console.error("Failed to fetch actions:", err);
         setActions([]);
+        setError(err.message || 'An unknown error occurred while fetching actions.');
+      })
+      .finally(() => {
         setIsLoading(false);
       });
   }, []);
@@ -127,7 +139,19 @@ const ImpactPage = () => {
          </div>
       )}
 
-      {!isLoading && filteredActions.length === 0 && (
+      {error && !isLoading && (
+        <Card className="max-w-2xl mx-auto border-destructive/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive"><AlertCircle/> Could not load actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p>{error}</p>
+                <p className="text-sm text-muted-foreground mt-2">This is likely a server configuration issue. The required service credentials may not be available.</p>
+            </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && !error && filteredActions.length === 0 && (
         <div className="text-center text-muted-foreground py-16">
             <p>No verified actions to display yet.</p>
             <p>Be the first to submit one!</p>

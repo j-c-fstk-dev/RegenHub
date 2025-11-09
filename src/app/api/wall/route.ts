@@ -4,19 +4,22 @@ import { getFirestore, Query } from 'firebase-admin/firestore';
 
 // Helper to initialize Firebase Admin SDK only once
 function initializeAdminApp() {
-    if (getApps().length === 0) {
-      if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    if (getApps().length > 0) {
+        return getFirestore();
+    }
+    
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
         const serviceAccount: ServiceAccount = JSON.parse(
           process.env.FIREBASE_SERVICE_ACCOUNT_KEY
         );
         initializeApp({
           credential: cert(serviceAccount),
         });
-      } else {
-          console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Admin actions will fail.");
-      }
-    }
-    return getFirestore();
+        return getFirestore();
+    } 
+    
+    // Return null if initialization is not possible
+    return null;
 }
 
 export async function GET(req: NextRequest) {
@@ -25,8 +28,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const db = initializeAdminApp();
-    if (getApps().length === 0) {
-        return NextResponse.json({ success: false, error: "Firebase Admin not initialized." }, { status: 500 });
+    if (!db) {
+        console.error('API Error: Firebase Admin SDK not initialized. Service account key might be missing.');
+        return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
     }
     
     let actionsQuery: Query = db.collection('actions');
@@ -43,20 +47,26 @@ export async function GET(req: NextRequest) {
     // Fetch all unique organization IDs from the actions
     const orgIds = [...new Set(actionsSnapshot.docs.map(doc => doc.data().orgId).filter(Boolean))];
     
-    const orgsData: { [key: string]: { name: string; slug: string; } } = {};
+    const orgsData: { [key: string]: { name: string; slug: string; image?: string; } } = {};
 
     if (orgIds.length > 0) {
         const orgsRef = db.collection('organizations');
         // Firestore 'in' query is limited to 30 items. If we have more, we need to batch.
         // For simplicity, this example assumes we won't hit the limit, but for production, batching is needed.
-        const orgsQuery = orgsRef.where('__name__', 'in', orgIds);
-        const orgsSnapshot = await orgsQuery.get();
-        orgsSnapshot.forEach(doc => {
-            orgsData[doc.id] = {
-                name: doc.data().name || 'Unknown Organization',
-                slug: doc.data().slug || '#',
-            };
-        });
+        if (orgIds.length <= 30) {
+            const orgsQuery = orgsRef.where('__name__', 'in', orgIds);
+            const orgsSnapshot = await orgsQuery.get();
+            orgsSnapshot.forEach(doc => {
+                orgsData[doc.id] = {
+                    name: doc.data().name || 'Unknown Organization',
+                    slug: doc.data().slug || '#',
+                    image: doc.data().image || undefined,
+                };
+            });
+        } else {
+            console.warn(`Org ID query limit reached. Only fetching data for the first 30 of ${orgIds.length} organizations.`);
+            // Implement batching for production if needed
+        }
     }
 
     const actions = actionsSnapshot.docs.map(doc => {
@@ -64,7 +74,7 @@ export async function GET(req: NextRequest) {
       return {
         id: doc.id,
         ...actionData,
-        org: orgsData[actionData.orgId] || { name: 'Unknown Organization', slug: '#' }
+        org: orgsData[actionData.orgId] || { name: 'Unknown Organization', slug: '#', image: undefined }
       };
     });
 
@@ -72,7 +82,7 @@ export async function GET(req: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching actions:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred';
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }
