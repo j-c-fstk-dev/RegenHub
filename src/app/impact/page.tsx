@@ -30,7 +30,7 @@ type Action = {
     image?: string;
   }
   mediaUrls: string[];
-  dateOfAction: string;
+  dateOfAction?: string;
 };
 
 type Organization = {
@@ -146,7 +146,9 @@ const ImpactPage = () => {
   
   const actionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'actions'), where('status', '==', 'verified'), where('isPublic', '==', true));
+    // Simplified query to avoid composite index requirement. 
+    // The `isPublic` flag is only set to true upon verification, so this is safe.
+    return query(collection(firestore, 'actions'), where('isPublic', '==', true));
   }, [firestore]);
 
   const { data: actionsData, isLoading, error } = useCollection<Action>(actionsQuery);
