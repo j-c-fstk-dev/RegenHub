@@ -1,24 +1,29 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Map, Users, CheckCircle, Loader2 } from "lucide-react";
+import { Map, Users, CheckCircle, Loader2, Award, Building, Calendar, MoreHorizontal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import { ImpactMap } from "@/components/impact-map";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type Action = {
   id: string;
-  actorId: string;
   title: string;
   description: string;
   category: string;
   location: string;
   createdAt: { _seconds: number; _nanoseconds: number; };
-  // Add proofs when that data is available
+  validationScore?: number;
+  org: {
+    name: string;
+    slug: string;
+    image?: string;
+  }
 };
 
 const ImpactPage = () => {
@@ -37,7 +42,6 @@ const ImpactPage = () => {
         if (Array.isArray(data)) {
           setActions(data);
         } else {
-          // If data is not an array (e.g., an error object), set actions to an empty array
           setActions([]);
           console.error("API did not return an array of actions:", data);
         }
@@ -45,7 +49,7 @@ const ImpactPage = () => {
       })
       .catch(err => {
         console.error("Failed to fetch actions:", err);
-        setActions([]); // Ensure actions is an array on error
+        setActions([]);
         setIsLoading(false);
       });
   }, []);
@@ -75,12 +79,13 @@ const ImpactPage = () => {
       id: action.id,
       name: action.title,
       position: {
-        // This is a mock position. In a real app, you'd get this from a geocoding service.
         lat: Math.random() * 180 - 90,
         lng: Math.random() * 360 - 180,
       }
     }));
   }, [filteredActions]);
+  
+  const getInitials = (name: string) => (name || '').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
   return (
     <div className="container py-12">
@@ -129,41 +134,47 @@ const ImpactPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredActions.map(action => (
-          <Card key={action.id} className="overflow-hidden transition-shadow duration-300 hover:shadow-lg">
-            <CardHeader className="p-0">
-              <div className="relative h-48 w-full">
+          <Card key={action.id} className="overflow-hidden transition-shadow duration-300 hover:shadow-lg flex flex-col">
+            <CardHeader className="flex flex-row items-center gap-3 p-4">
+               <Avatar className="h-10 w-10 border">
+                  <AvatarImage src={action.org.image} alt={action.org.name} />
+                  <AvatarFallback>{getInitials(action.org.name)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <Link href={`/org/${action.org.slug}`} className="font-semibold hover:underline">{action.org.name}</Link>
+                  <p className="text-xs text-muted-foreground">{new Date(action.createdAt._seconds * 1000).toLocaleDateString()}</p>
+                </div>
+                 <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="relative aspect-square w-full">
                 <Image 
-                  src={'https://picsum.photos/seed/action/400/300'} 
+                  src={`https://picsum.photos/seed/${action.id}/600`} 
                   alt={action.title} 
                   fill 
                   className="object-cover" 
                   data-ai-hint="regenerative action"
                 />
-                <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-xs font-bold text-primary-foreground">
-                    <CheckCircle className="h-4 w-4" />
-                    Verified
-                </div>
               </div>
-              <div className="p-4">
-                <CardTitle className="mt-1 font-headline text-xl">{action.title}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Map className="h-4 w-4" />
-                    <span>{action.location}</span>
-                </div>
-                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>{action.category}</span>
-                </div>
             </CardContent>
-            <CardFooter className="px-4 pb-4">
-                <Button variant="outline" className="w-full" asChild>
-                  <Link href={`/action/${action.id}`}>View Details</Link>
+            <CardFooter className="p-4 flex flex-col items-start flex-grow">
+               <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                  <Award className="h-4 w-4" />
+                  <span>Score: {action.validationScore || 'N/A'}</span>
+               </div>
+               <p className="w-full text-sm mt-2">
+                 <Link href={`/org/${action.org.slug}`} className="font-semibold hover:underline">{action.org.name}</Link>
+                 <span className="text-muted-foreground"> {action.title}</span>
+               </p>
+               <div className="w-full mt-auto pt-4">
+                <Button variant="secondary" size="sm" className="w-full" asChild>
+                  <Link href={`/action/${action.id}`}>View Certificate</Link>
                 </Button>
+               </div>
             </CardFooter>
           </Card>
         ))}
