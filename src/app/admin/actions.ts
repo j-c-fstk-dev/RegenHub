@@ -1,17 +1,15 @@
 'use server';
 
-import { Firestore, doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
+import { initializeAdminApp } from '@/lib/firebase-admin';
 
 export async function updateUserWallet(
-  firestore: Firestore, 
   userId: string, 
   walletAddress: string
 ): Promise<{ success: boolean; error?: string }> {
+  const firestore = initializeAdminApp();
   if (!userId || !walletAddress) {
     return { success: false, error: "User ID and wallet address are required." };
-  }
-  if (!firestore) {
-    return { success: false, error: "Firestore instance is not available." };
   }
 
   try {
@@ -29,17 +27,14 @@ export async function updateUserWallet(
 
 
 export async function toggleActionVisibility(
-  firestore: Firestore,
   actionId: string,
   isPublic: boolean
 ): Promise<{ success: boolean; error?: string }> {
+  const firestore = initializeAdminApp();
   if (!actionId) {
     return { success: false, error: "Action ID is required." };
   }
-  if (!firestore) {
-    return { success: false, error: "Firestore instance is not available." };
-  }
-
+  
   try {
     const actionRef = doc(firestore, 'actions', actionId);
     await updateDoc(actionRef, { isPublic });

@@ -67,48 +67,45 @@ const VisibilityToggle = ({ actionId, isCurrentlyPublic }: { actionId: string, i
   const [isPublic, setIsPublic] = useState(isCurrentlyPublic);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const firestore = useFirestore();
 
   const handleToggle = async (checked: boolean) => {
     startTransition(async () => {
-        if (!firestore) return;
-        
-        const originalState = isPublic;
-        setIsPublic(checked); // Optimistic update
+      const originalState = isPublic;
+      setIsPublic(checked); // Optimistic update
 
-        const result = await toggleActionVisibility(firestore, actionId, checked);
+      const result = await toggleActionVisibility(actionId, checked);
 
-        if (!result.success) {
-            setIsPublic(originalState); // Revert on failure
-            toast({
-                variant: 'destructive',
-                title: 'Update Failed',
-                description: result.error,
-            });
-        } else {
-             toast({
-                title: 'Visibility Updated',
-                description: `Action is now ${checked ? 'public' : 'hidden'}.`,
-            });
-        }
+      if (!result.success) {
+        setIsPublic(originalState); // Revert on failure
+        toast({
+          variant: 'destructive',
+          title: 'Update Failed',
+          description: result.error,
+        });
+      } else {
+        toast({
+          title: 'Visibility Updated',
+          description: `Action is now ${checked ? 'public' : 'hidden'}.`,
+        });
+      }
     });
-  }
+  };
 
   return (
-      <div className="flex items-center space-x-2">
-        <Switch
-            id={`visibility-${actionId}`}
-            checked={isPublic}
-            onCheckedChange={handleToggle}
-            disabled={isPending}
-            aria-label="Toggle public visibility"
-        />
-        <Label htmlFor={`visibility-${actionId}`} className="text-xs text-muted-foreground">
-            {isPending ? 'Updating...' : (isPublic ? 'Public' : 'Hidden')}
-        </Label>
+    <div className="flex items-center space-x-2">
+      <Switch
+        id={`visibility-${actionId}`}
+        checked={isPublic}
+        onCheckedChange={handleToggle}
+        disabled={isPending}
+        aria-label="Toggle public visibility"
+      />
+      <Label htmlFor={`visibility-${actionId}`} className="text-xs text-muted-foreground">
+        {isPending ? 'Updating...' : (isPublic ? 'Public' : 'Hidden')}
+      </Label>
     </div>
-  )
-}
+  );
+};
 
 
 const AdminPage = () => {
@@ -430,5 +427,3 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
-
-    
