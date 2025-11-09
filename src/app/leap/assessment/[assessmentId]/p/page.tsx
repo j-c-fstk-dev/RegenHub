@@ -21,7 +21,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -116,7 +115,7 @@ const PreparePage = () => {
                     </CardFooter>
                 </Card>
             </div>
-        )
+        );
     }
 
     return (
@@ -164,7 +163,7 @@ const PreparePage = () => {
                                             <FormItem><FormLabel>Estimated Cost ($)</FormLabel><FormControl><Input type="number" placeholder="5000" {...field} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                         <FormField control={form.control} name={`plan.${index}.kpi`} render={({ field }) => (
-                                             <FormItem><FormLabel>KPI / Indicator</FormLabel><FormControl><Input placeholder="15% reduction in consumption" {...field} /></FormControl><FormMessage /></Item>
+                                             <FormItem><FormLabel>KPI / Indicator</FormLabel><FormControl><Input placeholder="15% reduction in consumption" {...field} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                     </div>
                                     <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive" onClick={() => remove(index)}>
@@ -187,6 +186,6 @@ const PreparePage = () => {
             </Card>
         </div>
     );
-}
+};
 
 export default PreparePage;
