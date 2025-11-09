@@ -63,7 +63,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
   // Function to create or load a draft
   const loadOrCreateDraft = useCallback(async () => {
     const draftRef = getDraftRef();
-    if (!draftRef) return;
+    if (!draftRef || draft) return; // Don't run if already have a draft
 
     setIsLoading(true);
     
@@ -82,22 +82,23 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
         await setDoc(draftRef, newDraft);
         setDraft(newDraft);
       }
-      setDraftId('draft');
+      setDraftId('draft'); // This is static for the subcollection path
     } catch (error) {
       console.error("Error loading or creating draft:", error);
       toast({ variant: "destructive", title: "Error", description: "Could not load your draft." });
     } finally {
       setIsLoading(false);
     }
-  }, [getDraftRef, toast]);
+  }, [getDraftRef, toast, draft]);
   
   useEffect(() => {
-    if (!isUserLoading && user) {
+    // Only run if user is loaded and we aren't already submitted
+    if (!isUserLoading && user && !isSubmitted) {
       loadOrCreateDraft();
     } else if (!isUserLoading && !user) {
       setIsLoading(false); // Not logged in, stop loading
     }
-  }, [user, isUserLoading, loadOrCreateDraft]);
+  }, [user, isUserLoading, isSubmitted, loadOrCreateDraft]);
 
   // Function to update the draft in Firestore
   const updateDraft = useCallback(async (data: Partial<ActionDraft>) => {
@@ -114,7 +115,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
   }, [getDraftRef, toast]);
 
   const submitAction = async () => {
-    if (!draft) return;
+    if (!draft || !user) return;
     
     if (!draft.orgId || !draft.projectId) {
         toast({ variant: "destructive", title: "Missing Information", description: "Organization and Project must be set before submitting." });
@@ -124,7 +125,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     setIsSubmitting(true);
     
     try {
-      const token = await user?.getIdToken();
+      const token = await user.getIdToken();
       if (!token) throw new Error("Authentication token not found.");
       
       const payload = {
@@ -142,13 +143,11 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
       });
       
       if (!response.ok) {
-        // If response is not ok, try to parse error, but handle cases where it's not JSON
         let errorBody = 'An unknown error occurred on the server.';
         try {
             const errorResult = await response.json();
             errorBody = errorResult.error || errorBody;
         } catch (e) {
-             // The response was not JSON, which is the root of the original error.
             errorBody = `Server returned a non-JSON response (status: ${response.status}).`;
         }
         throw new Error(errorBody);
@@ -159,7 +158,9 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
       if (result.success) {
         toast({ title: "Success!", description: "Your action has been submitted for validation." });
         setIsSubmitted(true);
-        // Deletion of draft now happens in resetWizard, which is called from the final step
+        // Delete draft after successful submission
+        const draftRef = getDraftRef();
+        if (draftRef) await deleteDoc(draftRef);
       } else {
         throw new Error(result.error || "Failed to submit action.");
       }
@@ -172,25 +173,17 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const resetWizard = useCallback(async () => {
-    const draftRef = getDraftRef();
-    if (draftRef) {
-        try {
-            await deleteDoc(draftRef);
-        } catch (e) {
-            console.error("Failed to delete draft, but proceeding with UI reset.", e);
-        }
-    }
+  const resetWizard = useCallback(() => {
     setDraft(null);
     setDraftId(null);
     setStep(0);
     setIsSubmitted(false);
-  }, [getDraftRef]);
+  }, []);
   
   const startNewWizard = () => {
-    resetWizard().then(() => {
-        loadOrCreateDraft();
-    });
+    resetWizard();
+    // The useEffect hook will automatically trigger loadOrCreateDraft 
+    // when the user is detected and isSubmitted is false.
   }
 
   const value = {

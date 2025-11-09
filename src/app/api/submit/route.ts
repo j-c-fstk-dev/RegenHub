@@ -8,26 +8,37 @@ import { aiAssistedIntentVerification } from '@/ai/flows/ai-assisted-intent-veri
 import type { AIAssistedIntentVerificationInput } from '@/ai/schemas/ai-assisted-intent-verification';
 
 // Helper to initialize Firebase Admin SDK only once
-function initializeAdminApp() {
-  if (getApps().length === 0) {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+// Returns true on success, false on failure.
+function initializeAdminApp(): boolean {
+  if (getApps().length > 0) {
+    return true; // Already initialized
+  }
+
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    try {
       const serviceAccount: ServiceAccount = JSON.parse(
         process.env.FIREBASE_SERVICE_ACCOUNT_KEY
       );
       initializeApp({
         credential: cert(serviceAccount),
       });
-    } else {
-      console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Skipping Admin SDK initialization. API will fail if called.");
+      return true;
+    } catch (e) {
+      console.error("Firebase Admin SDK Initialization Error:", e);
+      return false;
     }
+  } else {
+    console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Admin SDK will not be initialized.");
+    return false;
   }
-  // No need to return getFirestore() here, it will be checked later
 }
 
+
 async function triggerAiVerification(actionId: string, aiInput: AIAssistedIntentVerificationInput) {
-    // Ensure admin app is initialized before proceeding
-    if (getApps().length === 0) {
+    // Re-check initialization as this runs asynchronously
+    if (!initializeAdminApp()) {
         console.error(`AI Verification Aborted for ${actionId}: Firebase Admin not initialized.`);
+        // Even if this fails, we can't update the doc, so we just log it.
         return; 
     }
     try {
@@ -60,10 +71,11 @@ async function triggerAiVerification(actionId: string, aiInput: AIAssistedIntent
 
 
 export async function POST(req: NextRequest) {
-  initializeAdminApp();
-  // CRITICAL CHECK: Ensure Firebase Admin is ready before proceeding.
-  if (getApps().length === 0) {
-      return NextResponse.json({ success: false, error: 'Firebase Admin not initialized. Check server logs for FIREBASE_SERVICE_ACCOUNT_KEY.' }, { status: 500 });
+  const isAdminInitialized = initializeAdminApp();
+
+  if (!isAdminInitialized) {
+      console.error('API call to /api/submit failed because Firebase Admin SDK is not configured.');
+      return NextResponse.json({ success: false, error: 'Server configuration error: Firebase Admin SDK initialization failed.' }, { status: 500 });
   }
 
   let actionRefId: string | null = null;
@@ -74,10 +86,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized: No token provided' }, { status: 401 });
     }
 
-    const db = getFirestore(); // Now safe to call
+    const db = getFirestore();
+    const auth = getAuth();
     let decodedToken;
+
     try {
-      decodedToken = await getAuth().verifyIdToken(authToken);
+      decodedToken = await auth.verifyIdToken(authToken);
     } catch (error) {
       return NextResponse.json({ success: false, error: 'Unauthorized: Invalid token' }, { status: 401 });
     }
