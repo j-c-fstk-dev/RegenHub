@@ -19,9 +19,14 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      // Ensure the user document exists before trying to access its data
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Explicitly grant admin role only to a specific email and deny to another.
+      let isSpecficAdmin = request.auth.token.email == 'beregenerative.life@gmail.com';
+      let isNotDev = request.auth.token.email != 'dev.jorge.c@gmail.com';
+      let hasAdminRole = exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // The user must not be the dev user AND (either have the admin role OR be the specific admin email).
+      return isNotDev && (hasAdminRole || isSpecficAdmin);
     }
 
     // USERS
@@ -64,7 +69,7 @@ service cloud.firestore {
     match /actions/{actionId} {
         allow get: if resource.data.status == 'verified' || (isSignedIn() && isOwner(resource.data.createdBy)) || isAdmin();
         allow list: if isSignedIn(); // Users can list their own actions via client-side query
-        allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+        allow create: if isSignedIn(); // Any signed-in user can create an action.
         allow update: if isAdmin() || (isSignedIn() && isOwner(resource.data.createdBy) && resource.data.status != 'verified');
         allow delete: if isSignedIn() && isOwner(resource.data.createdBy);
     }

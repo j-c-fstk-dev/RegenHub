@@ -36,8 +36,11 @@ const Header = () => {
 
   const userNavItems = user ? [
     { name: 'Dashboard', href: '/dashboard' },
-    { name: 'Admin', href: '/admin' }
   ] : [];
+
+  // Conditionally show Admin link only for the specific admin user.
+  const isAdmin = user?.email === 'beregenerative.life@gmail.com';
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -61,9 +64,11 @@ const Header = () => {
               <Link href="/dashboard" className="font-medium text-foreground/60 transition-colors hover:text-foreground/80">
                 Dashboard
               </Link>
-               <Link href="/admin" className="font-medium text-foreground/60 transition-colors hover:text-foreground/80">
-                Admin
-              </Link>
+               {isAdmin && (
+                  <Link href="/admin" className="font-medium text-foreground/60 transition-colors hover:text-foreground/80">
+                    Admin
+                  </Link>
+               )}
             </>
           )}
         </nav>
@@ -110,6 +115,14 @@ const Header = () => {
                       {item.name}
                     </Link>
                   ))}
+                  {isAdmin && (
+                     <Link
+                      href="/admin"
+                      className="text-lg font-medium text-foreground/80 transition-colors hover:text-primary"
+                    >
+                      Admin
+                    </Link>
+                  )}
                 </nav>
                  <Button asChild size="lg">
                     <Link href="/register">Submit Your Action</Link>
