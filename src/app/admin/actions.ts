@@ -3,6 +3,9 @@
 import { doc, updateDoc } from 'firebase/firestore';
 import { initializeAdminApp } from '@/lib/firebase-admin';
 
+// This file is being kept for potential future admin actions,
+// but toggleActionVisibility has been moved to the client.
+
 export async function updateUserWallet(
   userId: string, 
   walletAddress: string
@@ -22,26 +25,5 @@ export async function updateUserWallet(
     console.error("Error updating wallet address:", error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
     return { success: false, error: `Failed to update wallet: ${errorMessage}` };
-  }
-}
-
-
-export async function toggleActionVisibility(
-  actionId: string,
-  isPublic: boolean
-): Promise<{ success: boolean; error?: string }> {
-  const firestore = initializeAdminApp();
-  if (!actionId) {
-    return { success: false, error: "Action ID is required." };
-  }
-  
-  try {
-    const actionRef = doc(firestore, 'actions', actionId);
-    await updateDoc(actionRef, { isPublic });
-    return { success: true };
-  } catch (error) {
-    console.error(`Error updating visibility for action ${actionId}:`, error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
-    return { success: false, error: `Failed to update visibility: ${errorMessage}` };
   }
 }

@@ -37,7 +37,6 @@ import { collection, query, where, doc, updateDoc, serverTimestamp } from 'fireb
 import Link from 'next/link';
 import { Switch } from '@/components/ui/switch';
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
-import { toggleActionVisibility } from './actions';
 
 type Action = {
   id: string;
@@ -67,25 +66,41 @@ const VisibilityToggle = ({ actionId, isCurrentlyPublic }: { actionId: string, i
   const [isPublic, setIsPublic] = useState(isCurrentlyPublic);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const firestore = useFirestore();
 
   const handleToggle = async (checked: boolean) => {
+    if (!firestore) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Firestore is not available.',
+        });
+        return;
+    }
+    
     startTransition(async () => {
       const originalState = isPublic;
       setIsPublic(checked); // Optimistic update
 
-      const result = await toggleActionVisibility(actionId, checked);
-
-      if (!result.success) {
-        setIsPublic(originalState); // Revert on failure
-        toast({
-          variant: 'destructive',
-          title: 'Update Failed',
-          description: result.error,
-        });
-      } else {
+      try {
+        const actionRef = doc(firestore, 'actions', actionId);
+        await updateDoc(actionRef, { isPublic: checked });
         toast({
           title: 'Visibility Updated',
           description: `Action is now ${checked ? 'public' : 'hidden'}.`,
+        });
+      } catch (error) {
+        setIsPublic(originalState); // Revert on failure
+         const permissionError = new FirestorePermissionError({
+            path: `actions/${actionId}`,
+            operation: 'update',
+            requestResourceData: { isPublic: checked },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: 'destructive',
+          title: 'Update Failed',
+          description: 'Could not update action visibility.',
         });
       }
     });
