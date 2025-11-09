@@ -7,8 +7,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@/firebase";
-import { startLeapAssessment } from "./actions";
+import { useUser, useFirestore } from "@/firebase";
+import { addDoc, collection, serverTimestamp, query, where, getDocs } from "firebase/firestore";
+import { FirestorePermissionError, errorEmitter } from "@/firebase/errors";
 
 const LoggedOutCTA = () => (
     <div className="mt-8 text-center bg-secondary p-8 rounded-lg">
@@ -48,28 +49,55 @@ const LeapPage = () => {
     const router = useRouter();
     const { toast } = useToast();
     const { user, isUserLoading } = useUser();
+    const firestore = useFirestore();
     const [isPending, startTransition] = useTransition();
 
     const handleStartAssessment = () => {
-        if (!user) { // This check is a safeguard
+        if (!user || !firestore) {
             toast({ variant: 'destructive', title: 'Access Denied', description: 'You need to be logged in to start an assessment.'});
             router.push('/login?redirect=/leap');
             return;
         }
 
         startTransition(async () => {
-            // To call a server action that needs auth, we should pass the token.
-            const token = await user.getIdToken();
-            const result = await startLeapAssessment();
+            try {
+                // 1. Find user's organization
+                const orgsQuery = query(collection(firestore, 'organizations'), where('createdBy', '==', user.uid));
+                const orgSnapshot = await getDocs(orgsQuery);
 
-            if (result.success && result.assessmentId) {
-                toast({ title: 'Assessment Started!', description: 'You have been redirected to the first step.' });
-                router.push(`/leap/assessment/${result.assessmentId}/l`);
-            } else {
-                toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not start the assessment.' });
-                if (result.error?.includes('Unauthorized') || result.error?.includes('organization')) {
-                    router.push('/admin/organization'); // Redirect to create an org
+                if (orgSnapshot.empty) {
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Organization Not Found', 
+                        description: 'You must create an organization before starting a LEAP assessment.'
+                    });
+                    router.push('/admin/organization');
+                    return;
                 }
+                const orgId = orgSnapshot.docs[0].id;
+
+                // 2. Create the new assessment document
+                const assessmentData = {
+                  orgId: orgId,
+                  stage: 'L',
+                  locale: 'en',
+                  createdBy: user.uid, // Track who created it
+                  createdAt: serverTimestamp(),
+                  updatedAt: serverTimestamp(),
+                };
+                const assessmentRef = await addDoc(collection(firestore, 'leapAssessments'), assessmentData);
+
+                toast({ title: 'Assessment Started!', description: 'You have been redirected to the first step.' });
+                router.push(`/leap/assessment/${assessmentRef.id}/l`);
+            } catch (error) {
+                console.error('Error starting LEAP assessment:', error);
+                 const permissionError = new FirestorePermissionError({
+                    path: `leapAssessments`,
+                    operation: 'create',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+                toast({ variant: 'destructive', title: 'Error', description: `Failed to start assessment: ${errorMessage}` });
             }
         });
     };
