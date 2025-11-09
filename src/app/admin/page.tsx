@@ -21,7 +21,6 @@ import { Button } from '@/components/ui/button';
 import { Check, Loader2, AlertCircle, Sparkles, Eye, ShieldCheck, FileText, Link as LinkIcon, MapPin, Building, FolderKanban } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { approveAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -34,7 +33,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AIAssistedIntentVerificationOutput } from '@/ai/schemas/ai-assisted-intent-verification';
-import { collection, query, orderBy, doc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 
 type Action = {
@@ -67,6 +66,7 @@ const AdminPage = () => {
 
   const [selectedSubmission, setSelectedSubmission] = useState<Action | null>(null);
   const [impactScore, setImpactScore] = useState<number | string>('');
+  const [isApproving, setIsApproving] = useState(false);
 
   // Client-side data fetching
   const actionsQuery = useMemoFirebase(() => {
@@ -93,6 +93,7 @@ const AdminPage = () => {
       return;
     }
     
+    // Allow access only for the specific admin user email
     if (user.email !== 'dev.jorge.c@gmail.com') {
       toast({
         variant: 'destructive',
@@ -110,19 +111,30 @@ const AdminPage = () => {
   };
 
   const handleApprove = async () => {
-    if (!selectedSubmission || typeof impactScore !== 'number' || !user) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Impact score and user are required.' });
+    if (!selectedSubmission || typeof impactScore !== 'number' || !user || !firestore) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Impact score, user, and Firestore instance are required.' });
       return;
     }
 
-    const result = await approveAction(selectedSubmission.id, impactScore, user.uid);
-
-    if (result.success) {
-      toast({ title: 'Success', description: 'Action approved successfully.' });
-      setSelectedSubmission(null);
-      setImpactScore('');
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: result.error });
+    setIsApproving(true);
+    
+    try {
+        const actionRef = doc(firestore, 'actions', selectedSubmission.id);
+        await updateDoc(actionRef, {
+            status: 'verified',
+            validationScore: impactScore,
+            validatorId: user.uid,
+            validatedAt: serverTimestamp(),
+        });
+        toast({ title: 'Success', description: 'Action approved successfully.' });
+        setSelectedSubmission(null);
+        setImpactScore('');
+    } catch(error) {
+        console.error("Error approving action:", error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+        toast({ variant: 'destructive', title: 'Error', description: `Failed to approve action: ${errorMessage}` });
+    } finally {
+        setIsApproving(false);
     }
   };
   
@@ -335,8 +347,9 @@ const AdminPage = () => {
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setSelectedSubmission(null)}>Cancel</Button>
-                    <Button onClick={handleApprove} disabled={typeof impactScore !== 'number' || impactScore < 0 || impactScore > 100}>
-                        <Check className="mr-2 h-4 w-4" />Approve & Certify Action
+                    <Button onClick={handleApprove} disabled={isApproving || typeof impactScore !== 'number' || impactScore < 0 || impactScore > 100}>
+                        {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Approve & Certify Action
                     </Button>
                 </DialogFooter>
             </DialogContent>
