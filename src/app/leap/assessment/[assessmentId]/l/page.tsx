@@ -27,7 +27,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Locate, Loader2, PlusCircle, Trash2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveLeapL } from '@/app/leap/actions';
+import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+
 
 const formSchema = z.object({
   company: z.object({
@@ -43,6 +45,7 @@ const LocatePage = () => {
   const router = useRouter();
   const params = useParams();
   const { toast } = useToast();
+  const firestore = useFirestore();
   const [isPending, startTransition] = useTransition();
   const assessmentId = params.assessmentId as string;
   
@@ -63,14 +66,31 @@ const LocatePage = () => {
   });
 
   const onSubmit = (values: FormValues) => {
+    if (!firestore || !assessmentId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not connect to the database.' });
+        return;
+    }
     startTransition(async () => {
-      const result = await saveLeapL(assessmentId, values.company);
-      if (result.success) {
-        toast({ title: 'Step 1 Saved!', description: 'Your data has been saved successfully.' });
-        router.push(`/leap/assessment/${assessmentId}/e`);
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not save data.' });
-      }
+        try {
+            const assessmentRef = doc(firestore, 'leapAssessments', assessmentId);
+            await updateDoc(assessmentRef, {
+              'company.sector': values.company.sector,
+              'company.size': values.company.size,
+              'company.sites': values.company.sites.map(s => s.value),
+              stage: 'E', // Move to the next stage
+              updatedAt: serverTimestamp(),
+            });
+             toast({ title: 'Step 1 Saved!', description: 'Your data has been saved successfully.' });
+            router.push(`/leap/assessment/${assessmentId}/e`);
+        } catch (error) {
+             const permissionError = new FirestorePermissionError({
+                path: `leapAssessments/${assessmentId}`,
+                operation: 'update',
+                requestResourceData: { company: values.company, stage: 'E' },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not save data.' });
+        }
     });
   };
 

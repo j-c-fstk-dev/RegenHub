@@ -27,8 +27,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CheckSquare, Loader2, PartyPopper, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveLeapP } from '@/app/leap/actions';
 import Link from 'next/link';
+import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+
 
 const planItemSchema = z.object({
   action: z.string().nonempty({ message: 'Action is required.' }),
@@ -48,6 +50,7 @@ const PreparePage = () => {
     const router = useRouter();
     const params = useParams();
     const { toast } = useToast();
+    const firestore = useFirestore();
     const [isPending, startTransition] = useTransition();
     const [isDone, setIsDone] = useState(false);
     const assessmentId = params.assessmentId as string;
@@ -64,13 +67,28 @@ const PreparePage = () => {
     });
 
     const onSubmit = (values: FormValues) => {
+        if (!firestore || !assessmentId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not connect to the database.' });
+            return;
+        }
         startTransition(async () => {
-            const result = await saveLeapP(assessmentId, values);
-            if (result.success) {
+            try {
+                const assessmentRef = doc(firestore, 'leapAssessments', assessmentId);
+                await updateDoc(assessmentRef, {
+                    plan: values.plan,
+                    stage: 'done', // Mark assessment as complete
+                    updatedAt: serverTimestamp(),
+                });
                 toast({ title: 'Assessment Complete!', description: 'Your action plan has been saved.' });
                 setIsDone(true);
-            } else {
-                toast({ variant: 'destructive', title: 'Error', description: result.error || 'Could not save the plan.' });
+            } catch (error) {
+                const permissionError = new FirestorePermissionError({
+                    path: `leapAssessments/${assessmentId}`,
+                    operation: 'update',
+                    requestResourceData: { ...values, stage: 'done' },
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not save the plan.' });
             }
         });
     };
@@ -146,7 +164,7 @@ const PreparePage = () => {
                                             <FormItem><FormLabel>Estimated Cost ($)</FormLabel><FormControl><Input type="number" placeholder="5000" {...field} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                         <FormField control={form.control} name={`plan.${index}.kpi`} render={({ field }) => (
-                                             <FormItem><FormLabel>KPI / Indicator</FormLabel><FormControl><Input placeholder="15% reduction in consumption" {...field} /></FormControl><FormMessage /></FormItem>
+                                             <FormItem><FormLabel>KPI / Indicator</FormLabel><FormControl><Input placeholder="15% reduction in consumption" {...field} /></FormControl><FormMessage /></Item>
                                         )}/>
                                     </div>
                                     <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive" onClick={() => remove(index)}>
