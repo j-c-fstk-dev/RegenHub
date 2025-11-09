@@ -92,7 +92,7 @@ const PreparePage = ({ params }: { params: { assessmentId: string } }) => {
                     </CardContent>
                     <CardFooter className="flex justify-center">
                         <Button asChild>
-                            <Link href="/admin">Back to Dashboard</Link>
+                            <Link href="/dashboard">Back to Dashboard</Link>
                         </Button>
                     </CardFooter>
                 </Card>
