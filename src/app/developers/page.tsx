@@ -21,7 +21,7 @@ const DevelopersPage = () => {
           Developer API
         </h1>
         <p className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto">
-          Integrate your applications with the Regen Impact ecosystem. Our open API allows you to submit actions and retrieve verified impact data.
+          Integre suas aplicações com o ecossistema Regen Impact. Nossa API aberta permite que você submeta ações e recupere dados de impacto verificados.
         </p>
       </header>
 
@@ -34,125 +34,174 @@ const DevelopersPage = () => {
               <span>/api/submit</span>
             </CardTitle>
             <CardDescription>
-              Submit a new regenerative action to the platform. The action will be created with a `submitted` status, awaiting AI pre-check and human verification.
+              Submete uma nova ação regenerativa para a plataforma. A ação será criada com o status `submitted`, aguardando a pré-verificação da IA e a validação humana. Este endpoint dispara a verificação assíncrona por IA.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <h3 className="font-semibold text-lg">Authentication</h3>
-            <p className="text-sm text-muted-foreground">Requests must include an `Authorization: Bearer &lt;FirebaseIdToken&gt;` header.</p>
+            <h3 className="font-semibold text-lg">Autenticação</h3>
+            <p className="text-sm text-muted-foreground">Requisições devem incluir um header `Authorization: Bearer &lt;FirebaseIdToken&gt;`. O token de ID do Firebase deve ser gerado no lado do cliente após o login do usuário.</p>
 
-            <h3 className="font-semibold text-lg">Body Parameters</h3>
+            <h3 className="font-semibold text-lg">Corpo da Requisição (Body)</h3>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Parameter</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Required</TableHead>
-                  <TableHead>Description</TableHead>
+                  <TableHead>Parâmetro</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Obrigatório</TableHead>
+                  <TableHead>Descrição</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow>
-                  <TableCell className="font-mono">orgId</TableCell>
-                  <TableCell>string</TableCell>
-                  <TableCell>Yes</TableCell>
-                  <TableCell>The ID of the organization submitting the action.</TableCell>
-                </TableRow>
                  <TableRow>
-                  <TableCell className="font-mono">projectId</TableCell>
-                  <TableCell>string</TableCell>
-                  <TableCell>Yes</TableCell>
-                  <TableCell>The ID of the project this action belongs to.</TableCell>
-                </TableRow>
-                <TableRow>
                   <TableCell className="font-mono">title</TableCell>
                   <TableCell>string</TableCell>
-                  <TableCell>Yes</TableCell>
-                  <TableCell>A concise title for the regenerative action.</TableCell>
+                  <TableCell>Sim</TableCell>
+                  <TableCell>Um título conciso para a ação regenerativa.</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-mono">description</TableCell>
                   <TableCell>string</TableCell>
-                  <TableCell>Yes</TableCell>
-                  <TableCell>A detailed description of the action performed.</TableCell>
+                  <TableCell>Sim</TableCell>
+                  <TableCell>Uma descrição detalhada da ação realizada.</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono">orgId</TableCell>
+                  <TableCell>string</TableCell>
+                  <TableCell>Sim</TableCell>
+                  <TableCell>O ID da organização que está submetendo a ação.</TableCell>
+                </TableRow>
+                 <TableRow>
+                  <TableCell className="font-mono">projectId</TableCell>
+                  <TableCell>string</TableCell>
+                  <TableCell>Sim</TableCell>
+                  <TableCell>O ID do projeto ao qual esta ação pertence.</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono">category</TableCell>
+                  <TableCell>string</TableCell>
+                  <TableCell>Não</TableCell>
+                  <TableCell>Categoria da ação (ex: "Agrofloresta").</TableCell>
+                </TableRow>
+                 <TableRow>
+                  <TableCell className="font-mono">location</TableCell>
+                  <TableCell>string</TableCell>
+                  <TableCell>Não</TableCell>
+                  <TableCell>Localização onde a ação ocorreu (ex: "Recife, Brasil").</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-mono">mediaUrls</TableCell>
                   <TableCell>array</TableCell>
-                  <TableCell>No</TableCell>
-                  <TableCell>An array of strings, where each string is a URL to a piece of evidence (image, video, etc.).</TableCell>
+                  <TableCell>Não</TableCell>
+                  <TableCell>Um array de strings, onde cada string é uma URL para uma evidência (imagem, vídeo, documento, etc.).</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
 
-            <h3 className="font-semibold text-lg mt-4">Example Usage (cURL)</h3>
+            <h3 className="font-semibold text-lg mt-4">Exemplo de Uso (cURL)</h3>
             <CodeBlock>
 {`curl -X POST https://your-regenimpact-url.com/api/submit \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer <YOUR_FIREBASE_ID_TOKEN>" \\
+  -H "Authorization: Bearer <SEU_FIREBASE_ID_TOKEN>" \\
   -d '{
-    "orgId": "orgId_123",
-    "projectId": "projId_456",
-    "title": "Community Garden Setup",
-    "description": "We started a new community garden in the local park, planting vegetables and herbs for everyone to share.",
+    "orgId": "org_12345",
+    "projectId": "proj_67890",
+    "title": "Mutirão de Limpeza na Praia de Boa Viagem",
+    "description": "Nós organizamos um grupo de 30 voluntários e removemos mais de 100kg de lixo da faixa de areia e do mar na praia de Boa Viagem, Recife.",
+    "category": "Waste Management",
+    "location": "Recife, PE, Brazil",
     "mediaUrls": [
-      "https://example.com/garden-photo.jpg"
+      "https://example.com/foto-do-mutirao.jpg"
     ]
   }'`}
             </CodeBlock>
 
-             <h3 className="font-semibold text-lg mt-4">Success Response (200)</h3>
+             <h3 className="font-semibold text-lg mt-4">Resposta de Sucesso (200)</h3>
             <CodeBlock>
 {`{
   "success": true,
-  "actionId": "someActionIdGeneratedByFirestore"
+  "actionId": "aBcDeFgHiJkLmNoPqRsT"
 }`}
             </CodeBlock>
           </CardContent>
         </Card>
 
-        {/* GET WALL ENDPOINT */}
+        {/* GET ORG PROFILE ENDPOINT */}
         <Card>
           <CardHeader>
             <CardTitle className="font-headline text-2xl flex items-center gap-4">
               <Badge>GET</Badge>
-              <span>/api/wall</span>
+              <span>/api/org/[slug]</span>
             </CardTitle>
             <CardDescription>
-              Retrieve a list of the latest 100 verified actions to display on an impact wall or in your application.
+              Recupera o perfil público de uma organização e uma lista de todas as suas ações já verificadas (`status: "verified"`).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-             <h3 className="font-semibold text-lg">Query Parameters</h3>
-             <p className="text-sm text-muted-foreground">`?all=true` - (For Admin Use) Includes actions with all statuses, not just `verified`.</p>
+             <h3 className="font-semibold text-lg">Parâmetros de URL</h3>
+             <p className="text-sm text-muted-foreground">Substitua `[slug]` pelo slug único da organização (ex: `/api/org/coletivo-mulungu`).</p>
 
-
-             <h3 className="font-semibold text-lg mt-4">Example Usage (JavaScript Fetch)</h3>
+             <h3 className="font-semibold text-lg mt-4">Exemplo de Uso (JavaScript Fetch)</h3>
             <CodeBlock>
-{`fetch('https://your-regenimpact-url.com/api/wall')
+{`fetch('https://your-regenimpact-url.com/api/org/regensampa-coletivo')
   .then(response => response.json())
-  .then(actions => {
-    console.log(actions);
-    // Render the actions in your UI
+  .then(data => {
+    console.log('Organization:', data.organization);
+    console.log('Verified Actions:', data.actions);
+    // Renderize o perfil e as ações na sua UI
   });`}
             </CodeBlock>
 
-            <h3 className="font-semibold text-lg mt-4">Example Response (200)</h3>
+            <h3 className="font-semibold text-lg mt-4">Exemplo de Resposta (200)</h3>
             <CodeBlock>
-{`[
-  {
-    "id": "actionId1",
-    "orgId": "orgId_123",
-    "projectId": "projId_456",
-    "title": "Beach Cleanup Day",
-    "description": "Collected 50kg of plastic from the local beach.",
-    "status": "verified",
-    "validationScore": 85,
-    "createdAt": { "_seconds": 1729353921, "_nanoseconds": 123000000 },
-    "validatedAt": { "_seconds": 1729353950, "_nanoseconds": 456000000 }
-  }
-]`}
+{`{
+  "organization": {
+    "id": "org_12345",
+    "name": "RegenSampa Coletivo",
+    "slug": "regensampa-coletivo",
+    "bio": "Um coletivo focado em regenerar espaços urbanos em São Paulo.",
+    "isVerified": true,
+    "createdAt": { "_seconds": 1729353000, "_nanoseconds": 0 }
+  },
+  "actions": [
+    {
+      "id": "actionId1",
+      "orgId": "org_12345",
+      "projectId": "projId_456",
+      "title": "Horta Comunitária na Vila Madalena",
+      "description": "Iniciamos uma horta comunitária com 15 famílias locais.",
+      "status": "verified",
+      "validationScore": 85,
+      "isPublic": true,
+      "createdAt": { "_seconds": 1729353921, "_nanoseconds": 123000000 },
+      "validatedAt": { "_seconds": 1729353950, "_nanoseconds": 456000000 }
+    }
+  ]
+}`}
             </CodeBlock>
+          </CardContent>
+        </Card>
+
+         {/* LEAP APIs */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl flex items-center gap-4">
+              <Badge variant="outline">LEAP APIs</Badge>
+              <span>/api/leap/...</span>
+            </CardTitle>
+            <CardDescription>
+              Endpoints para gerenciar o módulo de assessment LEAP para PMEs (Pequenas e Médias Empresas).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p>A plataforma utiliza uma série de endpoints para conduzir o assessment LEAP (Locate, Evaluate, Assess, Prepare). Atualmente, eles são utilizados internamente pelo wizard da aplicação, mas estão sendo documentados aqui para futuras integrações B2B.</p>
+            <ul className="list-disc pl-5 space-y-2">
+                <li><code className="font-mono bg-secondary px-1 py-0.5 rounded">POST /api/leap/start</code>: Inicia um novo assessment para a organização do usuário autenticado. Retorna um `assessmentId`.</li>
+                <li><code className="font-mono bg-secondary px-1 py-0.5 rounded">POST /api/leap/assessment/[assessmentId]/l</code>: Salva os dados do passo "Locate".</li>
+                <li><code className="font-mono bg-secondary px-1 py-0.5 rounded">POST /api/leap/assessment/[assessmentId]/e</code>: Salva os dados do passo "Evaluate".</li>
+                <li><code className="font-mono bg-secondary px-1 py-0.5 rounded">POST /api/leap/assessment/[assessmentId]/a</code>: Salva os dados do passo "Assess".</li>
+                <li><code className="font-mono bg-secondary px-1 py-0.5 rounded">POST /api/leap/assessment/[assessmentId]/p</code>: Salva os dados do passo "Prepare" e finaliza o assessment.</li>
+            </ul>
+             <p>Todas as requisições para estes endpoints requerem autenticação via `FirebaseIdToken`.</p>
           </CardContent>
         </Card>
       </div>
