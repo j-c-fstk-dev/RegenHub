@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where, getDocs, documentId } from "firebase/firestore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 type Action = {
   id: string;
@@ -28,7 +29,7 @@ type Action = {
     slug: string;
     image?: string;
   }
-  mediaUrls: {url: string}[];
+  mediaUrls: string[];
   dateOfAction: string;
 };
 
@@ -44,10 +45,12 @@ const ActionPostCard = ({ action }: { action: Action }) => {
     
     const isImageUrl = (url: string) => /\.(jpeg|jpg|gif|png|webp)$/i.test(url);
 
-    const coverMediaUrl = action.mediaUrls?.[0]?.url;
+    const coverMediaUrl = action.mediaUrls?.[0];
     const isCoverImage = coverMediaUrl && isImageUrl(coverMediaUrl);
-    const coverImageSrc = isCoverImage ? coverMediaUrl : `https://picsum.photos/seed/${action.id}/600`;
-
+    
+    const placeholderImage = PlaceHolderImages.find(p => p.id === 'action-placeholder');
+    const coverImageSrc = isCoverImage ? coverMediaUrl : (placeholderImage?.imageUrl || `https://picsum.photos/seed/${action.id}/600`);
+    
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -59,7 +62,9 @@ const ActionPostCard = ({ action }: { action: Action }) => {
                         </Avatar>
                         <div className="flex-1">
                             <Link href={`/org/${action.org?.slug}`} className="font-semibold hover:underline" onClick={e => e.stopPropagation()}>{action.org?.name}</Link>
-                            <p className="text-xs text-muted-foreground">{action.dateOfAction ? new Date(action.dateOfAction).toLocaleDateString() : 'Date not set'}</p>
+                             <p className="text-xs text-muted-foreground">
+                                {action.dateOfAction ? new Date(action.dateOfAction).toLocaleDateString() : (action.createdAt ? new Date(action.createdAt._seconds * 1000).toLocaleDateString() : 'Date not set')}
+                            </p>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -102,14 +107,14 @@ const ActionPostCard = ({ action }: { action: Action }) => {
                         <div className="space-y-4">
                              <h3 className="font-semibold flex items-center gap-2"><ImageIcon/> Evidence Gallery</h3>
                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {action.mediaUrls.map((media, index) => (
-                                     media.url && <a key={index} href={media.url} target="_blank" rel="noopener noreferrer" className="block relative aspect-square w-full overflow-hidden rounded-md border">
-                                        {isImageUrl(media.url) ? (
-                                            <Image src={media.url} alt={`Evidence ${index+1}`} fill className="object-cover transition-transform hover:scale-105" />
+                                {action.mediaUrls.map((mediaUrl, index) => (
+                                     mediaUrl && <a key={index} href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block relative aspect-square w-full overflow-hidden rounded-md border">
+                                        {isImageUrl(mediaUrl) ? (
+                                            <Image src={mediaUrl} alt={`Evidence ${index+1}`} fill className="object-cover transition-transform hover:scale-105" />
                                         ) : (
                                             <div className="flex flex-col items-center justify-center h-full bg-secondary hover:bg-secondary/80">
                                                 <LinkIcon className="h-8 w-8 text-muted-foreground"/>
-                                                <p className="text-xs text-muted-foreground mt-2 text-center p-2 break-all">{media.url}</p>
+                                                <p className="text-xs text-muted-foreground mt-2 text-center p-2 break-all">{mediaUrl}</p>
                                             </div>
                                         )}
                                     </a>
