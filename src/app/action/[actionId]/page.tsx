@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertCircle, CheckCircle, Award, Building, Sparkles, UserCheck } from 'lucide-react';
 import Link from 'next/link';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
-// Mock types until we define them properly
+// Combined type for action and org
 type ActionDetails = {
     id: string;
     title: string;
@@ -20,7 +22,8 @@ type ActionDetails = {
         finalScore: number;
         notes?: string;
     };
-    org: {
+    orgId: string;
+    org?: { // Org is now optional as it's fetched separately
         name: string;
         slug: string;
     };
@@ -28,37 +31,47 @@ type ActionDetails = {
 
 const ActionDetailPage = ({ params }: { params: { actionId: string } }) => {
     const { actionId } = params;
-    const [action, setAction] = useState<ActionDetails | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const firestore = useFirestore();
+
+    const actionDocRef = useMemoFirebase(() => {
+        if (!firestore || !actionId) return null;
+        return doc(firestore, 'actions', actionId);
+    }, [firestore, actionId]);
+    
+    const { data: actionData, isLoading: isActionLoading, error: actionError } = useDoc<ActionDetails>(actionDocRef);
+    
+    const [organization, setOrganization] = useState<{name: string, slug: string} | null>(null);
+    const [isOrgLoading, setIsOrgLoading] = useState(true);
 
     useEffect(() => {
-        const fetchAction = async () => {
-            if (!actionId) {
-                setError("Action ID is missing.");
-                setIsLoading(false);
+        const fetchOrg = async () => {
+            if (!actionData?.orgId || !firestore) {
+                setIsOrgLoading(false);
                 return;
             }
             try {
-                const response = await fetch(`/api/action/${actionId}`);
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        notFound();
-                    }
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to fetch action details.');
+                const orgRef = doc(firestore, 'organizations', actionData.orgId);
+                const orgSnap = await getDoc(orgRef);
+                if (orgSnap.exists()) {
+                    const orgData = orgSnap.data();
+                    setOrganization({ name: orgData.name, slug: orgData.slug });
                 }
-                const data = await response.json();
-                setAction(data);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : "An unknown error occurred.");
+            } catch (e) {
+                console.error("Failed to fetch organization:", e);
+                // Handle org fetch error if needed
             } finally {
-                setIsLoading(false);
+                setIsOrgLoading(false);
             }
         };
 
-        fetchAction();
-    }, [actionId]);
+        if (actionData) {
+            fetchOrg();
+        } else {
+            setIsOrgLoading(false);
+        }
+    }, [actionData, firestore]);
+    
+    const isLoading = isActionLoading || isOrgLoading;
 
     if (isLoading) {
         return (
@@ -68,7 +81,7 @@ const ActionDetailPage = ({ params }: { params: { actionId: string } }) => {
         );
     }
 
-    if (error) {
+    if (actionError) {
         return (
             <div className="container py-12">
                 <Card className="max-w-2xl mx-auto border-destructive/50">
@@ -76,17 +89,18 @@ const ActionDetailPage = ({ params }: { params: { actionId: string } }) => {
                         <CardTitle className="flex items-center gap-2 text-destructive"><AlertCircle /> Error</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p>{error}</p>
+                        <p>{actionError.message}</p>
                     </CardContent>
                 </Card>
             </div>
         );
     }
 
-    if (!action) {
+    if (!actionData) {
         return notFound();
     }
 
+    const action = { ...actionData, org: organization };
     const isVerified = action.status === 'verified';
 
     return (
@@ -110,12 +124,14 @@ const ActionDetailPage = ({ params }: { params: { actionId: string } }) => {
                             <div className="md:col-span-2 space-y-4">
                                <h3 className="font-semibold text-lg border-b pb-2">Action Details</h3>
                                <p className="text-muted-foreground">{action.description}</p>
-                                <div className="pt-4">
-                                     <h4 className="font-semibold text-md flex items-center gap-2 text-primary"><Building className="h-5 w-5"/> Performed by</h4>
-                                      <Button variant="link" asChild className="px-0 h-auto text-lg">
-                                        <Link href={`/org/${action.org.slug}`}>{action.org.name}</Link>
-                                      </Button>
-                                </div>
+                                {action.org && (
+                                    <div className="pt-4">
+                                        <h4 className="font-semibold text-md flex items-center gap-2 text-primary"><Building className="h-5 w-5"/> Performed by</h4>
+                                        <Button variant="link" asChild className="px-0 h-auto text-lg">
+                                            <Link href={`/org/${action.org.slug}`}>{action.org.name}</Link>
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-4">
                                 <Card className="bg-accent/10">
