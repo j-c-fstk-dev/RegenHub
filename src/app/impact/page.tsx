@@ -12,6 +12,8 @@ import { ImpactMap } from "@/components/impact-map";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query, where, getDocs, doc } from "firebase/firestore";
 
 type Action = {
   id: string;
@@ -22,7 +24,7 @@ type Action = {
   createdAt: { toDate: () => Date };
   validationScore?: number;
   orgId: string;
-  org: { // org is now directly included from the API
+  org?: { // Org is now optional as it's fetched separately
     name: string;
     slug: string;
     image?: string;
@@ -31,6 +33,13 @@ type Action = {
   dateOfAction?: string;
   isPublic?: boolean;
 };
+
+type Organization = {
+    name: string;
+    slug: string;
+    image?: string;
+};
+
 
 const ActionPostCard = ({ action }: { action: Action }) => {
     const getInitials = (name: string) => (name || '').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -82,9 +91,11 @@ const ActionPostCard = ({ action }: { action: Action }) => {
                             <span className="text-muted-foreground"> {action.title}</span>
                         </p>
                         <div className="w-full mt-auto pt-4">
-                            <Button variant="secondary" size="sm" className="w-full">
-                                <Eye className="mr-2 h-4 w-4" /> View Details
-                            </Button>
+                             <Link href={`/action/${action.id}`} onClick={e => e.stopPropagation()} className="w-full">
+                                <Button variant="secondary" size="sm" className="w-full">
+                                    <Eye className="mr-2 h-4 w-4" /> View Details
+                                </Button>
+                             </Link>
                         </div>
                     </CardFooter>
                 </Card>
@@ -136,7 +147,8 @@ const ActionPostCard = ({ action }: { action: Action }) => {
 };
 
 const ImpactPage = () => {
-  const [actions, setActions] = useState<Action[]>([]);
+  const firestore = useFirestore();
+  const [enrichedActions, setEnrichedActions] = useState<Action[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -145,49 +157,83 @@ const ImpactPage = () => {
     category: '',
   });
 
+  const actionsQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return query(
+          collection(firestore, 'actions'),
+          where('isPublic', '==', true),
+          where('status', '==', 'verified')
+      );
+  }, [firestore]);
+
+  const { data: actions, isLoading: isLoadingActions, error: actionsError } = useCollection<Action>(actionsQuery);
+
   useEffect(() => {
-    const fetchActions = async () => {
+    const enrichActions = async () => {
+      if (!actions || !firestore) {
+          if(!isLoadingActions) setIsLoading(false);
+          return;
+      };
+
       setIsLoading(true);
       setError(null);
+      
       try {
-        const response = await fetch('/api/wall');
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch actions.');
+        const orgIds = [...new Set(actions.map(action => action.orgId))];
+        if (orgIds.length === 0) {
+            setEnrichedActions(actions);
+            setIsLoading(false);
+            return;
         }
-        const data: Action[] = await response.json();
-        setActions(data);
-      } catch (e: any) {
-        setError(e.message);
+
+        const orgsData: { [key: string]: Organization } = {};
+        const orgDocs = await getDocs(query(collection(firestore, 'organizations'), where('__name__', 'in', orgIds)));
+        
+        orgDocs.forEach(orgDoc => {
+            orgsData[orgDoc.id] = orgDoc.data() as Organization;
+        });
+
+        const newEnrichedActions = actions.map(action => ({
+          ...action,
+          org: orgsData[action.orgId],
+        }));
+
+        setEnrichedActions(newEnrichedActions);
+      } catch(e) {
+          console.error("Error enriching actions:", e);
+          setError("Could not load organization details for the actions.");
       } finally {
         setIsLoading(false);
       }
     };
-    fetchActions();
-  }, []);
+    
+    if(!isLoadingActions) {
+        enrichActions();
+    }
+  }, [actions, firestore, isLoadingActions]);
 
   const filteredActions = useMemo(() => {
-    return actions.filter(action => {
+    return enrichedActions.filter(action => {
       const locationMatch = filters.location ? action.location?.toLowerCase().includes(filters.location.toLowerCase()) : true;
       const categoryMatch = filters.category ? action.category === filters.category : true;
       return locationMatch && categoryMatch;
     });
-  }, [actions, filters]);
+  }, [enrichedActions, filters]);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({...prev, [filterName]: value}));
   };
   
   const uniqueCategories = useMemo(() => {
-    const categories = new Set(actions.map(action => action.category));
+    const categories = new Set(enrichedActions.map(action => action.category));
     return Array.from(categories).filter(cat => !!cat);
-  }, [actions]);
+  }, [enrichedActions]);
 
   const mapLocations = useMemo(() => {
-    // Return an empty array to disable map pins temporarily
     return [];
   }, []);
   
+  const currentError = error || (actionsError?.message);
 
   return (
     <div className="container py-12">
@@ -229,19 +275,19 @@ const ImpactPage = () => {
          </div>
       )}
 
-      {error && !isLoading && (
+      {currentError && !isLoading && (
         <Card className="max-w-2xl mx-auto border-destructive/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-destructive"><AlertCircle/> Could not load actions</CardTitle>
             </CardHeader>
             <CardContent>
-                <p>{error}</p>
+                <p>{currentError}</p>
                 <p className="text-sm text-muted-foreground mt-2">This may be due to a network issue or a server configuration problem.</p>
             </CardContent>
         </Card>
       )}
 
-      {!isLoading && !error && filteredActions.length === 0 && (
+      {!isLoading && !currentError && filteredActions.length === 0 && (
         <div className="text-center text-muted-foreground py-16">
             <p>No verified actions to display yet.</p>
             <p>Be the first to submit one!</p>
