@@ -1,17 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { Sprout, LogOut, User as UserIcon } from 'lucide-react';
+import { Sprout, LogOut, User as UserIcon, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
-import { useFirebase } from '@/firebase';
+import { useFirebase, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 const Header = () => {
-  const { user, auth } = useFirebase();
+  const { auth } = useFirebase();
+  const { user } = useUser();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
 
@@ -31,8 +32,12 @@ const Header = () => {
     { name: 'LEAP for SMEs', href: '/leap'},
     { name: 'About', href: '/about' },
     { name: 'Developers', href: '/developers' },
-    ...(user ? [{ name: 'Admin', href: '/admin' }] : []),
   ];
+
+  const userNavItems = user ? [
+    { name: 'Dashboard', href: '/dashboard' },
+    { name: 'Admin', href: '/admin' }
+  ] : [];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -51,16 +56,26 @@ const Header = () => {
               {item.name}
             </Link>
           ))}
+           {user && (
+            <>
+              <Link href="/dashboard" className="font-medium text-foreground/60 transition-colors hover:text-foreground/80">
+                Dashboard
+              </Link>
+               <Link href="/admin" className="font-medium text-foreground/60 transition-colors hover:text-foreground/80">
+                Admin
+              </Link>
+            </>
+          )}
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-2">
           {isClient && (
             <>
               {user ? (
-                 <Button variant="ghost" size="icon" onClick={handleSignOut} disabled={!auth}>
+                 <Button variant="ghost" size="icon" onClick={handleSignOut} disabled={!auth} title="Sign Out">
                     <LogOut className="h-5 w-5" />
                  </Button>
               ) : (
-                <Button asChild variant="ghost" size="icon">
+                <Button asChild variant="ghost" size="icon" title="Login">
                     <Link href="/login">
                         <UserIcon className="h-5 w-5" />
                     </Link>
@@ -86,7 +101,7 @@ const Header = () => {
                   <span className="font-bold font-headline text-lg">Regen Impact</span>
                 </Link>
                 <nav className="flex flex-col gap-4">
-                  {navItems.map((item) => (
+                  {[...navItems, ...userNavItems].map((item) => (
                     <Link
                       key={item.name}
                       href={item.href}

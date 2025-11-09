@@ -21,11 +21,11 @@ const StepFinal = () => {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">Our AI assistant will perform an initial review, followed by a final check from a human validator. You can track the status in your admin dashboard. Approved actions will appear on the public Impact Wall.</p>
+                <p className="text-muted-foreground">You can track the status of your submissions on your personal dashboard. Approved actions will appear on the public Impact Wall.</p>
             </CardContent>
             <CardFooter className="flex flex-col sm:flex-row justify-center gap-4">
                 <Button asChild>
-                    <Link href="/admin">Go to Dashboard</Link>
+                    <Link href="/dashboard">Go to Dashboard</Link>
                 </Button>
                 <Button variant="outline" onClick={startNewWizard}>
                     Submit Another Action
