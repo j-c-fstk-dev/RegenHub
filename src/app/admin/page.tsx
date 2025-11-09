@@ -33,7 +33,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AIAssistedIntentVerificationOutput } from '@/ai/schemas/ai-assisted-intent-verification';
-import { collection, query, orderBy, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { Switch } from '@/components/ui/switch';
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
@@ -124,7 +124,7 @@ const AdminPage = () => {
   // Client-side data fetching
   const actionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'actions'), orderBy('createdAt', 'desc'));
+    return query(collection(firestore, 'actions'));
   }, [firestore]);
 
   const { data: submissionsData, isLoading: isLoadingSubmissions, error: submissionsError } = useCollection<Action>(actionsQuery);
@@ -133,7 +133,13 @@ const AdminPage = () => {
     if (!submissionsData) return [];
     return submissionsData.sort((a, b) => {
       const order = ['review_ready', 'submitted', 'review_failed', 'verified', 'rejected'];
-      return order.indexOf(a.status) - order.indexOf(b.status);
+      const aDate = a.createdAt?.toDate()?.getTime() || 0;
+      const bDate = b.createdAt?.toDate()?.getTime() || 0;
+      
+      const statusDiff = order.indexOf(a.status) - order.indexOf(b.status);
+      if(statusDiff !== 0) return statusDiff;
+      
+      return bDate - aDate;
     });
   }, [submissionsData]);
 
@@ -424,3 +430,5 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
+
+    
