@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -39,7 +40,7 @@ const Header = () => {
   ] : [];
 
   // Conditionally show Admin link only for the specific admin user.
-  const isAdmin = user?.email === 'beregenerative.life@gmail.com';
+  const isAdmin = user?.email === 'dev.jorge.c@gmail.com';
 
 
   return (
