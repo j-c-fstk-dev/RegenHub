@@ -4,9 +4,9 @@ import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Edit, Building, Type, FileText, MapPin, Link as LinkIcon, User } from "lucide-react";
+import { Loader2, Edit, Building, Type, FileText, MapPin, Link as LinkIcon, User, Calendar } from "lucide-react";
 
-const Step6 = () => {
+const Step7 = () => {
     const { setStep, draft, submitAction, isSubmitting } = useWizard();
 
     if (!draft) {
@@ -26,10 +26,10 @@ const Step6 = () => {
 
     return (
         <WizardLayout
-            title="Step 6: Review & Submit"
+            title="Step 7: Review & Submit"
             description="Please review all the information before submitting. This action will be sent for validation."
             onNext={submitAction}
-            onBack={() => setStep(5)}
+            onBack={() => setStep(6)}
             isNextDisabled={isSubmitting}
         >
             <div className="space-y-6">
@@ -72,8 +72,19 @@ const Step6 = () => {
                  <Card>
                     <CardHeader>
                         <CardTitle className="flex justify-between items-center text-lg">
-                             <span className="flex items-center gap-2"><FileText />Description</span> 
+                            <span className="flex items-center gap-2"><Calendar />Date of Action</span> 
                            <Button variant="ghost" size="sm" onClick={() => handleEdit(3)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
+                        </CardTitle>
+                    </CardHeader>
+                     <CardContent className="text-sm">
+                       {draft.dateOfAction ? new Date(draft.dateOfAction).toLocaleDateString() : 'Not set'}
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex justify-between items-center text-lg">
+                             <span className="flex items-center gap-2"><FileText />Description</span> 
+                           <Button variant="ghost" size="sm" onClick={() => handleEdit(4)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="text-sm text-muted-foreground">
@@ -84,7 +95,7 @@ const Step6 = () => {
                     <CardHeader>
                         <CardTitle className="flex justify-between items-center text-lg">
                             <span className="flex items-center gap-2"><MapPin />Location</span> 
-                           <Button variant="ghost" size="sm" onClick={() => handleEdit(4)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
+                           <Button variant="ghost" size="sm" onClick={() => handleEdit(5)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
                         </CardTitle>
                     </CardHeader>
                      <CardContent className="text-sm">
@@ -95,7 +106,7 @@ const Step6 = () => {
                     <CardHeader>
                         <CardTitle className="flex justify-between items-center text-lg">
                             <span className="flex items-center gap-2"><LinkIcon />Evidence</span> 
-                           <Button variant="ghost" size="sm" onClick={() => handleEdit(5)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
+                           <Button variant="ghost" size="sm" onClick={() => handleEdit(6)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
                         </CardTitle>
                     </CardHeader>
                      <CardContent className="text-sm">
@@ -113,4 +124,4 @@ const Step6 = () => {
     );
 };
 
-export default Step6;
+export default Step7;

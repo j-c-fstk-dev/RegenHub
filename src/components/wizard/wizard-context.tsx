@@ -23,6 +23,7 @@ export interface ActionDraft {
   location?: string;
   mediaUrls?: { url: string }[];
   category?: string;
+  dateOfAction?: string;
 }
 
 
@@ -131,6 +132,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
       const actionPayload = {
         title: draft.title || "",
         description: draft.description || "",
+        dateOfAction: draft.dateOfAction || null,
         orgId: draft.orgId,
         projectId: draft.projectId,
         category: draft.actionTypeName || "Other", // Using actionTypeName as category

@@ -16,7 +16,7 @@ interface WizardLayoutProps {
   isBackDisabled?: boolean;
 }
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 export const WizardLayout = ({
   title,

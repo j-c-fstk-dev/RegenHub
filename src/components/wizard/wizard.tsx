@@ -14,6 +14,7 @@ import Step3 from "./steps/step-3";
 import Step4 from "./steps/step-4";
 import Step5 from "./steps/step-5";
 import Step6 from "./steps/step-6";
+import Step7 from "./steps/step-7";
 import StepFinal from "./steps/step-final";
 
 
@@ -72,6 +73,8 @@ export function Wizard() {
         return <Step5 />;
       case 6:
         return <Step6 />;
+      case 7:
+        return <Step7 />;
       default:
         return <Step0 />;
     }

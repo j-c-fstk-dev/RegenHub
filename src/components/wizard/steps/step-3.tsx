@@ -6,18 +6,25 @@ import { z } from "zod";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
 import { useWizard } from "../wizard-context";
 import { WizardLayout } from "../WizardLayout";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+
 
 const step3Schema = z.object({
-  description: z.string().min(20, { message: 'Please provide a more detailed description (at least 20 characters).' }).max(2000, { message: 'Description cannot exceed 2000 characters.'}),
+  dateOfAction: z.date({
+    required_error: "Please select the date the action was performed.",
+  }),
 });
 
 type Step3FormValues = z.infer<typeof step3Schema>;
@@ -28,25 +35,27 @@ const Step3 = () => {
     const form = useForm<Step3FormValues>({
         resolver: zodResolver(step3Schema),
         defaultValues: {
-            description: draft?.description || '',
+            dateOfAction: draft?.dateOfAction ? new Date(draft.dateOfAction) : undefined,
         },
     });
 
     const onSubmit = (values: Step3FormValues) => {
-        updateDraft(values);
-        setStep(4); // Go to next step
+        updateDraft({dateOfAction: values.dateOfAction.toISOString()});
+        setStep(4);
     }
 
     const handleBack = () => {
-        // Save current values before going back
-        updateDraft(form.getValues());
+        const currentValues = form.getValues();
+        if (currentValues.dateOfAction) {
+            updateDraft({dateOfAction: currentValues.dateOfAction.toISOString()});
+        }
         setStep(2);
     }
 
     return (
         <WizardLayout
-            title="Step 3: Description"
-            description="Describe the action in detail. What did you do? What was the context? What were the results?"
+            title="Step 3: Date of Action"
+            description="When did this regenerative action take place? This helps create a timeline of impact."
             onNext={form.handleSubmit(onSubmit)}
             onBack={handleBack}
             isNextDisabled={!form.formState.isValid}
@@ -55,21 +64,42 @@ const Step3 = () => {
                 <form className="space-y-8">
                      <FormField
                         control={form.control}
-                        name="description"
+                        name="dateOfAction"
                         render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Detailed Description</FormLabel>
+                            <FormItem className="flex flex-col">
+                            <FormLabel>Date of Action</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
                                 <FormControl>
-                                    <Textarea
-                                        placeholder="Tell us the story of your action. For example: 'We organized a community effort to plant 50 native saplings in the degraded area of Park...'"
-                                        className="min-h-[200px]"
-                                        {...field}
-                                    />
+                                    <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[240px] pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    >
+                                    {field.value ? (
+                                        format(field.value, "PPP")
+                                    ) : (
+                                        <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
                                 </FormControl>
-                                <FormDescription>
-                                   The more details you provide, the easier it is for validators to understand your impact.
-                                </FormDescription>
-                                <FormMessage />
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    disabled={(date) =>
+                                        date > new Date() || date < new Date("1900-01-01")
+                                    }
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
                             </FormItem>
                         )}
                         />
