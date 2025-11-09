@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { AIAssistedIntentVerificationOutput } from '@/ai/schemas/ai-assisted-intent-verification';
 import { collection, query, orderBy, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
+import { Switch } from '@/components/ui/switch';
 
 type Action = {
   id: string;
@@ -48,6 +49,7 @@ type Action = {
   location: string;
   category: string;
   mediaUrls: string[];
+  isPublic?: boolean;
 };
 
 const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", text: string } } = {
@@ -56,6 +58,38 @@ const statusStyles: { [key: string]: { variant: "default" | "secondary" | "destr
   review_failed: { variant: 'destructive', text: 'AI Failed' },
   verified: { variant: 'secondary', text: 'Verified' },
   rejected: { variant: 'destructive', text: 'Rejected' },
+};
+
+const VisibilityToggle = ({ action }: { action: Action }) => {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [isChecked, setIsChecked] = useState(action.isPublic ?? true);
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    const handleToggle = async (isPublic: boolean) => {
+        if (!firestore) return;
+        setIsUpdating(true);
+        setIsChecked(isPublic);
+        try {
+            const actionRef = doc(firestore, 'actions', action.id);
+            await updateDoc(actionRef, { isPublic });
+            toast({ title: 'Success', description: `Action is now ${isPublic ? 'visible' : 'hidden'} on the Impact Wall.` });
+        } catch (error) {
+            console.error("Error updating visibility:", error);
+            setIsChecked(!isPublic); // Revert on error
+            const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+            toast({ variant: 'destructive', title: 'Error', description: `Failed to update visibility: ${errorMessage}` });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+    
+    return (
+      <div className="flex items-center space-x-2">
+        {isUpdating ? <Loader2 className="h-4 w-4 animate-spin"/> : <Switch id={`visibility-${action.id}`} checked={isChecked} onCheckedChange={handleToggle} />}
+        <Label htmlFor={`visibility-${action.id}`} className="text-xs text-muted-foreground">{isChecked ? 'Public' : 'Hidden'}</Label>
+      </div>
+    );
 };
 
 const AdminPage = () => {
@@ -125,6 +159,7 @@ const AdminPage = () => {
             validationScore: impactScore,
             validatorId: user.uid,
             validatedAt: serverTimestamp(),
+            isPublic: true, // Make public by default on approval
         });
         toast({ title: 'Success', description: 'Action approved successfully.' });
         setSelectedSubmission(null);
@@ -223,16 +258,19 @@ const AdminPage = () => {
                             {statusStyles[submission.status]?.text || submission.status}
                         </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right flex items-center justify-end gap-4">
                         {(submission.status === 'review_ready' || submission.status === 'review_failed' || submission.status === 'submitted') && (
                             <Button onClick={() => handleReviewClick(submission)}>
                                 <Check className="mr-2 h-4 w-4" /> Review
                             </Button>
                         )}
                         {submission.status === 'verified' && (
-                            <Button asChild variant="outline" size="sm">
+                           <>
+                             <VisibilityToggle action={submission} />
+                             <Button asChild variant="outline" size="sm">
                                 <Link href={`/action/${submission.id}`} target="_blank"><Eye className="mr-2 h-4 w-4"/> View</Link>
                             </Button>
+                           </>
                         )}
                         </TableCell>
                     </TableRow>
@@ -361,3 +399,5 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
+
+    

@@ -21,7 +21,7 @@ type Action = {
   description: string;
   category: string;
   location: string;
-  createdAt: { _seconds: number; _nanoseconds: number; };
+  createdAt: { toDate: () => Date };
   validationScore?: number;
   orgId: string;
   org?: {
@@ -63,7 +63,7 @@ const ActionPostCard = ({ action }: { action: Action }) => {
                         <div className="flex-1">
                             <Link href={`/org/${action.org?.slug}`} className="font-semibold hover:underline" onClick={e => e.stopPropagation()}>{action.org?.name}</Link>
                              <p className="text-xs text-muted-foreground">
-                                {action.dateOfAction ? new Date(action.dateOfAction).toLocaleDateString() : (action.createdAt ? new Date(action.createdAt._seconds * 1000).toLocaleDateString() : 'Date not set')}
+                                {action.dateOfAction ? new Date(action.dateOfAction).toLocaleDateString() : (action.createdAt ? new Date(action.createdAt.toDate()).toLocaleDateString() : 'Date not set')}
                             </p>
                         </div>
                     </CardHeader>
@@ -146,7 +146,7 @@ const ImpactPage = () => {
   
   const actionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'actions'), where('status', '==', 'verified'));
+    return query(collection(firestore, 'actions'), where('status', '==', 'verified'), where('isPublic', '==', true));
   }, [firestore]);
 
   const { data: actionsData, isLoading, error } = useCollection<Action>(actionsQuery);
@@ -305,3 +305,5 @@ const ImpactPage = () => {
 };
 
 export default ImpactPage;
+
+    

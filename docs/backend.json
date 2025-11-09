@@ -109,7 +109,11 @@
         "validationScore": { "type": "number" },
         "certificateUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "validatedAt": { "type": "string", "format": "date-time" }
+        "validatedAt": { "type": "string", "format": "date-time" },
+        "isPublic": {
+          "type": "boolean",
+          "description": "Controls if the action is visible on the public impact wall. Defaults to true on approval."
+        }
       },
       "required": ["intentId", "projectId", "orgId", "description", "status", "createdAt"]
     },
@@ -269,3 +273,5 @@
     }
   }
 }
+
+    
