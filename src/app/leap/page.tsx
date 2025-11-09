@@ -7,9 +7,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUser, useFirestore } from "@/firebase";
+import { useUser, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { addDoc, collection, serverTimestamp, query, where, getDocs } from "firebase/firestore";
-import { FirestorePermissionError, errorEmitter } from "@/firebase/errors";
 
 const LoggedOutCTA = () => (
     <div className="mt-8 text-center bg-secondary p-8 rounded-lg">
