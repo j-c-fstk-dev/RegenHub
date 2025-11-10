@@ -20,7 +20,7 @@ const Footer = () => {
             <Link href="/impact" className="transition-colors hover:text-foreground">
               Impact
             </Link>
-            <Link href="#" className="transition-colors hover:text-foreground">
+            <Link href="/contact" className="transition-colors hover:text-foreground">
               Partner With Us
             </Link>
           </div>

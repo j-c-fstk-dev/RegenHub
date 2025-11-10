@@ -33,6 +33,7 @@ const Header = () => {
     { name: 'LEAP for SMEs', href: '/leap'},
     { name: 'About', href: '/about' },
     { name: 'Developers', href: '/developers' },
+    { name: 'Contact', href: '/contact' },
   ];
 
   // Conditionally show Admin link only for the specific admin user.

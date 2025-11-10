@@ -6,35 +6,36 @@ const roadmapItems = [
         date: "October–November 2025",
         title: "MVP Launch",
         details: [
-            "Submission + public wall + verification",
-            "First badges and certificates"
+            "User & Organization Management",
+            "Action Submission Wizard",
+            "Public Impact Wall & Profiles"
         ]
     },
     {
         date: "December 2025 – March 2026",
-        title: "Personalization & Reporting",
+        title: "Core Intelligence & Reporting",
         details: [
-            "Personal dashboards per tag",
-            "PDF impact reports",
-            "Mobile-first optimization"
+            "LEAP Wizard for SMEs (beta)",
+            "AI-Assisted Validator Panel",
+            "Personal dashboards & PDF reports",
         ]
     },
     {
         date: "Mid-2026",
         title: "Ecosystem Integration",
         details: [
-            "Gitcoin & ReFi integrations",
-            "NFT minting for verified intents",
-            "DAO partnerships and on-chain funding support"
+            "Gitcoin & ReFi integrations (e.g., Celo)",
+            "Optional on-chain certificates (Hypercerts)",
+            "DAO partnerships and funding experiments"
         ]
     },
     {
         date: "Long-Term",
         title: "Public Infrastructure",
         details: [
-            "Regen Hub as public infrastructure",
-            "Verified Intents as reputational credentials",
-            "Global data for open environmental research"
+            "Decentralized validation & governance",
+            "Community-proposed action types",
+            "Open data for environmental research"
         ]
     }
 ];

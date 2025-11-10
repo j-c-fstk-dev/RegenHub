@@ -23,7 +23,7 @@ const JoinUs = () => {
                         <Link href="/impact">See What Others Are Doing</Link>
                     </Button>
                     <Button asChild size="lg" variant="outline">
-                        <Link href="#">Partner With Us</Link>
+                        <Link href="/contact">Partner With Us</Link>
                     </Button>
                 </div>
             </div>

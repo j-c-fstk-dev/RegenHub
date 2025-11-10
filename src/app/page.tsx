@@ -7,6 +7,7 @@ import Examples from '@/components/landing/examples';
 import Roadmap from '@/components/landing/roadmap';
 import Value from '@/components/landing/value';
 import JoinUs from '@/components/landing/join-us';
+import LeapCta from '@/components/landing/leap-cta';
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
       <Examples />
       <Roadmap />
       <Value />
+      <LeapCta />
       <JoinUs />
     </>
   );
