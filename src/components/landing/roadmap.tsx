@@ -33,6 +33,7 @@ const roadmapItems = [
         date: "Long-Term",
         title: "Public Infrastructure",
         details: [
+            "Regen Passport (Decentralized Identity)",
             "Decentralized validation & governance",
             "Community-proposed action types",
             "Open data for environmental research"
