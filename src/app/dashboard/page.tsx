@@ -59,12 +59,6 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
     const [pohStatus, setPohStatus] = useState<'verified' | 'unverified' | 'unknown'>(userProfile?.pohStatus || 'unknown');
     const [gitcoinScore, setGitcoinScore] = useState<number | null>(userProfile?.gitcoinScore ?? null);
 
-     useEffect(() => {
-        setPohStatus(userProfile?.pohStatus || 'unknown');
-        setGitcoinScore(userProfile?.gitcoinScore ?? null);
-    }, [userProfile]);
-
-
     const savedAddress = userProfile?.walletAddress;
 
     const connectWallet = async () => {
@@ -94,6 +88,7 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
             toast({ title: 'Success', description: 'Wallet address updated successfully.' });
             setPohStatus('unknown');
             setGitcoinScore(null);
+            setConnectedAddress(null); // Clear connected address after saving
         } catch (e: any) {
             const permissionError = new FirestorePermissionError({
                 path: `users/${userId}`,
@@ -246,8 +241,8 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
 
 
                 <div className="flex flex-col gap-2 pt-4 border-t">
-                    <Button onClick={connectWallet} disabled={!!connectedAddress}>
-                        {connectedAddress || savedAddress ? 'Connect Different Wallet' : 'Connect Wallet'}
+                    <Button onClick={connectWallet}>
+                        {savedAddress ? 'Connect Different Wallet' : 'Connect Wallet'}
                     </Button>
 
                     {isAddressUnsaved && (
@@ -365,9 +360,9 @@ const DashboardPage = () => {
                           <div>
                             <span className="font-semibold">Assessment from {assessment.createdAt.toDate().toLocaleDateString()}</span>
                             <div className="text-xs text-muted-foreground">
-                                <p>
+                                <span>
                                     Status: <Badge variant="outline">{leapStageLabels[assessment.stage] || 'In Progress'}</Badge>
-                                </p>
+                                </span>
                             </div>
                           </div>
                            <Button asChild variant="ghost" size="icon">
