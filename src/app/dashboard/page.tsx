@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc, DocumentData, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Loader2, Building, Activity, Edit, ExternalLink, Wallet, BrainCircuit, ChevronRight } from 'lucide-react';
+import { Loader2, Building, Activity, Edit, ExternalLink, Wallet, BrainCircuit, ChevronRight, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
@@ -51,8 +51,17 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
     const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isVerifyingPoh, startPohVerification] = useTransition();
     const { toast } = useToast();
     const firestore = useFirestore();
+
+    // Use a local state for pohStatus to reflect immediate UI changes
+    const [pohStatus, setPohStatus] = useState<'verified' | 'unverified' | 'unknown'>(userProfile?.pohStatus || 'unknown');
+
+     useEffect(() => {
+        setPohStatus(userProfile?.pohStatus || 'unknown');
+    }, [userProfile?.pohStatus]);
+
 
     const savedAddress = userProfile?.walletAddress;
 
@@ -79,8 +88,9 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
         setIsSaving(true);
          try {
             const userRef = doc(firestore, 'users', userId);
-            await updateDoc(userRef, { walletAddress: connectedAddress });
+            await updateDoc(userRef, { walletAddress: connectedAddress, pohStatus: 'unknown' });
             toast({ title: 'Success', description: 'Wallet address updated successfully.' });
+            setPohStatus('unknown'); // Reset PoH status on new wallet
         } catch (e: any) {
             const permissionError = new FirestorePermissionError({
                 path: `users/${userId}`,
@@ -93,6 +103,45 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
         }
     };
 
+    const handleVerifyPoh = () => {
+        if (!savedAddress || !firestore) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Save a wallet address first.' });
+            return;
+        }
+
+        startPohVerification(async () => {
+             try {
+                const res = await fetch('/api/poh/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address: savedAddress })
+                });
+
+                if (!res.ok) {
+                    throw new Error('Verification request failed');
+                }
+
+                const { isHuman } = await res.json();
+                const newStatus = isHuman ? 'verified' : 'unverified';
+
+                const userRef = doc(firestore, 'users', userId);
+                await updateDoc(userRef, { pohStatus: newStatus });
+                setPohStatus(newStatus); // Update local state
+
+                toast({ title: 'Verification Complete', description: `Proof of Humanity status: ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}.` });
+            } catch (e: any) {
+                console.error("Error verifying PoH:", e);
+                const permissionError = new FirestorePermissionError({
+                    path: `users/${userId}`,
+                    operation: 'update',
+                    requestResourceData: { pohStatus: '...' },
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not verify PoH status.' });
+            }
+        });
+    };
+
     const isAddressUnsaved = connectedAddress && (connectedAddress !== savedAddress);
 
     return (
@@ -101,24 +150,45 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
                 <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/> Web3 Wallet</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                {savedAddress && (
-                    <div>
-                        <p className="text-sm font-medium">Saved Address:</p>
-                        <p className="text-xs text-muted-foreground break-all">{savedAddress}</p>
-                    </div>
-                )}
-                {connectedAddress && connectedAddress !== savedAddress && (
-                     <div>
-                        <p className="text-sm font-medium">Connected Address:</p>
-                        <p className="text-xs text-muted-foreground break-all">{connectedAddress}</p>
-                    </div>
-                )}
+                 <div className="space-y-2">
+                    {savedAddress && (
+                        <div>
+                            <p className="text-sm font-medium">Saved Address:</p>
+                            <p className="text-xs text-muted-foreground break-all">{savedAddress}</p>
+                        </div>
+                    )}
+                    {connectedAddress && connectedAddress !== savedAddress && (
+                         <div>
+                            <p className="text-sm font-medium">Connected Address:</p>
+                            <p className="text-xs text-muted-foreground break-all">{connectedAddress}</p>
+                        </div>
+                    )}
+                    {!connectedAddress && !savedAddress && (
+                         <p className="text-sm text-muted-foreground">Connect your wallet to manage your on-chain identity.</p>
+                    )}
+                 </div>
 
-                {!connectedAddress && !savedAddress && (
-                     <p className="text-sm text-muted-foreground">Connect your wallet to manage your on-chain identity.</p>
-                )}
+                <div className="space-y-2">
+                     <h4 className="text-sm font-medium">Verifications</h4>
+                     <div className="flex items-center justify-between rounded-md border p-3">
+                         <div className="flex items-center gap-2">
+                            {pohStatus === 'verified' && <ShieldCheck className="h-5 w-5 text-green-500" />}
+                            {pohStatus === 'unverified' && <AlertTriangle className="h-5 w-5 text-yellow-500" />}
+                             <span className="font-semibold">Proof of Humanity</span>
+                         </div>
+                         {pohStatus === 'unknown' ? (
+                            <Button size="sm" variant="secondary" onClick={handleVerifyPoh} disabled={!savedAddress || isVerifyingPoh}>
+                                {isVerifyingPoh && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Check
+                            </Button>
+                         ) : (
+                             <Badge variant={pohStatus === 'verified' ? 'secondary' : 'outline'}>{pohStatus === 'verified' ? 'Verified' : 'Not Verified'}</Badge>
+                         )}
+                     </div>
+                </div>
 
-                <div className="flex flex-col gap-2">
+
+                <div className="flex flex-col gap-2 pt-4 border-t">
                     <Button onClick={connectWallet} disabled={!!connectedAddress}>
                         {connectedAddress || savedAddress ? 'Connect Different Wallet' : 'Connect Wallet'}
                     </Button>
