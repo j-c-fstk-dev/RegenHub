@@ -11,9 +11,10 @@ import { Loader2, Building, Activity, Edit, ExternalLink, Wallet, BrainCircuit, 
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
-import { BrowserProvider, Eip1193Provider } from 'ethers';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError, errorEmitter } from '@/firebase';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount, useDisconnect } from 'wagmi';
 
 
 // Helper for status styling
@@ -36,20 +37,15 @@ const leapStageSlugs: { [key: string]: string } = {
     L: 'l', E: 'e', A: 'a', P: 'p', done: 'plan',
 }
 
-// Define a type for the Ethereum window object
-interface WindowWithEthereum extends Window {
-    ethereum?: Eip1193Provider;
-}
-
 type LeapAssessment = {
     id: string;
     stage: string;
     createdAt: { toDate: () => Date };
 }
 
-const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: string }) => {
-    const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+const WalletInfo = ({ userProfile, userId }: { userProfile: any, userId: string }) => {
+    const { address, isConnected } = useAccount();
+    const { disconnect } = useDisconnect();
     const [isSaving, setIsSaving] = useState(false);
     const [isVerifyingPoh, startPohVerification] = useTransition();
     const [isVerifyingGitcoin, startGitcoinVerification] = useTransition();
@@ -61,45 +57,32 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
 
     const savedAddress = userProfile?.walletAddress;
 
-    const connectWallet = async () => {
-        const localWindow = window as WindowWithEthereum;
-        if (localWindow.ethereum) {
-            try {
-                const provider = new BrowserProvider(localWindow.ethereum);
-                const signer = await provider.getSigner();
-                const address = await signer.getAddress();
-                setConnectedAddress(address);
-                setError(null);
-            } catch (err) {
-                console.error("Failed to connect wallet:", err);
-                setError("Failed to connect wallet. Please make sure MetaMask is unlocked.");
+    // Effect to auto-save wallet address to Firebase when a new wallet connects via wagmi
+    useEffect(() => {
+        const handleSaveWallet = async () => {
+            if (isConnected && address && address !== savedAddress && userId && firestore) {
+                setIsSaving(true);
+                try {
+                    const userRef = doc(firestore, 'users', userId);
+                    await updateDoc(userRef, { walletAddress: address, pohStatus: 'unknown', gitcoinScore: null });
+                    toast({ title: 'Success', description: 'Wallet address connected and saved.' });
+                    setPohStatus('unknown');
+                    setGitcoinScore(null);
+                } catch (e: any) {
+                    const permissionError = new FirestorePermissionError({
+                        path: `users/${userId}`,
+                        operation: 'update',
+                        requestResourceData: { walletAddress: address },
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                } finally {
+                    setIsSaving(false);
+                }
             }
-        } else {
-            setError("MetaMask is not installed. Please install it to connect your wallet.");
-        }
-    };
-    
-    const handleSaveWallet = async () => {
-        if (!connectedAddress || !userId || !firestore) return;
-        setIsSaving(true);
-         try {
-            const userRef = doc(firestore, 'users', userId);
-            await updateDoc(userRef, { walletAddress: connectedAddress, pohStatus: 'unknown', gitcoinScore: null });
-            toast({ title: 'Success', description: 'Wallet address updated successfully.' });
-            setPohStatus('unknown');
-            setGitcoinScore(null);
-            setConnectedAddress(null); // Clear connected address after saving
-        } catch (e: any) {
-            const permissionError = new FirestorePermissionError({
-                path: `users/${userId}`,
-                operation: 'update',
-                requestResourceData: { walletAddress: connectedAddress },
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        } finally {
-            setIsSaving(false);
-        }
-    };
+        };
+        handleSaveWallet();
+    }, [address, isConnected, savedAddress, userId, firestore, toast]);
+
 
     const handleVerifyPoh = () => {
         if (!savedAddress || !firestore) {
@@ -181,79 +164,45 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
         });
     };
 
-    const isAddressUnsaved = connectedAddress && (connectedAddress !== savedAddress);
-
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/> Web3 Wallet</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                 <div className="space-y-2">
-                    {savedAddress && (
-                        <div>
-                            <p className="text-sm font-medium">Saved Address:</p>
-                            <p className="text-xs text-muted-foreground break-all">{savedAddress}</p>
-                        </div>
-                    )}
-                    {connectedAddress && connectedAddress !== savedAddress && (
-                         <div>
-                            <p className="text-sm font-medium">Connected Address:</p>
-                            <p className="text-xs text-muted-foreground break-all">{connectedAddress}</p>
-                        </div>
-                    )}
-                    {!connectedAddress && !savedAddress && (
-                         <p className="text-sm text-muted-foreground">Connect your wallet to manage your on-chain identity.</p>
-                    )}
-                 </div>
-
-                <div className="space-y-2">
+                <ConnectButton showBalance={false} />
+                
+                <div className="space-y-2 pt-4 border-t">
                      <h4 className="text-sm font-medium">Verifications</h4>
                      <div className="flex items-center justify-between rounded-md border p-3">
-                         <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             {pohStatus === 'verified' && <ShieldCheck className="h-5 w-5 text-green-500" />}
                             {pohStatus === 'unverified' && <AlertTriangle className="h-5 w-5 text-yellow-500" />}
-                             <span className="font-semibold">Proof of Humanity</span>
-                         </div>
-                         {pohStatus === 'unknown' ? (
+                            <span className="font-semibold">Proof of Humanity</span>
+                        </div>
+                        {pohStatus === 'unknown' ? (
                             <Button size="sm" variant="secondary" onClick={handleVerifyPoh} disabled={!savedAddress || isVerifyingPoh}>
                                 {isVerifyingPoh && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Check
                             </Button>
-                         ) : (
+                        ) : (
                              <Badge variant={pohStatus === 'verified' ? 'secondary' : 'outline'}>{pohStatus === 'verified' ? 'Verified' : 'Not Verified'}</Badge>
-                         )}
+                        )}
                      </div>
                      <div className="flex items-center justify-between rounded-md border p-3">
-                         <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <span className="font-semibold">Gitcoin Passport</span>
-                         </div>
-                         {gitcoinScore === null ? (
+                        </div>
+                        {gitcoinScore === null ? (
                             <Button size="sm" variant="secondary" onClick={handleVerifyGitcoin} disabled={!savedAddress || isVerifyingGitcoin}>
                                 {isVerifyingGitcoin && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Check Score
                             </Button>
-                         ) : (
+                        ) : (
                              <Badge variant="secondary">Score: {gitcoinScore.toFixed(2)}</Badge>
-                         )}
+                        )}
                      </div>
                 </div>
-
-
-                <div className="flex flex-col gap-2 pt-4 border-t">
-                    <Button onClick={connectWallet}>
-                        {savedAddress ? 'Connect Different Wallet' : 'Connect Wallet'}
-                    </Button>
-
-                    {isAddressUnsaved && (
-                        <Button onClick={handleSaveWallet} disabled={isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save to Profile
-                        </Button>
-                    )}
-                </div>
-
-                {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
             </CardContent>
         </Card>
     );
@@ -345,7 +294,7 @@ const DashboardPage = () => {
             </CardContent>
           </Card>
           
-           {user && userProfile && <WalletConnector userProfile={userProfile} userId={user.uid} />}
+           {user && userProfile && <WalletInfo userProfile={userProfile} userId={user.uid} />}
 
             <Card>
                 <CardHeader>
@@ -360,9 +309,9 @@ const DashboardPage = () => {
                           <div>
                             <span className="font-semibold">Assessment from {assessment.createdAt.toDate().toLocaleDateString()}</span>
                             <div className="text-xs text-muted-foreground">
-                                <span>
+                                <div>
                                     Status: <Badge variant="outline">{leapStageLabels[assessment.stage] || 'In Progress'}</Badge>
-                                </span>
+                                </div>
                             </div>
                           </div>
                            <Button asChild variant="ghost" size="icon">
