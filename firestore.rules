@@ -32,7 +32,8 @@ service cloud.firestore {
     // Users can be created by anyone signing up.
     // Users can only read and update their own profile. Admins can also update.
     match /users/{userId} {
-      allow read, write: if isSignedIn() && isOwner(userId);
+      allow read: if isSignedIn() && isOwner(userId);
+      allow write: if isSignedIn() && isOwner(userId); // Allows creating and updating own profile
       allow update: if isAdmin();
     }
     
