@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Leaf, HandHeart, Code2, Heart, Users, Globe, Building, GitBranch, ShieldCheck } from "lucide-react";
+import { CheckCircle, Leaf, HandHeart, Code2, Heart, Users, Globe, Building, GitBranch, ShieldCheck, Fingerprint } from "lucide-react";
 import Link from "next/link";
 
 const SectionCard = ({ title, description, children, icon: Icon }: { title: string, description?: string, children: React.ReactNode, icon?: React.ElementType }) => (
@@ -96,6 +96,7 @@ const AboutPage = () => {
         <SectionCard title="Key Features">
              <ul className="space-y-3">
                 <BulletPoint><strong>Submit Impact Wizard:</strong> clean, step-by-step flow with autosave, resume, geolocation, and media evidence.</BulletPoint>
+                <BulletPoint><strong>Regen Passport:</strong> Build your on-chain regenerative identity based on verified, real-world impact.</BulletPoint>
                 <BulletPoint><strong>Action Type Selector:</strong> grouped by domains, with search, tags, and community-proposed types.</BulletPoint>
                 <BulletPoint><strong>AI-assisted validation:</strong> structured pre-check for clarity, consistency, risk flags, and recommended scores.</BulletPoint>
                 <BulletPoint><strong>LEAP Wizard:</strong> simple self-assessment with instant scoring and an AI-generated diagnostic.</BulletPoint>
