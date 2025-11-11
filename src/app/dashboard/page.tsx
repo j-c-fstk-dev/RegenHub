@@ -52,15 +52,17 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isVerifyingPoh, startPohVerification] = useTransition();
+    const [isVerifyingGitcoin, startGitcoinVerification] = useTransition();
     const { toast } = useToast();
     const firestore = useFirestore();
 
-    // Use a local state for pohStatus to reflect immediate UI changes
     const [pohStatus, setPohStatus] = useState<'verified' | 'unverified' | 'unknown'>(userProfile?.pohStatus || 'unknown');
+    const [gitcoinScore, setGitcoinScore] = useState<number | null>(userProfile?.gitcoinScore ?? null);
 
      useEffect(() => {
         setPohStatus(userProfile?.pohStatus || 'unknown');
-    }, [userProfile?.pohStatus]);
+        setGitcoinScore(userProfile?.gitcoinScore ?? null);
+    }, [userProfile]);
 
 
     const savedAddress = userProfile?.walletAddress;
@@ -88,9 +90,10 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
         setIsSaving(true);
          try {
             const userRef = doc(firestore, 'users', userId);
-            await updateDoc(userRef, { walletAddress: connectedAddress, pohStatus: 'unknown' });
+            await updateDoc(userRef, { walletAddress: connectedAddress, pohStatus: 'unknown', gitcoinScore: null });
             toast({ title: 'Success', description: 'Wallet address updated successfully.' });
-            setPohStatus('unknown'); // Reset PoH status on new wallet
+            setPohStatus('unknown');
+            setGitcoinScore(null);
         } catch (e: any) {
             const permissionError = new FirestorePermissionError({
                 path: `users/${userId}`,
@@ -118,7 +121,8 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
                 });
 
                 if (!res.ok) {
-                    throw new Error('Verification request failed');
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || 'Verification request failed');
                 }
 
                 const { isHuman } = await res.json();
@@ -138,6 +142,46 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
                 });
                 errorEmitter.emit('permission-error', permissionError);
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not verify PoH status.' });
+            }
+        });
+    };
+    
+    const handleVerifyGitcoin = () => {
+        if (!savedAddress || !firestore) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Save a wallet address first.' });
+            return;
+        }
+
+        startGitcoinVerification(async () => {
+             try {
+                const res = await fetch('/api/gitcoin-passport/score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address: savedAddress })
+                });
+
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || 'Request to check score failed.');
+                }
+
+                const { score } = await res.json();
+                const numericScore = Number(score) || 0;
+
+                const userRef = doc(firestore, 'users', userId);
+                await updateDoc(userRef, { gitcoinScore: numericScore });
+                setGitcoinScore(numericScore);
+
+                toast({ title: 'Verification Complete', description: `Your Gitcoin Passport Score is ${numericScore.toFixed(2)}.` });
+            } catch (e: any) {
+                console.error("Error verifying Gitcoin Passport:", e);
+                 const permissionError = new FirestorePermissionError({
+                    path: `users/${userId}`,
+                    operation: 'update',
+                    requestResourceData: { gitcoinScore: '...' },
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: 'Error', description: `Could not verify Gitcoin Passport score: ${e.message}` });
             }
         });
     };
@@ -183,6 +227,19 @@ const WalletConnector = ({ userProfile, userId }: { userProfile: any, userId: st
                             </Button>
                          ) : (
                              <Badge variant={pohStatus === 'verified' ? 'secondary' : 'outline'}>{pohStatus === 'verified' ? 'Verified' : 'Not Verified'}</Badge>
+                         )}
+                     </div>
+                     <div className="flex items-center justify-between rounded-md border p-3">
+                         <div className="flex items-center gap-2">
+                            <span className="font-semibold">Gitcoin Passport</span>
+                         </div>
+                         {gitcoinScore === null ? (
+                            <Button size="sm" variant="secondary" onClick={handleVerifyGitcoin} disabled={!savedAddress || isVerifyingGitcoin}>
+                                {isVerifyingGitcoin && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Check Score
+                            </Button>
+                         ) : (
+                             <Badge variant="secondary">Score: {gitcoinScore.toFixed(2)}</Badge>
                          )}
                      </div>
                 </div>
@@ -287,8 +344,8 @@ const DashboardPage = () => {
                 <p className="font-semibold">{user.displayName || 'Anonymous User'}</p>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
               </div>
-               <Button variant="ghost" size="icon" className="ml-auto" disabled>
-                 <Edit className="h-4 w-4"/>
+               <Button asChild variant="ghost" size="icon" className="ml-auto">
+                 <Link href="/work-in-progress"><Edit className="h-4 w-4"/></Link>
               </Button>
             </CardContent>
           </Card>
@@ -308,7 +365,9 @@ const DashboardPage = () => {
                           <div>
                             <span className="font-semibold">Assessment from {assessment.createdAt.toDate().toLocaleDateString()}</span>
                             <div className="text-xs text-muted-foreground">
-                                Status: <Badge variant="outline">{leapStageLabels[assessment.stage] || 'In Progress'}</Badge>
+                                <p>
+                                    Status: <Badge variant="outline">{leapStageLabels[assessment.stage] || 'In Progress'}</Badge>
+                                </p>
                             </div>
                           </div>
                            <Button asChild variant="ghost" size="icon">

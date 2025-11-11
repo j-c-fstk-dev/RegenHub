@@ -152,8 +152,8 @@ const LeapPage = () => {
                  <div className="mt-12 text-center">
                     <h3 className="font-headline text-2xl font-bold text-primary">Ready for the Next Step?</h3>
                     <p className="mt-2 text-muted-foreground">In less than 30 minutes, you can generate your first Nature Intelligence Report.</p>
-                     <Button asChild size="lg" variant="outline" className="mt-6" disabled>
-                        <Link href="#"><FileText className="mr-2 h-4 w-4"/> View Sample Report</Link>
+                     <Button asChild size="lg" variant="outline" className="mt-6">
+                        <Link href="/work-in-progress"><FileText className="mr-2 h-4 w-4"/> View Sample Report</Link>
                     </Button>
                 </div>
             </div>

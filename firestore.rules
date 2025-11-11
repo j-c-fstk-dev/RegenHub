@@ -34,11 +34,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn() && isOwner(userId);
       // Allow creating and updating own profile
-      // Allow updating walletAddress and pohStatus
+      // Allow updating walletAddress, pohStatus, and gitcoinScore
       allow write: if isSignedIn() && isOwner(userId) && (
-          request.resource.data.keys().hasOnly(['name', 'email', 'createdAt', 'twitterHandle', 'role', 'walletAddress', 'pohStatus', 'orgs'])
+          request.resource.data.keys().hasOnly(['name', 'email', 'createdAt', 'twitterHandle', 'role', 'walletAddress', 'pohStatus', 'gitcoinScore', 'orgs'])
       );
-      allow update: if (isSignedIn() && isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['walletAddress', 'pohStatus'])) || isAdmin();
+      allow update: if (isSignedIn() && isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['walletAddress', 'pohStatus', 'gitcoinScore'])) || isAdmin();
     }
     
     // Allow users to manage their own action drafts

@@ -313,7 +313,7 @@ const OrganizationDashboardPage = () => {
                                 <p className="text-sm text-muted-foreground">{project.impactCategory}</p>
                             </CardContent>
                              <CardFooter>
-                                <Button variant="outline" size="sm" className="w-full" disabled>View Details</Button>
+                                <Button asChild variant="outline" size="sm" className="w-full"><Link href="/work-in-progress">View Details</Link></Button>
                             </CardFooter>
                           </Card>
                         ))}

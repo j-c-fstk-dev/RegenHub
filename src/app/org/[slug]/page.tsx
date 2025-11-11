@@ -109,9 +109,8 @@ const OrgProfilePage = ({ params }: { params: { slug: string } }) => {
                     </h1>
                      <p className="mt-2 text-lg text-muted-foreground">{organization.bio}</p>
                 </div>
-                <Button disabled>
-                    <Download className="mr-2 h-4 w-4" />
-                    Export Report (PDF)
+                <Button asChild>
+                    <Link href="/work-in-progress"><Download className="mr-2 h-4 w-4" />Export Report (PDF)</Link>
                 </Button>
             </header>
 

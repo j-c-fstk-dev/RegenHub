@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from 'next/image';
+import Link from "next/link";
 
 const RegenPassportLanding = () => {
     return (
@@ -10,7 +10,9 @@ const RegenPassportLanding = () => {
                 <div className="container mx-auto px-6">
                     <h1 className="text-5xl font-bold mb-4 font-headline">Regen Passport</h1>
                     <p className="text-xl max-w-2xl mx-auto mb-6">The Identity of Regeneration — connecting who you are, what you do for the planet, and how your impact is recognized across the Web3 ecosystem.</p>
-                    <Button className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-full font-semibold transition" size="lg">Join the Beta</Button>
+                    <Button asChild className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-full font-semibold transition" size="lg">
+                        <Link href="/work-in-progress">Join the Beta</Link>
+                    </Button>
                     <p className="text-sm mt-4 opacity-70">⚙️ Currently in development · MVP version</p>
                 </div>
             </section>
@@ -79,7 +81,9 @@ const RegenPassportLanding = () => {
             <section id="cta" className="py-24 bg-gradient-to-b from-emerald-800 to-emerald-600 text-white text-center">
                 <h2 className="text-4xl font-bold mb-4 font-headline">Join the Regen Passport Beta</h2>
                 <p className="text-lg mb-8 max-w-xl mx-auto">Be one of the first to test the Impact Identity Layer and help shape the next phase of regenerative technology.</p>
-                <Button className="bg-white text-emerald-800 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition" size="lg">Request Early Access</Button>
+                <Button asChild className="bg-white text-emerald-800 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition" size="lg">
+                    <Link href="/work-in-progress">Request Early Access</Link>
+                </Button>
                 <p className="text-sm mt-6 opacity-70">💫 Your contribution helps co-create the future of verified impact.</p>
             </section>
         </div>

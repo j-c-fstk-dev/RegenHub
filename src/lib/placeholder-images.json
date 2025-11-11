@@ -41,6 +41,12 @@
       "description": "A person sketching a business and nature diagram on a clear glass board.",
       "imageUrl": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2132&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       "imageHint": "business strategy"
+    },
+    {
+      "id": "work-in-progress",
+      "description": "A skilled craftsperson carefully working on a complex wooden gear mechanism.",
+      "imageUrl": "https://images.unsplash.com/photo-1620714223084-8fcacc6dfd8d?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageHint": "craft mechanism"
     }
   ]
 }
