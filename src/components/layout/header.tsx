@@ -30,6 +30,7 @@ const Header = () => {
 
   const navItems = [
     { name: 'Impact Wall', href: '/impact' },
+    { name: 'Regen Passport', href: '/regen-passport' },
     { name: 'LEAP for SMEs', href: '/leap'},
     { name: 'About', href: '/about' },
     { name: 'Developers', href: '/developers' },
