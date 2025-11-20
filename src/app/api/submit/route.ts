@@ -97,71 +97,85 @@ export async function POST(req: NextRequest) {
     }
     const userId = decodedToken.uid;
 
-    const {
-      intentId,
-      projectId,
-      orgId,
-      description,
-      title,
-      category,
-      location,
-      mediaUrls,
-    } = await req.json();
+    const payload = await req.json();
 
-    if (!title || !description || !orgId || !projectId) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+    // Check if it's a submission from RegenKernel
+    if (payload.origin === 'regenKernel') {
+      // TODO: Add full cryptographic verification here
+      // 1. Recompute canonical string and actionHash
+      // 2. Verify signature using publicKey
+      
+      const actionRef = db.collection('actions').doc(payload.id);
+      await actionRef.set({ ...payload, status: 'submitted', syncedAt: FieldValue.serverTimestamp() });
+      actionRefId = payload.id;
+    } else {
+      // Handle submission from the web wizard
+      const {
+        intentId,
+        projectId,
+        orgId,
+        description,
+        title,
+        category,
+        location,
+        mediaUrls,
+      } = payload;
+
+      if (!title || !description || !orgId || !projectId) {
+        return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+      }
+      
+      const userDoc = await db.collection('users').doc(userId).get();
+      const twitterHandle = userDoc.exists ? userDoc.data()?.twitterHandle : undefined;
+
+      const projectDoc = await db.collection('projects').doc(projectId).get();
+      if (!projectDoc.exists) {
+          return NextResponse.json({ success: false, error: 'Project not found.' }, { status: 404 });
+      }
+      const projectData = projectDoc.data();
+
+      const actionRef = await db.collection('actions').add({
+        intentId: intentId || null,
+        projectId,
+        orgId,
+        title,
+        description,
+        category: category || null,
+        location: location || null,
+        mediaUrls: mediaUrls || [],
+        status: 'submitted',
+        createdBy: userId,
+        createdAt: FieldValue.serverTimestamp(),
+        validatedAt: null,
+        validatorId: null,
+        validationComments: null,
+        validationScore: null,
+        certificateUrl: null,
+      });
+      
+      actionRefId = actionRef.id;
+
+      const aiInput: AIAssistedIntentVerificationInput = {
+        actionId: actionRef.id,
+        project: { 
+          title: projectData?.title || 'Untitled Project', 
+          location: projectData?.location || location || "" 
+        },
+        category: category || "Other",
+        description,
+        evidences: (mediaUrls || []).map((url: string) => ({ type: 'link', url })),
+        submitter: {
+          twitterHandle,
+        },
+        locale: 'pt-BR',
+      };
+
+      // Trigger AI verification without awaiting it. Fire-and-forget.
+      triggerAiVerification(actionRef.id, aiInput);
     }
-    
-    const userDoc = await db.collection('users').doc(userId).get();
-    const twitterHandle = userDoc.exists ? userDoc.data()?.twitterHandle : undefined;
-
-    const projectDoc = await db.collection('projects').doc(projectId).get();
-    if (!projectDoc.exists) {
-        return NextResponse.json({ success: false, error: 'Project not found.' }, { status: 404 });
-    }
-    const projectData = projectDoc.data();
-
-    const actionRef = await db.collection('actions').add({
-      intentId: intentId || null,
-      projectId,
-      orgId,
-      title,
-      description,
-      category: category || null,
-      location: location || null,
-      mediaUrls: mediaUrls || [],
-      status: 'submitted',
-      createdBy: userId,
-      createdAt: FieldValue.serverTimestamp(),
-      validatedAt: null,
-      validatorId: null,
-      validationComments: null,
-      validationScore: null,
-      certificateUrl: null,
-    });
-    
-    actionRefId = actionRef.id;
-
-    const aiInput: AIAssistedIntentVerificationInput = {
-      actionId: actionRef.id,
-      project: { 
-        title: projectData?.title || 'Untitled Project', 
-        location: projectData?.location || location || "" 
-      },
-      category: category || "Other",
-      description,
-      evidences: (mediaUrls || []).map((url: string) => ({ type: 'link', url })),
-      submitter: {
-        twitterHandle,
-      },
-      locale: 'pt-BR',
-    };
-
-    // Trigger AI verification without awaiting it. Fire-and-forget.
-    triggerAiVerification(actionRef.id, aiInput);
 
     // Respond immediately to the user.
-    return NextResponse.json({ success: true, actionId: actionRef.id }, { status: 200 });
+    return NextResponse.json({ success: true, actionId: actionRefId }, { status: 200 });
 
   } catch (error) {
     console.error(`Error creating action (ID: ${actionRefId ?? 'N/A'}):`, error);

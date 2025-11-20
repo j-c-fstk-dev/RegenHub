@@ -8,6 +8,12 @@ service firebase.storage {
       allow read;
     }
 
+    // Allow authenticated users to write to the actions folder for evidence uploads.
+    // The path is scoped by user ID for security.
+    match /actions/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
     // Allow anyone to write to the intents folder, as the form is public.
     // This allows for uploading media during submission.
     match /intents/{intentId}/{allPaths=**} {

@@ -4,15 +4,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { PlusCircle, Database, FileClock, WifiOff, Sprout } from "lucide-react";
+import { PlusCircle, Database, FileClock, WifiOff, Sprout, Loader2, UploadCloud } from "lucide-react";
 import { SeedProtocolWizard } from '@/components/kernel/SeedProtocolWizard';
 import { NewActionWizard } from '@/components/kernel/NewActionWizard';
 import { getAllLocalActions } from '@/lib/localStore';
+import { useUser, useAuth } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 const KernelPage = () => {
+    const { user } = useUser();
+    const auth = useAuth();
+    const { toast } = useToast();
     const [seedCompleted, setSeedCompleted] = useState<boolean | null>(null);
     const [showNewActionWizard, setShowNewActionWizard] = useState(false);
     const [localActions, setLocalActions] = useState<any[]>([]);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const checkSeedStatus = useCallback(async () => {
         try {
@@ -48,6 +54,56 @@ const KernelPage = () => {
         fetchLocalActions(); // Refresh the list
     };
 
+    const handleSync = async () => {
+        if (!user || !auth) {
+            toast({ variant: 'destructive', title: 'Not Logged In', description: 'You must be logged in to sync actions.' });
+            return;
+        }
+        if (localActions.length === 0) {
+            toast({ title: 'Nothing to Sync', description: 'No local actions to upload.' });
+            return;
+        }
+
+        setIsSyncing(true);
+        let successCount = 0;
+
+        try {
+            const token = await user.getIdToken();
+            for (const action of localActions) {
+                try {
+                    const response = await fetch('/api/submit', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(action)
+                    });
+
+                    if (response.ok) {
+                        successCount++;
+                        // Optionally, update action status locally to 'synced'
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `Failed to sync action: ${action.title}`);
+                    }
+                } catch (error: any) {
+                    toast({ variant: 'destructive', title: `Sync Error`, description: error.message });
+                    // Continue to next action
+                }
+            }
+
+            if (successCount > 0) {
+                toast({ title: 'Sync Complete', description: `${successCount} out of ${localActions.length} actions were synced.` });
+            }
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Authentication Error', description: `Could not get authentication token: ${error.message}` });
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+
     if (seedCompleted === null) {
         return <div className="flex h-[60vh] items-center justify-center">Loading Kernel...</div>;
     }
@@ -77,7 +133,7 @@ const KernelPage = () => {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Database/> Locally Saved Actions</CardTitle>
-                    <CardDescription>These actions are saved on your device and ready to be synced.</CardDescription>
+                    <CardDescription>These actions are saved on your device and ready to be synced to the RegenHub cloud.</CardDescription>
                 </CardHeader>
                 <CardContent>
                    {localActions.length > 0 ? (
@@ -105,7 +161,12 @@ const KernelPage = () => {
                    )}
                 </CardContent>
                  <CardFooter>
-                    <Button disabled>
+                    <Button onClick={handleSync} disabled={isSyncing || localActions.length === 0}>
+                        {isSyncing ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                        ) : (
+                            <UploadCloud className="mr-2 h-4 w-4"/>
+                        )}
                         Sync All Actions
                     </Button>
                 </CardFooter>
@@ -115,5 +176,3 @@ const KernelPage = () => {
 };
 
 export default KernelPage;
-
-    
