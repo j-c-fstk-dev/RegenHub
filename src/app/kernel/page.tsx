@@ -1,178 +1,91 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { PlusCircle, Database, FileClock, WifiOff, Sprout, Loader2, UploadCloud } from "lucide-react";
-import { SeedProtocolWizard } from '@/components/kernel/SeedProtocolWizard';
-import { NewActionWizard } from '@/components/kernel/NewActionWizard';
-import { getAllLocalActions } from '@/lib/localStore';
-import { useUser, useAuth } from '@/firebase';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DownloadCloud, Rocket, Sprout } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
-const KernelPage = () => {
-    const { user } = useUser();
-    const auth = useAuth();
-    const { toast } = useToast();
-    const [seedCompleted, setSeedCompleted] = useState<boolean | null>(null);
-    const [showNewActionWizard, setShowNewActionWizard] = useState(false);
-    const [localActions, setLocalActions] = useState<any[]>([]);
-    const [isSyncing, setIsSyncing] = useState(false);
+const KernelLandingPage = () => {
+    const [installPrompt, setInstallPrompt] = useState<any>(null);
 
-    const checkSeedStatus = useCallback(async () => {
-        try {
-            const flag = localStorage.getItem('seedCompleted') === 'true';
-            setSeedCompleted(flag);
-        } catch (e) {
-            setSeedCompleted(false);
-        }
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (event: Event) => {
+            event.preventDefault();
+            setInstallPrompt(event);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
     }, []);
 
-    const fetchLocalActions = useCallback(async () => {
-        if (seedCompleted) {
-            const actions = await getAllLocalActions();
-            setLocalActions(actions);
-        }
-    }, [seedCompleted]);
-    
-    useEffect(() => {
-        checkSeedStatus();
-    }, [checkSeedStatus]);
-
-    useEffect(() => {
-        fetchLocalActions();
-    }, [fetchLocalActions]);
-
-    const handleSeedComplete = () => {
-        setSeedCompleted(true);
-        fetchLocalActions();
-    };
-
-    const handleActionSaved = () => {
-        setShowNewActionWizard(false);
-        fetchLocalActions(); // Refresh the list
-    };
-
-    const handleSync = async () => {
-        if (!user || !auth) {
-            toast({ variant: 'destructive', title: 'Not Logged In', description: 'You must be logged in to sync actions.' });
-            return;
-        }
-        if (localActions.length === 0) {
-            toast({ title: 'Nothing to Sync', description: 'No local actions to upload.' });
-            return;
-        }
-
-        setIsSyncing(true);
-        let successCount = 0;
-
-        try {
-            const token = await user.getIdToken();
-            for (const action of localActions) {
-                try {
-                    const response = await fetch('/api/submit', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify(action)
-                    });
-
-                    if (response.ok) {
-                        successCount++;
-                        // Optionally, update action status locally to 'synced'
-                    } else {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || `Failed to sync action: ${action.title}`);
-                    }
-                } catch (error: any) {
-                    toast({ variant: 'destructive', title: `Sync Error`, description: error.message });
-                    // Continue to next action
-                }
-            }
-
-            if (successCount > 0) {
-                toast({ title: 'Sync Complete', description: `${successCount} out of ${localActions.length} actions were synced.` });
-            }
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Authentication Error', description: `Could not get authentication token: ${error.message}` });
-        } finally {
-            setIsSyncing(false);
+    const handleInstallClick = () => {
+        if (installPrompt) {
+            installPrompt.prompt();
+        } else {
+            // Fallback for browsers that don't support the install prompt
+            alert("Para instalar, use a opção 'Adicionar à Tela de Início' ou 'Instalar App' no menu do seu navegador.");
         }
     };
-
-
-    if (seedCompleted === null) {
-        return <div className="flex h-[60vh] items-center justify-center">Loading Kernel...</div>;
-    }
-
-    if (!seedCompleted) {
-        return <SeedProtocolWizard onComplete={handleSeedComplete} />;
-    }
-    
-    if (showNewActionWizard) {
-        return <NewActionWizard onDone={handleActionSaved} onBack={() => setShowNewActionWizard(false)} />;
-    }
 
     return (
         <div className="container py-12">
-            <header className="mb-8 flex items-center justify-between">
-                <div>
-                    <h1 className="font-headline text-4xl font-bold text-primary flex items-center gap-3"><Sprout/> RegenKernel</h1>
-                    <p className="mt-2 text-lg text-muted-foreground flex items-center gap-2">
-                        <WifiOff className="h-5 w-5" /> Your offline-first hub for regenerative action.
-                    </p>
+            <header className="mb-12 text-center">
+                <div className="inline-block rounded-full bg-primary/10 p-4 mb-4">
+                    <Sprout className="h-10 w-10 text-primary"/>
                 </div>
-                 <Button size="lg" onClick={() => setShowNewActionWizard(true)}>
-                    <PlusCircle className="mr-2 h-5 w-5"/> Register New Action
-                </Button>
+                <h1 className="font-headline text-4xl font-bold text-primary md:text-5xl">
+                    RegenKernel
+                </h1>
+                <p className="mt-4 text-xl text-muted-foreground max-w-3xl mx-auto">
+                    Sua ferramenta soberana para registrar impacto regenerativo, online ou offline.
+                </p>
             </header>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Database/> Locally Saved Actions</CardTitle>
-                    <CardDescription>These actions are saved on your device and ready to be synced to the RegenHub cloud.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                   {localActions.length > 0 ? (
-                       <div className="grid gap-4">
-                           {localActions.map(action => (
-                               <Card key={action.id} className="flex items-center justify-between p-4">
-                                   <div>
-                                       <p className="font-semibold">{action.title}</p>
-                                       <p className="text-sm text-muted-foreground">
-                                           Created on {new Date(action.timestamp).toLocaleDateString()}
-                                       </p>
-                                   </div>
-                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <FileClock className="h-4 w-4"/>
-                                        <span>Ready to Sync</span>
-                                   </div>
-                               </Card>
-                           ))}
-                       </div>
-                   ) : (
-                       <div className="text-center py-12 px-4 border-2 border-dashed rounded-lg">
-                            <p className="text-muted-foreground font-medium">No actions saved locally yet.</p>
-                            <p className="text-sm text-muted-foreground mt-2">Click "Register New Action" to start.</p>
-                       </div>
-                   )}
-                </CardContent>
-                 <CardFooter>
-                    <Button onClick={handleSync} disabled={isSyncing || localActions.length === 0}>
-                        {isSyncing ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
-                        ) : (
-                            <UploadCloud className="mr-2 h-4 w-4"/>
-                        )}
-                        Sync All Actions
-                    </Button>
-                </CardFooter>
-            </Card>
+            <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
+                 <Card className="flex flex-col">
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                           <Rocket className="h-8 w-8 text-primary"/>
+                           <CardTitle className="font-headline text-2xl">Lançar a Aplicação</CardTitle>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                        <CardDescription>
+                            Acesse o dashboard do Kernel para registrar novas ações, ver suas atividades salvas localmente e sincronizar com o RegenHub quando estiver online.
+                        </CardDescription>
+                    </CardContent>
+                    <CardFooter>
+                         <Button asChild size="lg" className="w-full">
+                            <Link href="/kernel/app">Acessar o Kernel</Link>
+                        </Button>
+                    </CardFooter>
+                </Card>
+                 <Card className="flex flex-col">
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                           <DownloadCloud className="h-8 w-8 text-primary"/>
+                           <CardTitle className="font-headline text-2xl">Instalar o PWA</CardTitle>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                         <CardDescription>
+                           Instale o RegenKernel no seu celular ou computador para acesso rápido e uma experiência de aplicativo nativa, mesmo sem internet.
+                        </CardDescription>
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={handleInstallClick} size="lg" variant="secondary" className="w-full" disabled={!installPrompt}>
+                            Instalar no Dispositivo
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
         </div>
     );
 };
 
-export default KernelPage;
+export default KernelLandingPage;
