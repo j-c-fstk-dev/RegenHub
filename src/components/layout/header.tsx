@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Sprout, LogOut, User as UserIcon } from 'lucide-react';
+import { Sprout, LogOut, User as UserIcon, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
@@ -32,6 +32,7 @@ const Header = () => {
     { name: 'Impact Wall', href: '/impact' },
     { name: 'Regen Passport', href: '/regen-passport' },
     { name: 'LEAP for SMEs', href: '/leap'},
+    { name: 'Kernel', href: '/kernel' },
     { name: 'About', href: '/about' },
     { name: 'Developers', href: '/developers' },
     { name: 'Contact', href: '/contact' },
