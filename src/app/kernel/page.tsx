@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { DownloadCloud, Rocket, Sprout } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -56,7 +56,7 @@ const KernelLandingPage = () => {
                     </CardHeader>
                     <CardContent className="flex-grow">
                         <CardDescription>
-                            Acesse o dashboard do Kernel para registrar novas ações, ver suas atividades salvas localmente e sincronizar com o RegenHub quando estiver online.
+                            Acesse o dashboard do Kernel para registrar novas ações, ver suas atividades salvas localmente e sincronizar com o RegenImpactHub quando estiver online.
                         </CardDescription>
                     </CardContent>
                     <CardFooter>
@@ -89,3 +89,4 @@ const KernelLandingPage = () => {
 };
 
 export default KernelLandingPage;
+
