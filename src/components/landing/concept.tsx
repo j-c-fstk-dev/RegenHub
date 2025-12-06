@@ -25,7 +25,7 @@ const Concept = () => {
             A verified action is a declaration of real-world work, validated by our hybrid AI + human review process. It’s not just a claim — it’s a credible piece of impact data.
           </p>
           <p className="text-lg text-muted-foreground">
-            In Regen Impact, every submitted action is linked to:
+            In RegenImpactHub, every submitted action is linked to:
           </p>
           <ul className="space-y-3">
             {conceptLinks.map((item) => (

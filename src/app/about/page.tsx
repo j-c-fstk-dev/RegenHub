@@ -32,19 +32,19 @@ const AboutPage = () => {
       <div className="mx-auto max-w-4xl space-y-12">
         <header className="mb-8 text-center">
           <h1 className="font-headline text-4xl font-bold text-primary md:text-5xl">
-            About RegenHub
+            About RegenImpactHub
           </h1>
         </header>
 
         <SectionCard title="Our Mission">
             <p className="text-lg">
-                RegenHub exists to make regenerative work visible, verifiable, and fundable. We help people and organizations transform everyday positive actions—planting, teaching, coding, caring—into credible, public proof of impact.
+                RegenImpactHub exists to make regenerative work visible, verifiable, and fundable. We help people and organizations transform everyday positive actions—planting, teaching, coding, caring—into credible, public proof of impact.
             </p>
         </SectionCard>
 
-        <SectionCard title="What is RegenHub?">
+        <SectionCard title="What is RegenImpactHub?">
             <p>
-                RegenHub is an open-source platform that records, validates, and showcases regenerative actions at any scale. It gives grassroots groups, SMEs, DAOs, and communities a way to:
+                RegenImpactHub is an open-source platform that records, validates, and showcases regenerative actions at any scale. It gives grassroots groups, SMEs, DAOs, and communities a way to:
             </p>
             <ul className="space-y-3">
                 <BulletPoint>register actions with clear evidence,</BulletPoint>
@@ -63,7 +63,7 @@ const AboutPage = () => {
             </div>
         </SectionCard>
         
-        <SectionCard title="How RegenHub works (in three steps)">
+        <SectionCard title="How RegenImpactHub works (in three steps)">
              <ol className="space-y-4">
                 <li><strong>1. Register</strong> — Use our Submit Impact Wizard to log a new action. Describe what happened, where, when, who participated, and attach evidence (photos, links, files).</li>
                 <li><strong>2. Validate</strong> — An AI “pre-check” organizes and scores the submission for clarity and likely impact; a human reviewer can then approve and publish it.</li>
@@ -79,11 +79,11 @@ const AboutPage = () => {
                 <li><strong>Assess:</strong> maturity across five dimensions (awareness, actions, monitoring, partnerships, communication).</li>
                 <li><strong>Prepare:</strong> a short action plan (priorities, timeframe, responsible).</li>
             </ul>
-            <p>At the end, RegenHub generates a concise LEAP Regenerative Diagnostic Report with scores, an AI narrative summary, and practical recommendations. You can export as PDF or publish a public link.</p>
+            <p>At the end, RegenImpactHub generates a concise LEAP Regenerative Diagnostic Report with scores, an AI narrative summary, and practical recommendations. You can export as PDF or publish a public link.</p>
         </SectionCard>
 
         <SectionCard title="What counts as “impact”">
-            <p>Regeneration is broader than carbon. RegenHub recognizes four primary domains:</p>
+            <p>Regeneration is broader than carbon. RegenImpactHub recognizes four primary domains:</p>
             <div className="grid md:grid-cols-2 gap-x-8 gap-y-4">
                 <div><strong className="flex items-center gap-2"><Leaf className="text-primary"/> Ecological:</strong> cultivation, reforestation, soil health, water systems, waste reduction, biodiversity.</div>
                 <div><strong className="flex items-center gap-2"><HandHeart className="text-primary"/> Social:</strong> education, mutual aid, community events, solidarity, listening and care.</div>
@@ -136,7 +136,7 @@ const AboutPage = () => {
         </SectionCard>
 
         <div className="text-center">
-            <h2 className="font-headline text-3xl font-bold text-primary">RegenHub is for the doers.</h2>
+            <h2 className="font-headline text-3xl font-bold text-primary">RegenImpactHub is for the doers.</h2>
             <p className="mt-2 text-lg text-muted-foreground">The gardeners, coders, teachers, healers, organizers—who move us from extraction to regeneration. If that’s you: welcome in.</p>
              <Button asChild size="lg" className="mt-6">
               <Link href="/register">Submit Your Action</Link>

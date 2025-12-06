@@ -15,7 +15,7 @@ const { chains, publicClient } = configureChains(
 
 // Setup popular wallets with RainbowKit
 const { connectors } = getDefaultWallets({
-  appName: 'Regen Hub',
+  appName: 'RegenImpactHub',
   projectId: 'YOUR_WALLETCONNECT_PROJECT_ID', // IMPORTANT: Replace with your actual project ID from https://cloud.walletconnect.com
   chains,
 });

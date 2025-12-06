@@ -1,8 +1,8 @@
-# Regen Impact
+# RegenImpactHub
 
 > Where Regenerative Action Becomes Verifiable Impact.
 
-Regen Impact is an open-source platform designed to make local regenerative efforts visible, verifiable, and valuable. It addresses the challenge that countless positive environmental and social actions go unseen and unrecorded by providing tools to track, validate, and showcase this crucial work.
+RegenImpactHub is an open-source platform designed to make local regenerative efforts visible, verifiable, and valuable. It addresses the challenge that countless positive environmental and social actions go unseen and unrecorded by providing tools to track, validate, and showcase this crucial work.
 
 Our mission is to build a global, public registry of grassroots regenerative action, shifting the narrative from extractive to restorative and empowering individuals and communities to demonstrate their positive impact.
 
@@ -14,7 +14,7 @@ Our mission is to build a global, public registry of grassroots regenerative act
 
 ## The Solution
 
-Regen Impact provides a simple yet powerful framework to turn actions into trusted impact data.
+RegenImpactHub provides a simple yet powerful framework to turn actions into trusted impact data.
 
 - A **public, verifiable registry** of regenerative actions.
 - A **hybrid validation system** combining AI pre-checks with human oversight to build trust.
@@ -60,7 +60,7 @@ The application exposes several serverless API routes for handling core function
 
 ## Roadmap
 
-This is just the beginning. Our vision is to evolve Regen Impact into a core piece of public infrastructure for the regenerative movement.
+This is just the beginning. Our vision is to evolve RegenImpactHub into a core piece of public infrastructure for the regenerative movement.
 
 #### 🗓️ MVP Launch (October–November 2025)
 - [x] User Authentication & Organization Management
@@ -80,7 +80,7 @@ This is just the beginning. Our vision is to evolve Regen Impact into a core pie
 - Partnerships with DAOs and ReFi projects to link impact to funding.
 
 #### 🗓️ Long-Term: Public Infrastructure
-- Evolve Regen Impact into a decentralized public good.
+- Evolve RegenImpactHub into a decentralized public good.
 - Establish verified actions as a form of reputational credential.
 - Open up the aggregated, anonymized data for global environmental research.
 

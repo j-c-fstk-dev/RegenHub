@@ -7,8 +7,8 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { WalletProvider } from '@/firebase/wallet-provider';
 
 export const metadata: Metadata = {
-  title: 'Regen Impact | Where Regenerative Action Becomes Verifiable Impact',
-  description: 'Regen Impact is an open hub for tracking, validating, and celebrating real-world environmental intentions — by anyone, anywhere.',
+  title: 'RegenImpactHub | Where Regenerative Action Becomes Verifiable Impact',
+  description: 'RegenImpactHub is an open hub for tracking, validating, and celebrating real-world environmental intentions — by anyone, anywhere.',
 };
 
 export default function RootLayout({

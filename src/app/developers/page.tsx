@@ -21,7 +21,7 @@ const DevelopersPage = () => {
           Developer API
         </h1>
         <p className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto">
-          Integrate your applications with the Regen Impact ecosystem. Our open API allows you to submit actions and retrieve verified impact data.
+          Integrate your applications with the RegenImpactHub ecosystem. Our open API allows you to submit actions and retrieve verified impact data.
         </p>
       </header>
 
@@ -99,7 +99,7 @@ const DevelopersPage = () => {
 
             <h3 className="font-semibold text-lg mt-4">Example Usage (cURL)</h3>
             <CodeBlock>
-{`curl -X POST https://your-regenimpact-url.com/api/submit \\
+{`curl -X POST https://your-regenimpacthub-url.com/api/submit \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer <YOUR_FIREBASE_ID_TOKEN>" \\
   -d '{
@@ -142,7 +142,7 @@ const DevelopersPage = () => {
 
              <h3 className="font-semibold text-lg mt-4">Example Usage (JavaScript Fetch)</h3>
             <CodeBlock>
-{`fetch('https://your-regenimpact-url.com/api/org/regensampa-coletivo')
+{`fetch('https://your-regenimpacthub-url.com/api/org/regensampa-coletivo')
   .then(response => response.json())
   .then(data => {
     console.log('Organization:', data.organization);

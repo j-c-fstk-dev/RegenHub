@@ -133,7 +133,7 @@ const KernelAppPage = () => {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Database/> Locally Saved Actions</CardTitle>
-                    <CardDescription>These actions are saved on your device and ready to be synced to the RegenHub cloud.</CardDescription>
+                    <CardDescription>These actions are saved on your device and ready to be synced to the RegenImpactHub cloud.</CardDescription>
                 </CardHeader>
                 <CardContent>
                    {localActions.length > 0 ? (

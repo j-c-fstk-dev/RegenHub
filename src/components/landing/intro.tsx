@@ -27,7 +27,7 @@ const Intro = () => {
             Making Local Impact Visible
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Regen Impact addresses a profound challenge: countless positive environmental actions go unseen and unrecorded. We provide the tools to change that, turning isolated efforts into a visible, collective force for global regeneration.
+            RegenImpactHub addresses a profound challenge: countless positive environmental actions go unseen and unrecorded. We provide the tools to change that, turning isolated efforts into a visible, collective force for global regeneration.
           </p>
         </div>
 

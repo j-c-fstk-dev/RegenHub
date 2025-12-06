@@ -41,7 +41,7 @@ const RegenPassportLanding = () => {
                         </div>
                         <div className="bg-emerald-50 rounded-2xl p-6 flex flex-col justify-center">
                             <h3 className="text-2xl font-semibold mb-3">🪙 Proof of Regeneration</h3>
-                            <p>Combines human verification (BrightID, PoH) + impact validation (RegenHub AI + DAO). Your RegenScore becomes your digital proof of contribution.</p>
+                            <p>Combines human verification (BrightID, PoH) + impact validation (RegenImpactHub AI + DAO). Your RegenScore becomes your digital proof of contribution.</p>
                             <div className="mt-6">
                                 <Image src="https://picsum.photos/seed/regen-diagram/800/600" alt="Regen Passport diagram" width={800} height={600} className="rounded-xl shadow-md" data-ai-hint="network diagram" />
                             </div>
@@ -61,7 +61,7 @@ const RegenPassportLanding = () => {
                         <div><h4 className="text-xl font-semibold">Gitcoin Passport</h4><p>Decentralized reputation layer.</p></div>
                         <div><h4 className="text-xl font-semibold">Ceramic Network</h4><p>Decentralized data streams for your credentials.</p></div>
                         <div><h4 className="text-xl font-semibold">IDriss</h4><p>Cross-chain reputation and social verification.</p></div>
-                        <div><h4 className="text-xl font-semibold">RegenHub</h4><p>The impact verification engine connecting them all.</p></div>
+                        <div><h4 className="text-xl font-semibold">RegenImpactHub</h4><p>The impact verification engine connecting them all.</p></div>
                     </div>
                 </div>
             </section>

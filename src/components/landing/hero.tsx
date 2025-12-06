@@ -25,7 +25,7 @@ const Hero = () => {
             Where Regenerative Action Becomes Verifiable Impact.
           </h1>
           <p className="text-lg text-primary-foreground/90 drop-shadow-sm md:text-xl">
-            Regen Impact helps grassroots organizations track, validate, and showcase their real-world environmental actions.
+            RegenImpactHub helps grassroots organizations track, validate, and showcase their real-world environmental actions.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">

@@ -51,7 +51,7 @@ const runPrecheck = (input: AIAssistedIntentVerificationInput) => {
 };
 
 
-const SYSTEM_PROMPT = `You are the Regenerative Impact Validation Assistant working inside the Regen Hub platform.
+const SYSTEM_PROMPT = `You are the Regenerative Impact Validation Assistant working inside the RegenImpactHub platform.
 Your tasks:
 1) Adjust the four subscores in a conservative range (±2 points) based on the evidence and description. If the submitter has a verified X/Twitter handle, consider this a positive trust signal and slightly increase clarity and evidenceQuality scores (+0.5).
 2) Produce a short, neutral summary (<= 80 words).
